@@ -23,6 +23,10 @@ from mathutils import Quaternion, Vector
 OUT = os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else os.getcwd()
 NAME = "GigaChad"
 MAX_TRIS_PER_MESH = 9000  # Roblox admite hasta 20 000 triángulos por MeshPart
+# Con umbral 0.05 y rigidez 2, la superficie visible de un metaball queda a ~0.84·radio:
+# K compensa para que los tamaños del script sean (casi) los tamaños reales en pantalla.
+THRESHOLD = 0.05
+K = 1.18
 
 # ---------------------------------------------------------------- escena vacía
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -46,7 +50,7 @@ def metaball(family, resolution=0.055):
     mb = bpy.data.metaballs.new(family)
     mb.resolution = resolution
     mb.render_resolution = resolution
-    mb.threshold = 0.6
+    mb.threshold = THRESHOLD
     obj = bpy.data.objects.new(family, mb)
     scene.collection.objects.link(obj)
     return mb, obj
@@ -56,7 +60,7 @@ def ball(mb, co, r, stiff=2.0):
     el = mb.elements.new()
     el.type = "BALL"
     el.co = co
-    el.radius = r
+    el.radius = r * K
     el.stiffness = stiff
     return el
 
@@ -65,7 +69,7 @@ def ellipsoid(mb, co, size, r=1.0, stiff=2.0, rot=None):
     el = mb.elements.new()
     el.type = "ELLIPSOID"
     el.co = co
-    el.radius = r
+    el.radius = r * K
     el.size_x, el.size_y, el.size_z = size
     el.stiffness = stiff
     if rot is not None:
@@ -77,7 +81,7 @@ def capsule(mb, co, half_len, r, stiff=2.0, rot=VERTICAL):
     el = mb.elements.new()
     el.type = "CAPSULE"
     el.co = co
-    el.radius = r
+    el.radius = r * K
     el.size_x = half_len
     el.stiffness = stiff
     el.rotation = rot
