@@ -29,7 +29,7 @@ MemeCatalog.List = {
 	{ Id = "NoobFeliz", Name = "Noob Feliz", Rarity = "COMMON", Emoji = "🙂", Value = 100, InShop = true,
 		Description = "Cara feliz, cero miedo. El original de siempre.",
 		Ability = { Type = "Jump", Power = 1.4, Duration = 5, Cooldown = 12 } },
-	{ Id = "Sospechoso", Name = "El Sospechoso", Rarity = "COMMON", Emoji = "🫘", Value = 150, InShop = true,
+	{ Id = "Sospechoso", Name = "El Sospechoso", Rarity = "COMMON", Emoji = "📮", Value = 150, InShop = true,
 		Description = "Un frijol astronauta que se ve MUY sus.",
 		Ability = { Type = "Speed", Power = 1.35, Duration = 5, Cooldown = 12 } },
 	{ Id = "PerroBonk", Name = "Perro Bonk", Rarity = "COMMON", Emoji = "🐕", Value = 150, InShop = true,
@@ -59,7 +59,7 @@ MemeCatalog.List = {
 		Description = "🗿 No dice nada. No lo necesita.",
 		Ability = { Type = "Shield", Power = 1, Duration = 6, Cooldown = 18 } },
 	-- EPIC
-	{ Id = "OgroPantano", Name = "Ogro del Pantano", Rarity = "EPIC", Emoji = "🧅", Value = 3000, InShop = true,
+	{ Id = "OgroPantano", Name = "Ogro del Pantano", Rarity = "EPIC", Emoji = "👹", Value = 3000, InShop = true,
 		Description = "Los ogros son como las cebollas: tienen capas.",
 		Ability = { Type = "Jump", Power = 1.9, Duration = 6, Cooldown = 14 } },
 	{ Id = "RanaTriste", Name = "Rana Triste", Rarity = "EPIC", Emoji = "🐸", Value = 3500, InShop = true,

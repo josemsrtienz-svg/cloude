@@ -55,7 +55,7 @@ function HUD.Init(app)
 	end)
 	UI.label({ Name = "PlayerName", Text = player.DisplayName, Size = UDim2.fromOffset(190, 24), Position = UDim2.fromOffset(76, 6),
 		TextXAlignment = Enum.TextXAlignment.Left, Parent = card }, { MaxSize = 22 })
-	local levelPill = UI.new("Frame", { Name = "LevelPill", Size = UDim2.fromOffset(78, 20), Position = UDim2.fromOffset(76, 31),
+	local levelPill = UI.new("Frame", { Name = "LevelPill", Size = UDim2.fromOffset(86, 20), Position = UDim2.fromOffset(76, 31),
 		BackgroundColor3 = T.Primary, Parent = card })
 	UI.corner(levelPill, 10)
 	UI.stroke(levelPill, 2)
@@ -67,7 +67,7 @@ function HUD.Init(app)
 	UI.stroke(xpBar, 2)
 	local xpFill = UI.new("Frame", { Name = "Fill", Size = UDim2.fromScale(0, 1), BackgroundColor3 = T.Accent, Parent = xpBar })
 	UI.corner(xpFill, 7)
-	local xpText = UI.label({ Name = "XPText", Text = "XP 0/100", Size = UDim2.fromOffset(100, 20), Position = UDim2.fromOffset(160, 31),
+	local xpText = UI.label({ Name = "XPText", Text = "XP 0/100", Size = UDim2.fromOffset(100, 20), Position = UDim2.fromOffset(168, 31),
 		TextColor3 = T.TextDim, Font = T.FontBody, TextXAlignment = Enum.TextXAlignment.Left, Parent = card }, { Stroke = 1.5, MaxSize = 14 })
 
 	-- ================================================= arriba-centro: MemeCoin + JUGAR
@@ -79,7 +79,12 @@ function HUD.Init(app)
 	local coinPill = UI.new("Frame", { Name = "MemeCoin", Size = UDim2.fromOffset(280, 52), BackgroundColor3 = T.Panel, LayoutOrder = 1, Parent = topCenter })
 	UI.corner(coinPill, 26)
 	local coinStroke = UI.stroke(coinPill, 3, T.Coin)
-	UI.label({ Name = "Icon", Text = GameConfig.CurrencyEmoji, Size = UDim2.fromOffset(40, 40), Position = UDim2.fromOffset(8, 6), Parent = coinPill }, { Stroke = false })
+	-- moneda dibujada (no depende de que el emoji exista en la fuente de Roblox)
+	local coin = UI.new("Frame", { Name = "Icon", Size = UDim2.fromOffset(38, 38), Position = UDim2.fromOffset(8, 7), BackgroundColor3 = T.Coin, Parent = coinPill })
+	UI.corner(coin, 19)
+	UI.stroke(coin, 3, T.PrimaryDark)
+	UI.gradient(coin, { Color3.fromRGB(255, 240, 150), T.Coin, T.PrimaryDark }, 90)
+	UI.label({ Text = "M", Size = UDim2.fromScale(0.8, 0.8), Position = UDim2.fromScale(0.1, 0.1), Font = T.FontTitle, TextColor3 = Color3.fromRGB(255, 255, 255), Parent = coin }, { Stroke = 2 })
 	local coinText = UI.label({ Name = "Amount", Text = "0", Size = UDim2.new(1, -150, 0, 36), Position = UDim2.fromOffset(52, 8),
 		Font = T.FontTitle, TextXAlignment = Enum.TextXAlignment.Left, Parent = coinPill }, { Stroke = 2.5, MaxSize = 30 })
 	UI.label({ Name = "CurrencyName", Text = GameConfig.CurrencyName, AnchorPoint = Vector2.new(1, 0), Size = UDim2.fromOffset(96, 24),

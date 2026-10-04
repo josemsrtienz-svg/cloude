@@ -254,7 +254,7 @@ local function buildSpawn(lobby: Instance)
 	local plaque = part(gate, { Name = "Plaque", Size = Vector3.new(16, 4, 1), CFrame = CFrame.new(O + Vector3.new(0, 20.8, gz)),
 		Color = RGB(255, 205, 40), Material = Enum.Material.Neon })
 	sign(plaque, Enum.NormalId.Back, { { "MEME DOJO", 0.9, RGB(30, 25, 45) } }, RGB(255, 205, 40))
-	sign(plaque, Enum.NormalId.Front, { { "BUENA SUERTE 🫡", 0.9, RGB(30, 25, 45) } }, RGB(255, 205, 40))
+	sign(plaque, Enum.NormalId.Front, { { "BUENA SUERTE 💪", 0.9, RGB(30, 25, 45) } }, RGB(255, 205, 40))
 
 	-- muñecos de entrenamiento
 	for i, x in ipairs({ -30, -38, 30, 38 }) do

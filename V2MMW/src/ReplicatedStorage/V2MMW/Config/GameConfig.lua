@@ -13,7 +13,7 @@ GameConfig.Version = "MVP 0.1"
 
 -- ===== Moneda =====
 GameConfig.CurrencyName = "MemeCoin"
-GameConfig.CurrencyEmoji = "🪙"
+GameConfig.CurrencyEmoji = "💰"
 
 -- ===== Equipamiento =====
 GameConfig.MaxEquipped = 3 -- máximo absoluto de memes equipados. Nunca 4.
