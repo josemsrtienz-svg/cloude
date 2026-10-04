@@ -103,11 +103,11 @@ for s in (-1, 1):
 # cadera y abdomen
 ellipsoid(skin, (0, 0, 3.15), (0.85, 0.5, 0.45))
 ellipsoid(skin, (0, 0, 3.6), (0.72, 0.46, 0.55))
-for row, z in enumerate((3.35, 3.7, 4.05)):
+for row, z in enumerate((3.3, 3.62, 3.92)):
     for s in (-1, 1):
-        ball(skin, (s * 0.17, -0.37, z), 0.13, stiff=1.1)  # abdominales
+        ball(skin, (s * 0.16, -0.38 + row * 0.03, z), 0.12, stiff=0.9)  # abdominales
 for s in (-1, 1):
-    ellipsoid(skin, (s * 0.62, -0.2, 3.55), (0.22, 0.3, 0.5), stiff=1.4)  # oblicuos
+    ellipsoid(skin, (s * 0.55, -0.12, 3.55), (0.2, 0.28, 0.45), stiff=0.9)  # oblicuos
 # torso en V
 ellipsoid(skin, (0, 0.08, 4.5), (1.12, 0.55, 0.72))
 for s in (-1, 1):
@@ -129,7 +129,7 @@ for s in (-1, 1):
 ellipsoid(skin, (0, -0.08, 5.85), (0.6, 0.5, 0.34), stiff=2.4)   # mandíbula
 ellipsoid(skin, (0, -0.4, 5.72), (0.34, 0.2, 0.2), stiff=2.2)    # mentón
 for s in (-1, 1):
-    ellipsoid(skin, (s * 0.48, -0.12, 5.85), (0.16, 0.34, 0.24), stiff=2.0)  # ángulo de la mandíbula
+    ellipsoid(skin, (s * 0.44, -0.1, 5.85), (0.12, 0.28, 0.2), stiff=1.3)  # ángulo de la mandíbula
     ball(skin, (s * 0.32, -0.36, 6.2), 0.14, stiff=1.2)                    # pómulos
     ball(skin, (s * 0.53, 0.05, 6.25), 0.12, stiff=1.2)                    # orejas
 ellipsoid(skin, (0, 0.05, 6.4), (0.5, 0.54, 0.56))                # cráneo
