@@ -3,7 +3,7 @@ V2MMW · GigaChad (personaje de prueba) — script para Blender 4.x / 5.x
 
 Versión "galán calamar": figura de colección estilizada. Piel turquesa, cabeza alargada con nariz
 caída y párpados pesados, camiseta marrón ajustada con cinturón negro y hebilla dorada, manos en la
-cintura, piernas cruzadas y una peana con arena, piedras y conchas.
+cintura y piernas cruzadas (sin peana).
 (Inspirado en un meme muy conocido: cambia el diseño antes de publicarlo en Roblox.)
 
 Genera:
@@ -11,7 +11,7 @@ Genera:
   GigaChad_preview.png (3/4) · GigaChad_front.png (frente)
 
 Uso:  blender --background --python gigachad.py   (o Blender → Scripting → Run Script)
-Mide ~8 unidades de alto (peana incluida), con la base en Z = 0, y mira hacia -Y.
+Mide ~7.6 unidades de alto, con los pies en Z = 0, y mira hacia -Y.
 Cada color es una malla aparte para poder colorearla en Roblox.
 """
 
@@ -212,7 +212,7 @@ for o in list(scene.objects):
         bpy.data.objects.remove(o, do_unlink=True)
 
 
-# ---------------------------------------------------------------- cinturón, hebilla y peana (mallas simples)
+# ---------------------------------------------------------------- cinturón y hebilla (mallas simples)
 def cylinder(name, mat, radius, depth, loc, scale=(1, 1, 1), verts=48):
     bpy.ops.mesh.primitive_cylinder_add(vertices=verts, radius=radius, depth=depth, location=loc)
     o = bpy.context.active_object
@@ -245,26 +245,14 @@ meshes.append(cylinder("Belt", belt_mat, 1, 0.2, (0, 0.0, 3.08), scale=(0.66, 0.
 meshes.append(box("Buckle", gold, (0.32, 0.06, 0.24), (0, -0.5, 3.08)))
 meshes.append(box("BuckleHole", belt_mat, (0.18, 0.07, 0.11), (0, -0.505, 3.08)))
 
-base_mat = material("Base", (0.66, 0.75, 0.78), 0.5)
-sand_mat = material("Sand", (0.86, 0.8, 0.66), 0.95)
-rock_mat = material("Rocks", (0.45, 0.42, 0.4), 0.9)
-shell_mat = material("Shells", (0.95, 0.72, 0.68), 0.6)
-meshes.append(cylinder("Base", base_mat, 2.3, 0.36, (0, 0, 0.18), verts=64))
-meshes.append(cylinder("Sand", sand_mat, 2.1, 0.08, (0, 0, 0.39), verts=64))
-for i, (loc, size) in enumerate((
-    ((-1.4, -0.6, 0.47), (0.22, 0.18, 0.12)),
-    ((1.5, 0.3, 0.48), (0.28, 0.2, 0.15)),
-    ((-0.9, 0.9, 0.46), (0.16, 0.14, 0.1)),
-)):
-    meshes.append(pebble(f"Rock{i + 1}", rock_mat, loc, size))
-for i, (loc, size) in enumerate((
-    ((1.1, -1.0, 0.45), (0.16, 0.12, 0.05)),
-    ((-1.6, 0.4, 0.45), (0.12, 0.1, 0.04)),
-)):
-    meshes.append(pebble(f"Shell{i + 1}", shell_mat, loc, size))
-# cartelito clavado en la arena
-meshes.append(box("Sign", material("SignWood", (0.5, 0.36, 0.2), 0.9), (0.5, 0.06, 0.4), (-1.2, -1.2, 0.68),
-                  rot=(math.radians(-15), 0, math.radians(20))))
+# sin peana: se baja todo para que los pies queden apoyados en Z = 0
+for m in meshes:
+    m.location.z -= BASE_TOP
+bpy.ops.object.select_all(action="DESELECT")
+for m in meshes:
+    m.select_set(True)
+bpy.context.view_layer.objects.active = meshes[0]
+bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
 
 total = sum(sum(len(p.vertices) - 2 for p in m.data.polygons) for m in meshes)
 print(f"[GigaChad] mallas: {len(meshes)}  triángulos totales: {total}")
@@ -272,7 +260,7 @@ print(f"[GigaChad] mallas: {len(meshes)}  triángulos totales: {total}")
 # ---------------------------------------------------------------- cámara, luces y render de vista previa
 target = bpy.data.objects.new("Target", None)
 scene.collection.objects.link(target)
-target.location = (0, 0, 3.9)
+target.location = (0, 0, 3.5)
 cam = bpy.data.objects.new("Camera", bpy.data.cameras.new("Camera"))
 cam.data.lens = 50
 scene.collection.objects.link(cam)
