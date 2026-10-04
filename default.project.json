@@ -1,0 +1,23 @@
+{
+  "name": "MemeGame",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "MemeGame": {
+        "$path": "src/ReplicatedStorage/MemeGame"
+      }
+    },
+    "ServerScriptService": {
+      "MemeGameServer": {
+        "$path": "src/ServerScriptService/MemeGameServer"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "MemeGameClient": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/MemeGameClient"
+        }
+      }
+    }
+  }
+}
