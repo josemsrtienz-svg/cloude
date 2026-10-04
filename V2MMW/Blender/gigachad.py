@@ -105,7 +105,7 @@ ellipsoid(skin, (0, 0, 3.15), (0.85, 0.5, 0.45))
 ellipsoid(skin, (0, 0, 3.6), (0.72, 0.46, 0.55))
 for row, z in enumerate((3.35, 3.7, 4.05)):
     for s in (-1, 1):
-        ball(skin, (s * 0.17, -0.42, z), 0.16 - row * 0.005, stiff=1.6)  # abdominales
+        ball(skin, (s * 0.17, -0.37, z), 0.13, stiff=1.1)  # abdominales
 for s in (-1, 1):
     ellipsoid(skin, (s * 0.62, -0.2, 3.55), (0.22, 0.3, 0.5), stiff=1.4)  # oblicuos
 # torso en V
@@ -115,7 +115,7 @@ for s in (-1, 1):
     ellipsoid(skin, (s * 0.85, 0.18, 4.1), (0.35, 0.4, 0.7), stiff=1.5)     # dorsales
 # trapecios y cuello
 ellipsoid(skin, (0, 0.08, 5.22), (0.62, 0.36, 0.32))
-capsule(skin, (0, 0, 5.5), 0.22, 0.34)
+capsule(skin, (0, 0.05, 5.42), 0.18, 0.44)
 # hombros y brazos
 for s in (-1, 1):
     ball(skin, (s * 1.18, 0.02, 4.86), 0.54)                                   # deltoides
@@ -126,37 +126,36 @@ for s in (-1, 1):
     ellipsoid(skin, (s * 1.52, 0.0, 2.55), (0.22, 0.2, 0.28))                   # mano
     ellipsoid(skin, (s * 0.46, -0.12, 0.13), (0.26, 0.46, 0.14))                # pie
 # cabeza: mandíbula cuadrada enorme, pómulos, nariz, cejas
-ellipsoid(skin, (0, -0.06, 5.98), (0.52, 0.44, 0.3), stiff=2.4)   # mandíbula
-ellipsoid(skin, (0, -0.33, 5.86), (0.3, 0.18, 0.17), stiff=2.2)   # mentón
+ellipsoid(skin, (0, -0.08, 5.85), (0.6, 0.5, 0.34), stiff=2.4)   # mandíbula
+ellipsoid(skin, (0, -0.4, 5.72), (0.34, 0.2, 0.2), stiff=2.2)    # mentón
 for s in (-1, 1):
-    ellipsoid(skin, (s * 0.4, -0.12, 5.98), (0.14, 0.3, 0.2), stiff=2.0)  # ángulo de la mandíbula
-    ball(skin, (s * 0.27, -0.3, 6.3), 0.15, stiff=1.6)                   # pómulos
-    ball(skin, (s * 0.44, 0.05, 6.35), 0.12, stiff=1.3)                  # orejas
-ellipsoid(skin, (0, 0.05, 6.45), (0.42, 0.45, 0.48))              # cráneo
-ellipsoid(skin, (0, -0.44, 6.33), (0.08, 0.12, 0.17), stiff=1.8)  # nariz
-ellipsoid(skin, (0, -0.37, 6.56), (0.38, 0.1, 0.08), stiff=1.8)   # arco de las cejas
+    ellipsoid(skin, (s * 0.48, -0.12, 5.85), (0.16, 0.34, 0.24), stiff=2.0)  # ángulo de la mandíbula
+    ball(skin, (s * 0.32, -0.36, 6.2), 0.14, stiff=1.2)                    # pómulos
+    ball(skin, (s * 0.53, 0.05, 6.25), 0.12, stiff=1.2)                    # orejas
+ellipsoid(skin, (0, 0.05, 6.4), (0.5, 0.54, 0.56))                # cráneo
+ellipsoid(skin, (0, -0.55, 6.2), (0.07, 0.1, 0.14), stiff=1.4)    # nariz
+ellipsoid(skin, (0, -0.47, 6.43), (0.44, 0.1, 0.08), stiff=1.6)   # arco de las cejas
 
 # ---------------------------------------------------------------- PELO (peinado hacia atrás)
 hair, hair_obj = metaball("Hair", resolution=0.05)
-ellipsoid(hair, (0, 0.06, 6.82), (0.45, 0.5, 0.24))
-ellipsoid(hair, (0, -0.24, 6.86), (0.38, 0.2, 0.2), rot=Quaternion((1, 0, 0), math.radians(-20)))  # tupé
-ellipsoid(hair, (0, 0.38, 6.55), (0.4, 0.2, 0.32))  # nuca
+ellipsoid(hair, (0, 0.06, 6.85), (0.54, 0.6, 0.26))
+ellipsoid(hair, (0, -0.3, 6.9), (0.46, 0.22, 0.2), rot=Quaternion((1, 0, 0), math.radians(-20)))  # tupé
+ellipsoid(hair, (0, 0.45, 6.5), (0.48, 0.22, 0.36))  # nuca
 for s in (-1, 1):
-    ellipsoid(hair, (s * 0.39, 0.1, 6.6), (0.07, 0.33, 0.22))  # laterales cortos
+    ellipsoid(hair, (s * 0.48, 0.1, 6.55), (0.08, 0.38, 0.24))  # laterales cortos
 for s in (-1, 1):
-    ellipsoid(hair, (s * 0.17, -0.42, 6.6), (0.13, 0.04, 0.03), stiff=2.5, rot=Quaternion((0, 1, 0), math.radians(s * -10)))  # cejas
+    ellipsoid(hair, (s * 0.2, -0.56, 6.47), (0.15, 0.04, 0.035), stiff=2.5, rot=Quaternion((0, 1, 0), math.radians(s * -10)))  # cejas
 
 # ---------------------------------------------------------------- SHORTS
 shorts, shorts_obj = metaball("Shorts")
 ellipsoid(shorts, (0, 0, 2.98), (0.92, 0.58, 0.42))
 for s in (-1, 1):
     capsule(shorts, (s * 0.47, 0, 2.45), 0.32, 0.49)
-ellipsoid(shorts, (0, 0, 3.38), (0.82, 0.52, 0.1), stiff=2.5)  # cintura
 
 # ---------------------------------------------------------------- OJOS (mirada intensa)
 eyes, eyes_obj = metaball("Eyes", resolution=0.02)
 for s in (-1, 1):
-    ellipsoid(eyes, (s * 0.16, -0.405, 6.43), (0.085, 0.03, 0.03), stiff=3)
+    ellipsoid(eyes, (s * 0.19, -0.53, 6.31), (0.1, 0.03, 0.035), stiff=3)
 
 
 # ---------------------------------------------------------------- metaballs → mallas
