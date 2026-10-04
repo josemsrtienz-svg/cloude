@@ -104,8 +104,8 @@ ELBOW = {s: (s * 1.62, 0.22, 3.85) for s in SIDES}
 HAND = {s: (s * 0.74, 0.02, 3.12) for s in SIDES}
 HIP = {s: (s * 0.24, 0.0, 2.78) for s in SIDES}
 # piernas cruzadas: la izquierda pasa por delante de la derecha
-KNEE = {-1: (-0.08, -0.16, 1.68), 1: (0.27, 0.04, 1.66)}
-FOOT = {-1: (0.16, -0.26, BASE_TOP + 0.12), 1: (0.3, 0.1, BASE_TOP + 0.12)}
+KNEE = {-1: (0.02, -0.18, 1.68), 1: (0.24, 0.05, 1.66)}
+FOOT = {-1: (0.42, -0.3, BASE_TOP + 0.12), 1: (0.14, 0.12, BASE_TOP + 0.12)}
 
 # ---------------------------------------------------------------- PIEL
 skin, skin_obj = metaball("Skin")
@@ -117,22 +117,22 @@ for s in SIDES:
     ball(skin, lerp(ELBOW[s], HAND[s], 0.3), 0.3, stiff=1.5)                    # antebrazo
     ellipsoid(skin, HAND[s], (0.18, 0.22, 0.24), stiff=2.2)                     # mano
     # piernas finas y largas
-    limb(skin, HIP[s], KNEE[s], 0.24)
+    limb(skin, HIP[s], KNEE[s], 0.27)
     limb(skin, KNEE[s], FOOT[s], 0.19)
     ball(skin, lerp(KNEE[s], FOOT[s], 0.3), 0.21, stiff=1.4)                    # gemelo
 # cuello con nuez
-limb(skin, (0, 0.05, 5.05), (0, 0.0, 5.75), 0.33)
-ball(skin, (0, -0.26, 5.45), 0.1, stiff=1.2)
+limb(skin, (0, 0.05, 5.0), (0, 0.0, 5.4), 0.4)
+ball(skin, (0, -0.33, 5.25), 0.1, stiff=1.1)
 # cabeza alargada: cráneo alto, mandíbula cuadrada, nariz larga caída
-ellipsoid(skin, (0, 0.08, 7.0), (0.56, 0.56, 0.78))                       # cráneo
-ellipsoid(skin, (0, -0.04, 6.2), (0.5, 0.45, 0.38), stiff=2.3)           # mandíbula
-ellipsoid(skin, (0, -0.33, 5.97), (0.28, 0.18, 0.2), stiff=2.2)          # mentón
+ellipsoid(skin, (0, 0.08, 6.60), (0.56, 0.56, 0.78))                       # cráneo
+ellipsoid(skin, (0, -0.04, 5.80), (0.5, 0.45, 0.38), stiff=2.3)           # mandíbula
+ellipsoid(skin, (0, -0.33, 5.57), (0.28, 0.18, 0.2), stiff=2.2)          # mentón
 for s in SIDES:
-    ball(skin, (s * 0.31, -0.33, 6.5), 0.14, stiff=1.2)                  # pómulos
-    ellipsoid(skin, (s * 0.42, -0.08, 6.15), (0.1, 0.25, 0.22), stiff=1.2)  # ángulo mandíbula
-ellipsoid(skin, (0, -0.42, 6.9), (0.42, 0.1, 0.07), stiff=1.8)            # arco de las cejas
-limb(skin, (0, -0.5, 6.78), (0, -0.66, 6.3), 0.12, stiff=1.8)             # nariz
-ball(skin, (0, -0.66, 6.24), 0.15, stiff=2.0)                             # punta de la nariz
+    ball(skin, (s * 0.28, -0.32, 6.10), 0.12, stiff=0.9)                  # pómulos
+    ellipsoid(skin, (s * 0.42, -0.08, 5.75), (0.1, 0.25, 0.22), stiff=1.2)  # ángulo mandíbula
+ellipsoid(skin, (0, -0.42, 6.50), (0.42, 0.1, 0.07), stiff=1.8)            # arco de las cejas
+limb(skin, (0, -0.5, 6.38), (0, -0.66, 5.90), 0.12, stiff=1.8)             # nariz
+ball(skin, (0, -0.66, 5.84), 0.15, stiff=2.0)                             # punta de la nariz
 
 # ---------------------------------------------------------------- CAMISETA (ajustada, con mangas cortas)
 shirt, shirt_obj = metaball("Shirt")
@@ -140,13 +140,13 @@ ellipsoid(shirt, (0, 0.06, 4.45), (1.02, 0.55, 0.68))                     # pech
 for s in SIDES:
     ellipsoid(shirt, (s * 0.42, -0.2, 4.55), (0.5, 0.38, 0.38), stiff=2.2)  # pectorales
     ellipsoid(shirt, (s * 0.78, 0.15, 4.05), (0.3, 0.36, 0.6), stiff=1.4)   # dorsales
-    ball(shirt, SHOULDER[s], 0.5)                                          # hombros
+    ball(shirt, SHOULDER[s], 0.45)                                         # hombros
     limb(shirt, SHOULDER[s], lerp(SHOULDER[s], ELBOW[s], 0.45), 0.42)      # manga corta
 ellipsoid(shirt, (0, 0.04, 5.12), (0.55, 0.34, 0.25))                     # trapecios
-ellipsoid(shirt, (0, 0, 3.4), (0.6, 0.42, 0.55))                          # abdomen
-for row, z in enumerate((3.32, 3.62, 3.92)):
+ellipsoid(shirt, (0, 0.02, 3.45), (0.54, 0.35, 0.55))                      # abdomen
+for row, z in enumerate((3.4, 3.72)):
     for s in SIDES:
-        ball(shirt, (s * 0.15, -0.39 + row * 0.02, z), 0.11, stiff=0.9)   # abdominales marcados
+        ellipsoid(shirt, (s * 0.14, -0.31, z), (0.12, 0.06, 0.12), stiff=0.7)  # abdominales marcados
 ellipsoid(shirt, (0, 0, 2.86), (0.55, 0.4, 0.3))                          # parte baja (tipo malla)
 
 # ---------------------------------------------------------------- PIES
@@ -161,10 +161,10 @@ lids, lids_obj = metaball("Eyelids", resolution=0.025)
 pupils, pupils_obj = metaball("Pupils", resolution=0.015)
 lips, lips_obj = metaball("Lips", resolution=0.02)
 for s in SIDES:
-    ellipsoid(eyes, (s * 0.2, -0.47, 6.72), (0.13, 0.06, 0.1), stiff=3)
-    ellipsoid(lids, (s * 0.2, -0.5, 6.78), (0.15, 0.06, 0.065), stiff=3)   # cubren la mitad superior
-    ellipsoid(pupils, (s * 0.19, -0.53, 6.69), (0.035, 0.015, 0.035), stiff=3)
-ellipsoid(lips, (0, -0.47, 6.03), (0.17, 0.045, 0.035), stiff=3)
+    ellipsoid(eyes, (s * 0.2, -0.47, 6.32), (0.13, 0.06, 0.1), stiff=3)
+    ellipsoid(lids, (s * 0.2, -0.5, 6.38), (0.15, 0.06, 0.065), stiff=3)   # cubren la mitad superior
+    ellipsoid(pupils, (s * 0.19, -0.53, 6.29), (0.035, 0.015, 0.035), stiff=3)
+ellipsoid(lips, (0, -0.47, 5.63), (0.17, 0.045, 0.035), stiff=3)
 
 
 # ---------------------------------------------------------------- metaballs → mallas
