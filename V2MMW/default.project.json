@@ -1,0 +1,17 @@
+{
+  "name": "V2MMW",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "V2MMW": { "$path": "src/ReplicatedStorage/V2MMW" }
+    },
+    "ServerScriptService": {
+      "V2MMWServer": { "$path": "src/ServerScriptService/V2MMWServer" }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "V2MMWClient": { "$path": "src/StarterPlayer/StarterPlayerScripts/V2MMWClient" }
+      }
+    }
+  }
+}
