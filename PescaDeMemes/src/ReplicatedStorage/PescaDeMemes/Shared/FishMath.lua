@@ -9,8 +9,9 @@
 	  r = peso / capacidad
 	  r <= 1       → aguante 100 % (solo depende de la habilidad)
 	  1 < r <= 5   → aguante = max(0,1 %, (1/r)^4)
-	  r > 5        → el sedal se rompe en la picada
-	Durante la pelea hay 3 tirones; cada uno se supera con aguante^(1/3), con bonus si estás en verde.
+	  r > 5        → ni se puede enganchar (el anzuelo lo atraviesa)
+	En la inmersión: r <= 1 se engancha al tocarlo; r > 1 hay que PELEAR (3 tirones; cada uno se supera
+	con aguante^(1/3), con bonus si estás en verde).
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -31,6 +32,23 @@ function FishMath.Survival(ratio: number): number
 		return 0
 	end
 	return math.max(F.MinSurvival, (1 / ratio) ^ 4)
+end
+
+-- Cómo reacciona un meme al anzuelo según su peso y la capacidad de tu caña:
+-- "ok" (se engancha solo) · "fight" (pelea) · "heavy" (demasiado pesado, no se puede enganchar).
+function FishMath.GrabKind(weight: number, capacity: number): string
+	local ratio = weight / math.max(0.001, capacity)
+	if ratio <= 1 then
+		return "ok"
+	elseif ratio <= F.MaxOverload then
+		return "fight"
+	end
+	return "heavy"
+end
+
+-- Posición horizontal (m) de un meme que nada de lado a lado durante la inmersión (solo visual).
+function FishMath.SwimX(spec: any, t: number): number
+	return spec.X + spec.Amp * math.sin(spec.Freq * t + spec.Phase)
 end
 
 function FishMath.TugChance(survival: number, inGreen: boolean): number

@@ -15,9 +15,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local GameConfig = require(Root.Config.GameConfig)
-local Memes = require(Root.Config.Memes)
 local Rods = require(Root.Config.Rods)
 local Inventory = require(Root.Shared.Inventory)
+local GearModels = require(Root.Shared.GearModels)
 
 local PlayerData = require(script.Parent.PlayerData)
 
@@ -25,33 +25,9 @@ local GearService = {}
 
 local TOOL_NAME = GameConfig.RodToolName
 GearService.ToolName = TOOL_NAME
-local ROD_LENGTH = 6.5
-local ROD_TILT = math.rad(35) -- la caña sale hacia delante y hacia arriba
 local ROD_GRIP = CFrame.new(0, 0, 0)
 
 local packSignature: { [Player]: string } = {}
-
-local function part(props: { [string]: any }): Part
-	local p = Instance.new("Part")
-	p.CanCollide = false
-	p.CanQuery = false
-	p.CanTouch = false
-	p.Massless = true
-	p.CastShadow = false
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
-	for k, v in pairs(props) do
-		(p :: any)[k] = v
-	end
-	return p
-end
-
-local function weld(a: BasePart, b: BasePart)
-	local w = Instance.new("WeldConstraint")
-	w.Part0 = a
-	w.Part1 = b
-	w.Parent = b
-end
 
 -- ===== Caña (Tool) =====
 
@@ -63,34 +39,23 @@ local function buildTool(rod: any, broken: boolean): Tool
 	tool.RequiresHandle = true
 	tool.Grip = ROD_GRIP
 	tool:SetAttribute("RodId", rod.Id)
-
-	local handle = part({ Name = "Handle", Size = Vector3.new(0.35, 0.35, 1.4), Color = Color3.fromRGB(40, 32, 30),
-		Material = Enum.Material.Fabric })
-	handle.Parent = tool
-	-- el eje de la caña: hacia -Z (delante) e inclinada hacia arriba
-	local axis = handle.CFrame * CFrame.Angles(ROD_TILT, 0, 0)
-	local shaft = part({ Name = "Shaft", Size = Vector3.new(0.16, 0.16, ROD_LENGTH), Color = rod.Color,
-		Material = Enum.Material.SmoothPlastic, CFrame = axis * CFrame.new(0, 0, -ROD_LENGTH / 2 - 0.5) })
-	shaft.Parent = tool
-	weld(handle, shaft)
-	local reel = part({ Name = "Reel", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.3, 0.6, 0.6),
-		Color = Color3.fromRGB(200, 200, 210), Material = Enum.Material.Metal, CFrame = handle.CFrame * CFrame.new(0, -0.35, -0.3) })
-	reel.Parent = tool
-	weld(handle, reel)
-	for i = 1, 3 do
-		local guide = part({ Name = "Guide", Size = Vector3.new(0.22, 0.22, 0.1), Color = Color3.fromRGB(220, 220, 220),
-			Material = Enum.Material.Metal, CFrame = axis * CFrame.new(0, 0.12, -0.5 - i * ROD_LENGTH / 4) })
-		guide.Parent = tool
-		weld(handle, guide)
+	-- el mismo modelo que se ve en la tienda; el Handle es la pieza principal
+	local model = GearModels.Rod(rod, broken)
+	local handle = model.PrimaryPart :: BasePart
+	handle.Anchored = false
+	for _, child in ipairs(model:GetChildren()) do
+		child.Parent = tool
 	end
-	if broken then
-		shaft.Color = Color3.fromRGB(90, 70, 60)
-		shaft.Size = Vector3.new(0.16, 0.16, ROD_LENGTH * 0.5)
+	model:Destroy()
+	for _, d in ipairs(tool:GetChildren()) do
+		if d:IsA("BasePart") and d ~= handle then
+			d.Anchored = false
+			local w = Instance.new("WeldConstraint")
+			w.Part0 = handle
+			w.Part1 = d
+			w.Parent = d
+		end
 	end
-	local tip = Instance.new("Attachment")
-	tip.Name = "RodTip"
-	tip.Position = Vector3.new(0, 0, -shaft.Size.Z / 2)
-	tip.Parent = shaft
 	return tool
 end
 
@@ -124,7 +89,7 @@ local function giveRod(player: Player)
 	end
 end
 
--- ===== Mochila-acuario (visual en la espalda) =====
+-- ===== Mochila-acuario (visual en la espalda, con mini memes dentro) =====
 
 local function buildPack(player: Player)
 	local character = player.Character
@@ -139,7 +104,7 @@ local function buildPack(player: Player)
 	for i = 1, math.min(3, #aquarium) do
 		ids[i] = aquarium[i].MemeId
 	end
-	local signature = tier.Tier .. "|" .. table.concat(ids, ",") .. "|" .. #aquarium
+	local signature = tier.Tier .. "|" .. table.concat(ids, ",")
 	local old = character:FindFirstChild("AquariumPack")
 	if old and packSignature[player] == signature then
 		return
@@ -149,48 +114,10 @@ local function buildPack(player: Player)
 	end
 	packSignature[player] = signature
 
-	local pack = Instance.new("Model")
+	local pack = GearModels.Tank(tier, ids)
 	pack.Name = "AquariumPack"
-	local back = torso.CFrame * CFrame.new(0, 0.1, torso.Size.Z / 2 + 0.65)
-	local function add(p: BasePart, offset: CFrame)
-		p.CFrame = back * offset
-		p.Parent = pack
-		weld(torso, p)
-	end
-	add(part({ Name = "Glass", Size = Vector3.new(1.9, 2.2, 1.1), Color = Color3.fromRGB(200, 240, 255),
-		Material = Enum.Material.Glass, Transparency = 0.55 }), CFrame.new())
-	add(part({ Name = "Water", Size = Vector3.new(1.75, 1.6, 0.95), Color = Color3.fromRGB(60, 170, 230),
-		Material = Enum.Material.SmoothPlastic, Transparency = 0.5 }), CFrame.new(0, -0.25, 0))
-	add(part({ Name = "Sand", Size = Vector3.new(1.75, 0.2, 0.95), Color = Color3.fromRGB(235, 215, 160),
-		Material = Enum.Material.Sand }), CFrame.new(0, -0.95, 0))
-	add(part({ Name = "Lid", Size = Vector3.new(2.05, 0.25, 1.25), Color = tier.Color }), CFrame.new(0, 1.2, 0))
-	add(part({ Name = "Bottom", Size = Vector3.new(2.05, 0.25, 1.25), Color = tier.Color }), CFrame.new(0, -1.2, 0))
-	for _, x in ipairs({ -0.97, 0.97 }) do
-		add(part({ Name = "Frame", Size = Vector3.new(0.12, 2.2, 1.2), Color = tier.Color }), CFrame.new(x, 0, 0))
-		add(part({ Name = "Strap", Size = Vector3.new(0.25, 0.15, 1.6), Color = Color3.fromRGB(60, 45, 35),
-			Material = Enum.Material.Fabric }), CFrame.new(x * 0.55, 1.1, -0.8))
-	end
-	add(part({ Name = "Bubble", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.18, Color = Color3.new(1, 1, 1),
-		Material = Enum.Material.Glass, Transparency = 0.3 }), CFrame.new(0.5, 0.4, -0.3))
-
-	local water = pack:FindFirstChild("Water") :: BasePart
-	for i, memeId in ipairs(ids) do
-		local meme = Memes.Get(memeId)
-		if meme then
-			local bb = Instance.new("BillboardGui")
-			bb.Size = UDim2.fromScale(0.9, 0.9)
-			bb.StudsOffsetWorldSpace = Vector3.new(-0.55 + (i - 1) * 0.55, (i % 2) * 0.35 - 0.1, 0)
-			bb.MaxDistance = 60
-			bb.LightInfluence = 0
-			bb.Parent = water
-			local label = Instance.new("TextLabel")
-			label.BackgroundTransparency = 1
-			label.Size = UDim2.fromScale(1, 1)
-			label.TextScaled = true
-			label.Text = meme.Emoji
-			label.Parent = bb
-		end
-	end
+	pack:PivotTo(torso.CFrame * CFrame.new(0, 0.1, torso.Size.Z / 2 + 0.65))
+	GearModels.WeldTo(pack, torso)
 	pack.Parent = character
 end
 

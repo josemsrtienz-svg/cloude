@@ -4,17 +4,17 @@
 PROJECT: Pesca de Memes (nombre provisional)
 STATUS: Prototipo
 CURRENT_PHASE: FASE 2 — PROTOTIPO (P0)
-GAME_VERSION: P0 0.3 (carpeta PescaDeMemes/)
-CORE_LOOP_STATUS: Implementado (pesca + peso/capacidad + tirones + acuario + tienda); falta probar con jugadores
-MAP_STATUS: Mapa "en fila" estilo steal: río central, 4 parcelas por lado con muelle propio, casillas con studs
+GAME_VERSION: P0 0.4 (carpeta PescaDeMemes/) — estado detallado y fases en GAME_STATE.md
+CORE_LOOP_STATUS: Implementado (click → inmersión guiando el anzuelo → peso/capacidad + tirones → mochila → parcela); falta probar con jugadores
+MAP_STATUS: Mapa "en fila" estilo steal: río central ancho (80 studs), 4 parcelas por lado con muelle propio, casillas con studs
 SYSTEMS_STATUS: PlayerData (schema v3), GearService, FishingService, PlotService, EconomyService
-UI_STATUS: HUD, minijuego, tarjeta de captura, mochila, acuario, tienda, bestiario
+UI_STATUS: HUD con iconos 3D, escena submarina + medidor, pelea, resultados, mochila, tienda con pestañas y vista previa, índice
 DATA_STATUS: Schema v1 con session lock y migraciones
-SECURITY_STATUS: Servidor decide capturas/valores; riesgo conocido: resultado de la pelea lo informa el cliente
+SECURITY_STATUS: Servidor genera la inmersión y valida cada enganche (tiempo/profundidad, anzuelos, espacio); riesgo conocido: resultado de la pelea lo informa el cliente
 QA_STATUS: Análisis estático (luau-lsp) y rojo build OK; sin probar en Studio
 DECISIONS: Concepto A elegido (ver GAME_IDEAS.md); mobile-first; servidor con autoridad total sobre capturas y monedas
 OPEN_QUESTIONS: ver sección 15
-NEXT_STEP: Probar el P0 en Roblox Studio con 3–5 personas y ajustar balance
+NEXT_STEP: Probar la v0.4 en Roblox Studio con 3–5 personas, ajustar balance y elegir ideas (GAME_STATE.md)
 ```
 
 ## 1. High concept
@@ -143,6 +143,24 @@ Inspirado en el principio de Steal a Egg ("tu base es tuya y se ve"), con aplica
 - **Ruleta** de posibles memes al lanzar.
 - Perder: el sedal sube rápido. Fallar un TIRÓN con sobrecarga **rompe la caña** (reparación en tienda; Palo irrompible).
 
+## 5d. Cambios v0.4 (referencia: captura de Fish an Egg — "la animación es esto")
+- **Inmersión:** al lanzar, la cámara se mete bajo el agua (escena privada de cada jugador). El anzuelo baja solo
+  y lo **guías** con A/D, ratón o dedo hacia los memes, que flotan con su **rareza y kg** encima
+  (verde = se engancha · naranja ⚔️ = pelea · rojo ⛔ = demasiado pesado). Medidor de profundidad a la derecha.
+- **Cañas = anzuelos + profundidad:** Palo 1 anzuelo/15 m · Fibra 2/25 m · Turbo 3/40 m · Abisal 4/60 m.
+  Más hondo = más suerte (las rarezas altas viven abajo).
+- **Peso vs. capacidad se mantiene:** si pesa más que tu caña → PELEAR o SOLTAR (y seguir bajando).
+  Perder la pelea = el sedal **sube de golpe** (fin de la inmersión, te quedas lo que ya tenías); fallar un tirón
+  **rompe la caña** (salvo la de palo).
+- **Lanzar con click** (mantener = fuerza; zona dorada = PERFECTO, más suerte). Sin botón LANZAR.
+- **Río el doble de ancho** (80 studs) y más largo (360): muelles largos que no chocan entre sí.
+- **GUI sin emojis en los objetos:** figuras 3D (ViewportFrame) de memes y equipo en acuario, parcela, tienda,
+  índice (silueta si no lo has descubierto), resultados y HUD. Mochila con **mini memes de verdad** dentro.
+- **Tienda nueva:** pestañas (Cañas, Mochilas, Objetos, Muelles), cartas con foto 3D y vista previa grande que gira
+  con barras de Capacidad / Profundidad / Anzuelos / Suerte. Pestaña Muelles = teaser de las skins de parcela.
+- **Animaciones:** latigazo del brazo al lanzar, chapuzón con gotas, memes nadando y balanceándose, sedal que sube,
+  memes que saltan del agua a tu mochila, memes de la parcela botando, lluvia de monedas al cobrar, dinero que cuenta.
+
 ## 6. Pescadores Furtivos (el toque social)
 Para tener tensión social **sin** convertirlo en un clon de "steal":
 
@@ -243,6 +261,9 @@ La pregunta que tiene que responder: **¿pescar es divertido 20 veces seguidas?*
 | P2 Beta | Furtivos, balance, móvil, QA | Sin bugs críticos; D1 objetivo ≥ 25 % |
 | P2 Release | Onboarding, icono/thumbnail, monetización | Publicado |
 | P3 Live ops | Zona nueva cada ~3 semanas, eventos de mutación | — |
+
+> **v0.4:** la hoja de ruta detallada, en qué fase estamos, las 10 ideas por decidir, las ideas de la tienda
+> y el plan de skins de muelle están en [`GAME_STATE.md`](GAME_STATE.md).
 
 ## 15. Preguntas abiertas
 1. **Nombre final** (ideas: *Meme Fishing*, *Pesca de Memes*, *Fish a Meme*, *Brainrot Bay*).

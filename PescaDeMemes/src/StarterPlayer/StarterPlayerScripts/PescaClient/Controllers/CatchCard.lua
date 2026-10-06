@@ -2,9 +2,9 @@
 	PescaDeMemes • CatchCard (ModuleScript, cliente)
 	StarterPlayerScripts > PescaClient > Controllers > CatchCard
 
-	Tarjeta que aparece al pescar algo: meme, rareza, peso, tamaño, insignias y valor.
-	La captura entra sola en tu mochila-acuario. Botones: 🐠 OK · 💰 Vender.
-	Si no cabe: 💰 Vender ya · 🌊 Soltar (cada acción la valida el servidor).
+	Tarjeta de resultados al subir de una inmersión: una ficha por meme pescado con su FIGURA 3D,
+	nombre, rareza, kg, tamaño, valor e insignias (¡NUEVO!, DORADO, IMPOSIBLE).
+	Los memes ya están en tu mochila-acuario: cada ficha tiene "💰" para venderlo ya (lo valida el servidor).
 ]]
 
 local Players = game:GetService("Players")
@@ -40,50 +40,26 @@ local function close()
 end
 
 local function badge(parent: Instance, text: string, color: Color3, order: number)
-	local b = UIKit.new("Frame", { LayoutOrder = order, Size = UDim2.fromOffset(130, 30), BackgroundColor3 = color, Parent = parent })
-	UIKit.corner(b, 15)
+	local b = UIKit.new("Frame", { LayoutOrder = order, Size = UDim2.fromOffset(78, 20), BackgroundColor3 = color, Parent = parent })
+	UIKit.corner(b, 10)
 	UIKit.stroke(b, 2)
-	UIKit.label({ Text = text, Size = UDim2.new(1, -10, 1, -4), Position = UDim2.fromOffset(5, 2), Font = T.FontTitle, Parent = b }, { MaxSize = 18 })
+	UIKit.label({ Text = text, Size = UDim2.new(1, -6, 1, -2), Position = UDim2.fromOffset(3, 1), Font = T.FontTitle, Parent = b }, { MaxSize = 13 })
 end
 
--- result = respuesta de FinishFight: { Catch, FirstTime, LevelUp, XP }
-function CatchCard.Show(result: any)
-	close()
-	local catch = result.Catch
+local function tile(parent: Instance, catch: any, isNew: boolean, order: number)
 	local meme = Memes.Get(catch.MemeId)
-	if not meme then
-		return
-	end
-	local rarity = Memes.Rarities[meme.Rarity]
-	local sizeName = FishMath.SizeName(FishMath.Fraction(meme, catch.Weight))
-
-	local card = UIKit.new("Frame", {
-		Name = "CatchCard", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 1.4),
-		Size = UDim2.fromOffset(420, 470), BackgroundColor3 = T.Panel, Parent = gui,
-	})
-	current = card
-	UIKit.corner(card, 22)
-	UIKit.stroke(card, 5, if catch.Golden then T.Coin else rarity.Color)
-	UIKit.responsive(card)
-	UIKit.gradient(card, { T.PanelLight, T.PanelDark }, 90)
-
-	UIKit.label({ Text = "¡PESCADO!", Size = UDim2.new(1, -20, 0, 44), Position = UDim2.fromOffset(10, 10), Font = T.FontTitle,
-		TextColor3 = T.Primary, Parent = card }, { Stroke = 3, MaxSize = 40 })
-
-	local icon = UIKit.memeIcon(meme.Id, { Size = UDim2.fromOffset(130, 130), Position = UDim2.new(0.5, -65, 0, 60), Parent = card })
-	UIKit.stroke(icon, 4, if catch.Golden then T.Coin else T.Stroke)
-	UIKit.pop(icon, 0.3)
-
-	UIKit.label({ Text = (if catch.Golden then "✨ " else "") .. meme.Name, Size = UDim2.new(1, -20, 0, 36), Position = UDim2.fromOffset(10, 196),
-		Font = T.FontTitle, TextColor3 = if catch.Golden then T.Coin else T.Text, Parent = card }, { Stroke = 3, MaxSize = 34 })
-	UIKit.label({ Text = rarity.Name, Size = UDim2.new(1, -20, 0, 24), Position = UDim2.fromOffset(10, 232), Font = T.Font,
-		TextColor3 = rarity.Color, Parent = card }, { Stroke = 2, MaxSize = 22 })
-	UIKit.label({ Text = ("⚖️ %s  ·  Tamaño %s  ·  ocupa %d"):format(FishMath.FormatWeight(catch.Weight), sizeName, catch.Size or 0), Size = UDim2.new(1, -20, 0, 26),
-		Position = UDim2.fromOffset(10, 260), Font = T.Font, Parent = card }, { MaxSize = 22 })
-
-	local badges = UIKit.new("Frame", { Size = UDim2.new(1, -20, 0, 34), Position = UDim2.fromOffset(10, 292), BackgroundTransparency = 1, Parent = card })
-	UIKit.list(badges, Enum.FillDirection.Horizontal, 6, Enum.HorizontalAlignment.Center)
-	if result.FirstTime then
+	local rarity = Memes.GetRarity(catch.MemeId)
+	local sizeName = meme and FishMath.SizeName(FishMath.Fraction(meme, catch.Weight)) or "?"
+	local frame = UIKit.new("Frame", { LayoutOrder = order, BackgroundColor3 = T.PanelLight, Parent = parent })
+	UIKit.corner(frame, 14)
+	UIKit.stroke(frame, 4, if catch.Golden then T.Coin else rarity.Color)
+	local icon = UIKit.memeIcon(catch.MemeId, { Size = UDim2.new(1, -16, 0, 120), Position = UDim2.fromOffset(8, 8), Parent = frame },
+		{ Golden = catch.Golden, Spin = 1 })
+	UIKit.pop(icon, 0.4)
+	local badges = UIKit.new("Frame", { Size = UDim2.new(1, -12, 0, 20), Position = UDim2.fromOffset(6, 12), BackgroundTransparency = 1,
+		ZIndex = 3, Parent = frame })
+	UIKit.list(badges, Enum.FillDirection.Vertical, 4, Enum.HorizontalAlignment.Left)
+	if isNew then
 		badge(badges, "¡NUEVO!", T.Success, 1)
 	end
 	if catch.Golden then
@@ -92,55 +68,91 @@ function CatchCard.Show(result: any)
 	if catch.Impossible then
 		badge(badges, "🏆 IMPOSIBLE", T.Secondary, 3)
 	end
-
-	UIKit.label({ Text = ("Valor: 🪙 %s   ·   +%d XP"):format(Util.formatShort(catch.Value), result.XP or 0), Size = UDim2.new(1, -20, 0, 28),
-		Position = UDim2.fromOffset(10, 332), Font = T.Font, TextColor3 = T.Coin, Parent = card }, { MaxSize = 24 })
-
-	local row = UIKit.new("Frame", { Size = UDim2.new(1, -24, 0, 64), Position = UDim2.new(0, 12, 1, -78), BackgroundTransparency = 1, Parent = card })
-	UIKit.list(row, Enum.FillDirection.Horizontal, 8, Enum.HorizontalAlignment.Center)
-	local function action(text: string, color: Color3, order: number, fn: () -> ())
-		local btn = UIKit.button({ LayoutOrder = order, Size = UDim2.fromOffset(180, 60), Parent = row }, { Color = color, Text = text, TextSize = 22 })
-		btn.Activated:Connect(fn)
-		return btn
+	UIKit.label({ Text = meme and meme.Name or "?", Size = UDim2.new(1, -10, 0, 24), Position = UDim2.fromOffset(5, 132), Font = T.FontTitle,
+		TextColor3 = if catch.Golden then T.Coin else T.Text, Parent = frame }, { Stroke = 2, MaxSize = 20 })
+	UIKit.label({ Text = rarity.Name, Size = UDim2.new(1, -10, 0, 18), Position = UDim2.fromOffset(5, 156), Font = T.Font,
+		TextColor3 = rarity.Color, Parent = frame }, { Stroke = 2, MaxSize = 16 })
+	UIKit.label({ Text = ("⚖️ %s · %s"):format(FishMath.FormatWeight(catch.Weight), sizeName), Size = UDim2.new(1, -10, 0, 18),
+		Position = UDim2.fromOffset(5, 176), Font = T.Font, Parent = frame }, { MaxSize = 16 })
+	if catch.Sold then
+		-- no cabía en la mochila: el servidor ya lo vendió solo
+		UIKit.label({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -10), Size = UDim2.new(1, -16, 0, 30),
+			Text = "VENDIDO (no cabía)", Font = T.FontTitle, TextColor3 = T.Coin, Parent = frame }, { Stroke = 2, MaxSize = 16 })
+		return
 	end
+	local sell = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, -16, 0, 36),
+		Parent = frame }, { Color = T.Primary, Text = "💰 " .. Util.formatShort(catch.Value), TextSize = 20 })
 	local busy = false
-	local function run(remote: string, arg: any)
+	sell.Activated:Connect(function()
 		if busy then
 			return
 		end
 		busy = true
-		local r = State.Call(remote, arg)
+		local r = State.Call("SellCatch", catch.Id)
 		busy = false
 		if r.ok then
-			if r.Earned then
-				HUD.Toast(("💰 +%s MemeCoins"):format(Util.formatShort(r.Earned)), "Success")
-				UIKit.playSound("Coins")
-			end
-			close()
+			HUD.Toast(("💰 +%s MemeCoins"):format(Util.formatShort(r.Earned or catch.Value)), "Success")
+			UIKit.playSound("Coins")
+			sell.Visible = false
+			UIKit.label({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -10), Size = UDim2.new(1, -16, 0, 30),
+				Text = "VENDIDO", Font = T.FontTitle, TextColor3 = T.Success, Parent = frame }, { Stroke = 2, MaxSize = 22 })
 		else
-			HUD.Toast(r.err or "No se pudo", "Error")
+			HUD.Toast(r.err or "No se pudo vender", "Error")
 		end
+	end)
+end
+
+-- summary = respuesta de Surface: { Catches, NewIds, XP, LevelUp }
+function CatchCard.ShowResults(summary: any)
+	close()
+	local catches = summary.Catches or {}
+	if #catches == 0 then
+		return
 	end
-	if result.NoSpace then
-		-- no cabe en la mochila-acuario: venderlo ya o soltarlo
-		UIKit.label({ Text = ("🐠 ¡No cabe en tu acuario! (ocupa %d kg)"):format(catch.Size or 0), Size = UDim2.new(1, -20, 0, 24),
-			Position = UDim2.new(0, 10, 1, -106), Font = T.Font, TextColor3 = T.Danger, Parent = card }, { MaxSize = 20 })
-		action("💰 Vender " .. Util.formatShort(catch.Value), T.Primary, 1, function()
-			run("ResolvePending", "sell")
-		end)
-		action("🌊 Soltar", T.PanelLight, 2, function()
-			run("ResolvePending", "release")
-		end)
-	else
-		action("🐠 ¡Al acuario!", T.Accent, 1, close)
-		action("💰 Vender " .. Util.formatShort(catch.Value), T.Primary, 2, function()
-			run("SellCatch", catch.Id)
-		end)
+	local newSet = {}
+	for _, id in ipairs(summary.NewIds or {}) do
+		newSet[id] = true
 	end
+	local cols = math.min(#catches, 4)
+	local rows = math.ceil(#catches / 4)
+	local width = math.max(420, cols * 170 + 40)
+	local height = 150 + rows * 260
+	local card = UIKit.new("Frame", { Name = "CatchCard", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 1.4),
+		Size = UDim2.fromOffset(width, height), BackgroundColor3 = T.Panel, Parent = gui })
+	current = card
+	UIKit.corner(card, 22)
+	UIKit.stroke(card, 5, T.Primary)
+	UIKit.responsive(card)
+	UIKit.gradient(card, { T.PanelLight, T.PanelDark }, 90)
+
+	UIKit.label({ Text = ("¡%d MEME%s PESCADO%s!"):format(#catches, if #catches == 1 then "" else "S", if #catches == 1 then "" else "S"),
+		Size = UDim2.new(1, -20, 0, 44), Position = UDim2.fromOffset(10, 10), Font = T.FontTitle, TextColor3 = T.Primary, Parent = card },
+		{ Stroke = 3, MaxSize = 40 })
+	local grid = UIKit.new("Frame", { Size = UDim2.new(1, -24, 0, rows * 260), Position = UDim2.fromOffset(12, 60), BackgroundTransparency = 1, Parent = card })
+	UIKit.new("UIGridLayout", { CellSize = UDim2.fromOffset(160, 250), CellPadding = UDim2.fromOffset(10, 10), SortOrder = Enum.SortOrder.LayoutOrder,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center, Parent = grid })
+	-- primero lo más valioso
+	local sorted = table.clone(catches)
+	table.sort(sorted, function(a, b)
+		return a.Value > b.Value
+	end)
+	local total = 0
+	for i, catch in ipairs(sorted) do
+		total += catch.Value
+		-- "¡NUEVO!" solo en la primera ficha de cada meme nuevo
+		tile(grid, catch, newSet[catch.MemeId] == true, i)
+		newSet[catch.MemeId] = nil
+	end
+	UIKit.label({ Text = ("Valor total: 🪙 %s   ·   +%d XP"):format(Util.formatShort(total), summary.XP or 0), AnchorPoint = Vector2.new(0, 1),
+		Size = UDim2.new(1, -230, 0, 30), Position = UDim2.new(0, 16, 1, -24), Font = T.Font, TextColor3 = T.Coin,
+		TextXAlignment = Enum.TextXAlignment.Left, Parent = card }, { MaxSize = 24 })
+	local ok = UIKit.button({ AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -14, 1, -12), Size = UDim2.fromOffset(200, 56),
+		Parent = card }, { Color = T.Accent, Text = "🐠 ¡Al acuario!", TextSize = 24 })
+	ok.Activated:Connect(close)
 
 	UIKit.tween(card, 0.45, { Position = UDim2.fromScale(0.5, 0.5) }, Enum.EasingStyle.Back)
 	UIKit.playSound("Catch")
-	if result.LevelUp and State.Data then
+	if summary.LevelUp and State.Data then
 		HUD.Toast(("⬆️ ¡Has subido al nivel %d!"):format(State.Data.Level), "Success")
 	end
 end

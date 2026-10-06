@@ -3,6 +3,7 @@
 	StarterPlayerScripts > PescaClient > Controllers > Panels
 
 	Paneles modales: 🐠 Acuario (mochila) · 🏠 Parcela · 🛒 Tienda · 📖 Índice.
+	Los memes y el equipo se ven como FIGURAS 3D (UIKit.memeIcon / UIKit.modelIcon), no como emojis.
 	Se abren con los botones del HUD o con el ProximityPrompt de la tienda.
 ]]
 
@@ -17,6 +18,7 @@ local Rods = require(Root.Config.Rods)
 local FishMath = require(Root.Shared.FishMath)
 local Util = require(Root.Shared.Util)
 local Inventory = require(Root.Shared.Inventory)
+local GearModels = require(Root.Shared.GearModels)
 
 local Controllers = script.Parent
 local UIKit = require(Controllers.UIKit)
@@ -74,7 +76,7 @@ local function catchTile(parent: Instance, catch: any, order: number): TextButto
 	local tile = UIKit.new("TextButton", { LayoutOrder = order, Text = "", AutoButtonColor = false, BackgroundColor3 = T.PanelLight, Parent = parent })
 	UIKit.corner(tile, 12)
 	UIKit.stroke(tile, 3, if catch.Golden then T.Coin else rarity.Color)
-	UIKit.memeIcon(catch.MemeId, { Size = UDim2.fromOffset(70, 70), Position = UDim2.new(0.5, -35, 0, 8), Parent = tile })
+	UIKit.memeIcon(catch.MemeId, { Size = UDim2.fromOffset(78, 74), Position = UDim2.new(0.5, -39, 0, 6), Parent = tile }, { Golden = catch.Golden })
 	UIKit.label({ Text = meme and meme.Name or "?", Size = UDim2.new(1, -8, 0, 22), Position = UDim2.fromOffset(4, 82), Font = T.Font,
 		TextColor3 = if catch.Golden then T.Coin else T.Text, Parent = tile }, { MaxSize = 18 })
 	UIKit.label({ Text = FishMath.FormatWeight(catch.Weight) .. (if catch.Impossible then " 🏆" else ""), Size = UDim2.new(1, -8, 0, 18),
@@ -172,93 +174,230 @@ local function renderPlot()
 end
 
 -- ===== Tienda =====
+-- Diseño: pestañas a la izquierda · cartas con FOTO 3D en el centro · vista previa grande que gira a la
+-- derecha con barras de estadísticas y el botón de acción (comprar / equipar / reparar).
 
--- Tarjeta de la tienda: título, línea de datos, descripción y un botón.
-local function shopCard(grid: Instance, order: number, title: string, info: string, desc: string, stroke: Color3,
-	btnText: string, btnColor: Color3, onClick: (() -> ())?)
-	local card = UIKit.new("Frame", { LayoutOrder = order, BackgroundColor3 = T.PanelLight, Parent = grid })
-	UIKit.corner(card, 14)
-	UIKit.stroke(card, 3, stroke)
-	UIKit.label({ Text = title, Size = UDim2.new(1, -12, 0, 28), Position = UDim2.fromOffset(6, 6), Font = T.FontTitle,
-		Parent = card }, { Stroke = 2, MaxSize = 22 })
-	UIKit.label({ Text = info, Size = UDim2.new(1, -12, 0, 22), Position = UDim2.fromOffset(6, 38), Font = T.Font,
-		TextColor3 = T.Coin, Parent = card }, { MaxSize = 18 })
-	UIKit.label({ Text = desc, Size = UDim2.new(1, -12, 0, 40), Position = UDim2.fromOffset(6, 62), Font = T.FontBody,
-		TextColor3 = T.TextDim, Parent = card }, { Stroke = false, MaxSize = 15 })
-	local btn = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, -16, 0, 42), Parent = card },
-		{ Color = btnColor, Text = btnText, TextSize = 22 })
-	if onClick then
-		btn.Activated:Connect(onClick)
+local SHOP_TABS = {
+	{ Id = "Rods", Text = "🎣 Cañas", Color = RGB(255, 170, 40) },
+	{ Id = "Packs", Text = "🐠 Mochilas", Color = RGB(70, 170, 255) },
+	{ Id = "Items", Text = "🧵 Objetos", Color = RGB(255, 90, 150) },
+	{ Id = "Skins", Text = "✨ Muelles", Color = RGB(185, 90, 255) },
+}
+-- Teaser de la próxima actualización: skins de parcela/muelle con suerte y multiplicador
+local SKIN_PREVIEWS = {
+	{ Name = "Muelle Pirata", Desc = "Barco hundido, cofres y banderas. +10 % suerte.", Color = RGB(150, 104, 66) },
+	{ Name = "Muelle Neón", Desc = "Luces de colores de noche. ×1.25 dinero de la parcela.", Color = RGB(70, 230, 255) },
+	{ Name = "Muelle Dorado", Desc = "Todo de oro. +25 % suerte y ×1.5 dinero. Evento.", Color = RGB(255, 200, 50) },
+}
+local shopTab = "Rods"
+local shopSelected: { [string]: number } = { Rods = 1, Packs = 1, Items = 1, Skins = 1 }
+
+type ShopEntry = {
+	Name: string,
+	Model: () -> Model,
+	Color: Color3,
+	Desc: string,
+	Price: string,
+	Tag: string?, -- "EQUIPADA", "ROTA", "TUYA"…
+	TagColor: Color3?,
+	Stats: { { Name: string, Value: number, Text: string } }?,
+	Action: { Text: string, Color: Color3, Run: (() -> ())? }?,
+}
+
+local function shopEntries(data: any): { ShopEntry }
+	local function can(price: number): Color3
+		return if data.MemeCoin >= price then T.Success else T.PanelDark
 	end
+	local list: { ShopEntry } = {}
+	if shopTab == "Rods" then
+		local maxRod = Rods.List[#Rods.List]
+		for _, rod in ipairs(Rods.List) do
+			local owned = data.Rods[rod.Id] == true
+			local equipped = data.EquippedRod == rod.Id
+			local broken = data.BrokenRods and data.BrokenRods[rod.Id] == true
+			local action, tag, tagColor
+			if broken then
+				tag, tagColor = "💥 ROTA", T.Danger
+				action = { Text = "🔧 Reparar 🪙 " .. Util.formatShort(rod.RepairCost), Color = can(rod.RepairCost), Run = function()
+					call("RepairRod", "🔧 " .. rod.Name .. " reparada y equipada", rod.Id)
+				end }
+			elseif equipped then
+				tag, tagColor = "✅ EQUIPADA", T.Success
+				action = { Text = "✅ Equipada", Color = T.PanelDark }
+			elseif owned then
+				tag, tagColor = "TUYA", T.Accent
+				action = { Text = "Equipar", Color = T.Accent, Run = function()
+					call("EquipRod", "🎣 " .. rod.Name .. " equipada", rod.Id)
+				end }
+			else
+				action = { Text = "Comprar 🪙 " .. Util.formatShort(rod.Price), Color = can(rod.Price), Run = function()
+					call("BuyRod", "🎉 ¡Has comprado la " .. rod.Name .. "!", rod.Id)
+				end }
+			end
+			table.insert(list, {
+				Name = rod.Name, Color = rod.Color, Desc = rod.Description .. (if rod.RepairCost == 0 then " Irrompible." else ""),
+				Model = function()
+					return GearModels.Rod(rod, broken)
+				end,
+				Price = if owned then "" else "🪙 " .. Util.formatShort(rod.Price), Tag = tag, TagColor = tagColor,
+				Stats = {
+					{ Name = "Capacidad", Value = math.sqrt(rod.Capacity / maxRod.Capacity), Text = FishMath.FormatWeight(rod.Capacity) },
+					{ Name = "Profundidad", Value = rod.MaxDepth / maxRod.MaxDepth, Text = rod.MaxDepth .. " m" },
+					{ Name = "Anzuelos", Value = rod.Hooks / maxRod.Hooks, Text = tostring(rod.Hooks) },
+					{ Name = "Suerte", Value = (rod.Luck - 0.9) / (maxRod.Luck - 0.9), Text = "×" .. rod.Luck },
+				},
+				Action = action,
+			})
+		end
+	elseif shopTab == "Packs" then
+		local maxCap = Rods.Aquariums[#Rods.Aquariums].Capacity
+		for _, aq in ipairs(Rods.Aquariums) do
+			local action, tag, tagColor
+			if aq.Tier == data.AquariumTier then
+				tag, tagColor = "✅ LA LLEVAS", T.Success
+				action = { Text = "✅ La llevas", Color = T.PanelDark }
+			elseif aq.Tier < data.AquariumTier then
+				tag, tagColor = "SUPERADA", T.PanelDark
+				action = { Text = "Superada", Color = T.PanelDark }
+			elseif aq.Tier == data.AquariumTier + 1 then
+				action = { Text = "Comprar 🪙 " .. Util.formatShort(aq.Price), Color = can(aq.Price), Run = function()
+					call("BuyAquarium", "🐠 ¡Nueva mochila: " .. aq.Name .. "!", aq.Tier)
+				end }
+			else
+				tag, tagColor = "🔒", T.PanelDark
+				action = { Text = "🔒 Compra la anterior", Color = T.PanelDark }
+			end
+			table.insert(list, {
+				Name = aq.Name, Color = aq.Color, Desc = "Mochila-acuario a la espalda: más kg = más memes por ronda de pesca.",
+				Model = function()
+					return GearModels.Tank(aq, { "NoobFeliz", "PerroBonk", "Stonks" })
+				end,
+				Price = if aq.Tier > data.AquariumTier then "🪙 " .. Util.formatShort(aq.Price) else "", Tag = tag, TagColor = tagColor,
+				Stats = { { Name = "Capacidad", Value = math.sqrt(aq.Capacity / maxCap), Text = aq.Capacity .. " kg" } },
+				Action = action,
+			})
+		end
+	elseif shopTab == "Items" then
+		local item = Rods.Items.SedalReforzado
+		table.insert(list, {
+			Name = item.Name, Color = RGB(255, 90, 150), Desc = item.Description .. " Actívalo con el botón 🧵 al sacar la caña.",
+			Model = GearModels.Spool, Price = "🪙 " .. Util.formatShort(item.Price),
+			Tag = ("x%d"):format(data.Items.SedalReforzado or 0), TagColor = T.Secondary,
+			Action = { Text = "Comprar 🪙 " .. Util.formatShort(item.Price), Color = can(item.Price), Run = function()
+				call("BuyItem", "🧵 +1 Sedal Reforzado", item.Id)
+			end },
+		})
+	else
+		for _, skin in ipairs(SKIN_PREVIEWS) do
+			table.insert(list, {
+				Name = skin.Name, Color = skin.Color, Desc = skin.Desc, Model = GearModels.House, Price = "",
+				Tag = "PRONTO", TagColor = T.Secondary, Action = { Text = "🔒 Próximamente", Color = T.PanelDark },
+			})
+		end
+	end
+	return list
+end
+
+local function statBar(parent: Instance, order: number, stat: { Name: string, Value: number, Text: string }, color: Color3)
+	local row = UIKit.new("Frame", { LayoutOrder = order, Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, Parent = parent })
+	UIKit.label({ Text = stat.Name, Size = UDim2.new(0.38, 0, 1, 0), Font = T.Font, TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = row }, { MaxSize = 16 })
+	local bar = UIKit.new("Frame", { Position = UDim2.new(0.38, 0, 0.5, -7), Size = UDim2.new(0.62, 0, 0, 14), BackgroundColor3 = T.PanelDark, Parent = row })
+	UIKit.corner(bar, 7)
+	UIKit.stroke(bar, 2)
+	local fill = UIKit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = color, Parent = bar })
+	UIKit.corner(fill, 7)
+	UIKit.tween(fill, 0.4, { Size = UDim2.fromScale(math.clamp(stat.Value, 0.05, 1), 1) })
+	UIKit.label({ Text = stat.Text, Size = UDim2.fromScale(1, 1), Font = T.FontTitle, ZIndex = 3, Parent = bar }, { Stroke = 2, MaxSize = 13 })
 end
 
 local function renderShop()
 	local p = panels.Shop
 	local data = State.Data
-	local grid = p.Content:FindFirstChild("Grid") :: ScrollingFrame
-	clear(grid)
+	local body = p.Content:FindFirstChild("Body") :: Frame
+	clear(body)
 	if not data then
 		return
 	end
 	p.Content.Count.Text = ("Tienes 🪙 %s"):format(Util.formatShort(data.MemeCoin))
-	local function can(price: number): Color3
-		return if data.MemeCoin >= price then T.Primary else T.PanelDark
-	end
 
-	-- cañas: comprar, equipar o reparar
-	for i, rod in ipairs(Rods.List) do
-		local owned = data.Rods[rod.Id] == true
-		local equipped = data.EquippedRod == rod.Id
-		local broken = data.BrokenRods and data.BrokenRods[rod.Id] == true
-		local text, color, action = "", T.Primary, nil :: (() -> ())?
-		if broken then
-			text, color = "🔧 Reparar 🪙" .. Util.formatShort(rod.RepairCost), can(rod.RepairCost)
-			action = function()
-				call("RepairRod", "🔧 " .. rod.Name .. " reparada y equipada", rod.Id)
-			end
-		elseif equipped then
-			text, color = "✅ Equipada", T.PanelDark
-		elseif owned then
-			text, color = "Equipar", T.Accent
-			action = function()
-				call("EquipRod", "🎣 " .. rod.Name .. " equipada", rod.Id)
-			end
-		else
-			text, color = "🪙 " .. Util.formatShort(rod.Price), can(rod.Price)
-			action = function()
-				call("BuyRod", "🎉 ¡Has comprado la " .. rod.Name .. "!", rod.Id)
-			end
-		end
-		local info = ("🎣 %s%s"):format(FishMath.FormatWeight(rod.Capacity), if rod.RepairCost == 0 then " · irrompible" else "")
-		shopCard(grid, i, rod.Emoji .. " " .. rod.Name .. (if broken then " 💥" else ""), info, rod.Description,
-			if broken then T.Danger elseif equipped then T.Success else rod.Color, text, color, action)
-	end
-
-	-- mochilas-acuario: se compran en orden
-	for i, aq in ipairs(Rods.Aquariums) do
-		local text, color, action = "", T.Primary, nil :: (() -> ())?
-		if aq.Tier == data.AquariumTier then
-			text, color = "✅ La llevas", T.PanelDark
-		elseif aq.Tier < data.AquariumTier then
-			text, color = "Superada", T.PanelDark
-		elseif aq.Tier == data.AquariumTier + 1 then
-			text, color = "🪙 " .. Util.formatShort(aq.Price), can(aq.Price)
-			action = function()
-				call("BuyAquarium", "🐠 ¡Nueva mochila: " .. aq.Name .. "!", aq.Tier)
-			end
-		else
-			text, color = "🔒 Compra la anterior", T.PanelDark
-		end
-		shopCard(grid, 10 + i, aq.Emoji .. " " .. aq.Name, ("🐠 Capacidad: %d kg"):format(aq.Capacity),
-			"Mochila-acuario: más kg = más memes por ronda de pesca.", if aq.Tier == data.AquariumTier then T.Success else aq.Color,
-			text, color, action)
-	end
-
-	local item = Rods.Items.SedalReforzado
-	shopCard(grid, 100, item.Emoji .. " " .. item.Name, ("Tienes: %d"):format(data.Items.SedalReforzado or 0), item.Description,
-		T.Secondary, "🪙 " .. Util.formatShort(item.Price), can(item.Price), function()
-			call("BuyItem", "🧵 +1 Sedal Reforzado (actívalo junto al botón LANZAR)", item.Id)
+	-- pestañas
+	local tabs = UIKit.new("Frame", { Name = "Tabs", Size = UDim2.new(0, 150, 1, 0), BackgroundTransparency = 1, Parent = body })
+	UIKit.list(tabs, Enum.FillDirection.Vertical, 8)
+	for i, tab in ipairs(SHOP_TABS) do
+		local active = tab.Id == shopTab
+		local b = UIKit.button({ LayoutOrder = i, Size = UDim2.new(1, -6, 0, 52), Parent = tabs },
+			{ Color = if active then tab.Color else T.PanelLight, Text = tab.Text, TextSize = 22, StrokeThickness = if active then 4 else 3 })
+		b.Activated:Connect(function()
+			shopTab = tab.Id
+			renderShop()
 		end)
+	end
+
+	local entries = shopEntries(data)
+	local selected = math.clamp(shopSelected[shopTab] or 1, 1, math.max(1, #entries))
+
+	-- cartas
+	local grid = UIKit.new("ScrollingFrame", { Name = "Cards", Position = UDim2.fromOffset(160, 0), Size = UDim2.new(1, -460, 1, 0),
+		BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 6, CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y, Parent = body })
+	UIKit.new("UIGridLayout", { CellSize = UDim2.fromOffset(130, 168), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder,
+		Parent = grid })
+	UIKit.padding(grid, 4)
+	for i, e in ipairs(entries) do
+		local isSel = i == selected
+		local card = UIKit.new("TextButton", { LayoutOrder = i, Text = "", AutoButtonColor = false,
+			BackgroundColor3 = if isSel then T.Panel else T.PanelLight, Parent = grid })
+		UIKit.corner(card, 12)
+		UIKit.stroke(card, if isSel then 4 else 3, if isSel then T.Primary else e.Color)
+		UIKit.modelIcon(e.Model(), e.Color, { Size = UDim2.new(1, -12, 0, 96), Position = UDim2.fromOffset(6, 6), Parent = card },
+			{ Angle = if shopTab == "Rods" then 80 elseif shopTab == "Packs" then 160 else 25, Zoom = 1.25 })
+		UIKit.label({ Text = e.Name, Size = UDim2.new(1, -8, 0, 22), Position = UDim2.fromOffset(4, 106), Font = T.FontTitle,
+			Parent = card }, { Stroke = 2, MaxSize = 16 })
+		UIKit.label({ Text = if e.Price ~= "" then e.Price else (e.Tag or ""), Size = UDim2.new(1, -8, 0, 22), Position = UDim2.fromOffset(4, 132),
+			Font = T.FontTitle, TextColor3 = if e.Price ~= "" then T.Coin else (e.TagColor or T.Text), Parent = card }, { Stroke = 2, MaxSize = 17 })
+		if e.Tag and e.Price ~= "" then
+			local ribbon = UIKit.new("Frame", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -4, 0, 4), Size = UDim2.fromOffset(70, 20),
+				BackgroundColor3 = e.TagColor or T.Secondary, ZIndex = 4, Parent = card })
+			UIKit.corner(ribbon, 6)
+			UIKit.label({ Text = e.Tag, Size = UDim2.fromScale(1, 1), Font = T.FontTitle, ZIndex = 5, Parent = ribbon }, { Stroke = 2, MaxSize = 12 })
+		end
+		card.Activated:Connect(function()
+			shopSelected[shopTab] = i
+			UIKit.playSound("Click")
+			renderShop()
+		end)
+	end
+
+	-- vista previa
+	local e = entries[selected]
+	if not e then
+		return
+	end
+	local preview = UIKit.new("Frame", { Name = "Preview", AnchorPoint = Vector2.new(1, 0), Position = UDim2.fromScale(1, 0),
+		Size = UDim2.new(0, 290, 1, 0), BackgroundColor3 = T.PanelDark, Parent = body })
+	UIKit.corner(preview, 16)
+	UIKit.stroke(preview, 4, e.Color)
+	UIKit.modelIcon(e.Model(), e.Color, { Size = UDim2.new(1, -20, 0, 170), Position = UDim2.fromOffset(10, 10), Parent = preview },
+		{ Spin = 0.9, Angle = if shopTab == "Packs" then 160 else 60, Zoom = 1.2 })
+	UIKit.label({ Text = e.Name, Size = UDim2.new(1, -20, 0, 32), Position = UDim2.fromOffset(10, 186), Font = T.FontTitle,
+		TextColor3 = T.Primary, Parent = preview }, { Stroke = 3, MaxSize = 28 })
+	UIKit.label({ Text = e.Desc, Size = UDim2.new(1, -20, 0, 42), Position = UDim2.fromOffset(10, 220), Font = T.FontBody,
+		TextColor3 = T.TextDim, Parent = preview }, { Stroke = false, MaxSize = 14 })
+	local stats = UIKit.new("Frame", { Size = UDim2.new(1, -24, 0, 110), Position = UDim2.fromOffset(12, 268), BackgroundTransparency = 1, Parent = preview })
+	UIKit.list(stats, Enum.FillDirection.Vertical, 4)
+	for i, stat in ipairs(e.Stats or {}) do
+		statBar(stats, i, stat, e.Color)
+	end
+	local action = e.Action
+	if action then
+		local btn = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -10), Size = UDim2.new(1, -20, 0, 52),
+			Parent = preview }, { Color = action.Color, Text = action.Text, TextSize = 22 })
+		local run = action.Run
+		if run then
+			btn.Activated:Connect(run)
+		end
+	end
 end
 
 -- ===== Bestiario =====
@@ -291,7 +430,7 @@ local function renderBestiary()
 			UIKit.label({ Text = meme.Description, Size = UDim2.new(1, -16, 0, 34), Position = UDim2.fromOffset(8, 100), Font = T.FontBody,
 				TextColor3 = T.Text, TextXAlignment = Enum.TextXAlignment.Left, Parent = card }, { Stroke = false, MaxSize = 14 })
 		else
-			UIKit.label({ Text = "❓", Size = UDim2.fromOffset(64, 64), Position = UDim2.fromOffset(8, 8), Parent = card }, { Stroke = false })
+			UIKit.memeIcon(meme.Id, { Size = UDim2.fromOffset(64, 64), Position = UDim2.fromOffset(8, 8), Parent = card }, { Silhouette = true })
 			UIKit.label({ Text = "???", Size = UDim2.new(1, -84, 0, 26), Position = UDim2.fromOffset(78, 8), Font = T.FontTitle,
 				TextXAlignment = Enum.TextXAlignment.Left, Parent = card }, { Stroke = 2, MaxSize = 20 })
 			UIKit.label({ Text = rarity.Name, Size = UDim2.new(1, -84, 0, 20), Position = UDim2.fromOffset(78, 36), Font = T.Font,
@@ -306,12 +445,16 @@ end
 
 -- ===== Infraestructura de paneles =====
 
-local function makePanel(name: string, title: string, color: Color3, cell: Vector2, render: () -> (), extra: ((Frame) -> ())?)
-	local frame, content, close = UIKit.panel(gui, name, title, Vector2.new(760, 520), color)
+local function makePanel(name: string, title: string, color: Color3, cell: Vector2?, render: () -> (), extra: ((Frame) -> ())?, size: Vector2?)
+	local frame, content, close = UIKit.panel(gui, name, title, size or Vector2.new(760, 520), color)
 	UIKit.label({ Name = "Count", Text = "", Size = UDim2.new(1, -200, 0, 30), Position = UDim2.fromOffset(0, 0), Font = T.Font,
 		TextXAlignment = Enum.TextXAlignment.Left, Parent = content }, { MaxSize = 22 })
-	local grid = scroller(content, cell, 40)
-	grid.Name = "Grid"
+	if cell then
+		local grid = scroller(content, cell, 40)
+		grid.Name = "Grid"
+	else
+		UIKit.new("Frame", { Name = "Body", Position = UDim2.fromOffset(0, 40), Size = UDim2.new(1, 0, 1, -40), BackgroundTransparency = 1, Parent = content })
+	end
 	if extra then
 		extra(content)
 	end
@@ -430,7 +573,7 @@ function Panels.Init()
 			end
 		end)
 	end)
-	makePanel("Shop", "🛒 TIENDA", RGB(60, 200, 80), Vector2.new(220, 170), renderShop)
+	makePanel("Shop", "🛒 TIENDA", RGB(60, 200, 80), nil, renderShop, nil, Vector2.new(900, 560))
 	makePanel("Bestiary", "📖 ÍNDICE", RGB(40, 170, 255), Vector2.new(330, 140), renderBestiary)
 
 	HUD.ButtonPressed:Connect(Panels.Open)

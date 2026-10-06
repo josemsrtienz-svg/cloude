@@ -14,6 +14,7 @@
 ]]
 
 local Players = game:GetService("Players")
+local CollectionService = game:GetService("CollectionService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -87,6 +88,7 @@ local function buildDisplay(parent: Instance, spot: BasePart, catch: any)
 	-- mirando hacia el río (el frente de la parcela), de pie sobre el césped
 	model:PivotTo(spot.CFrame * CFrame.new(0, spot.Size.Y / 2, 0))
 	model.Parent = parent
+	CollectionService:AddTag(model, "PescaMemeDisplay") -- el cliente lo anima (Ambience)
 
 	-- aro de rareza en el suelo
 	local ring = Instance.new("Part")

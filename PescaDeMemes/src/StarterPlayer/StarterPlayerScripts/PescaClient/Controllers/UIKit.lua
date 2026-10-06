@@ -3,10 +3,11 @@
 	StarterPlayerScripts > PescaClient > Controllers > UIKit
 
 	Componentes reutilizables: creación de instancias, botones animados, textos con contorno,
-	paneles, escalado responsive (PC / tablet / móvil), sonidos e iconos de memes.
+	paneles, escalado responsive (PC / tablet / móvil), sonidos y FOTOS 3D (ViewportFrame) de memes y equipo.
 ]]
 
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,6 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local Assets = require(Root.Config.Assets)
 local Memes = require(Root.Config.Memes)
+local MemeModels = require(Root.Shared.MemeModels)
 
 local UIKit = {}
 UIKit.SFXEnabled = true
@@ -231,21 +233,91 @@ function UIKit.playSound(name: string)
 	SoundService:PlayLocalSound(sound)
 end
 
--- ===== Icono de un meme: tu imagen (Assets) o el emoji sobre el color de su rareza =====
-function UIKit.memeIcon(memeId: string, props: { [string]: any }): Frame
-	local meme = Memes.Get(memeId)
+-- ===== Fotos 3D (ViewportFrame): los memes y el equipo se ven como modelos, no como emojis =====
+
+-- (sin tabla débil: las entradas se borran cuando el ViewportFrame deja de tener padre)
+local spinners: { [ViewportFrame]: { Model: Model, Center: CFrame, Speed: number } } = {}
+
+-- Encuadra `model` dentro de un ViewportFrame. opts: { Spin = vel. (rad/s), Angle = grados de giro inicial,
+-- Pitch = grados de inclinación de la cámara, Zoom = 1 (más = más cerca), Ambient, ZIndex }
+function UIKit.viewport(model: Model, props: { [string]: any }, opts: { [string]: any }?): ViewportFrame
+	local o = opts or {}
+	local vp = UIKit.new("ViewportFrame", UIKit.merge({ BackgroundTransparency = 1, BorderSizePixel = 0,
+		Ambient = o.Ambient or RGB(170, 170, 180), LightColor = RGB(255, 250, 240), LightDirection = Vector3.new(-0.4, -1, 0.6) }, props))
+	local center, size = model:GetBoundingBox()
+	-- giramos el modelo (no la cámara) para que la luz le dé siempre de frente
+	local spinCenter = CFrame.new(center.Position)
+	model:PivotTo(spinCenter * CFrame.Angles(0, math.rad(o.Angle or 25), 0) * spinCenter:Inverse() * model:GetPivot())
+	model.Parent = vp
+	local fov = 35
+	local radius = size.Magnitude / 2
+	local distance = radius / math.tan(math.rad(fov / 2)) / (o.Zoom or 1.15)
+	local pitch = math.rad(o.Pitch or 12)
+	local camera = UIKit.new("Camera", { FieldOfView = fov, Parent = vp })
+	local eye = center.Position + Vector3.new(0, math.sin(pitch), -math.cos(pitch)) * distance
+	camera.CFrame = CFrame.lookAt(eye, center.Position)
+	vp.CurrentCamera = camera
+	if o.Spin then
+		spinners[vp] = { Model = model, Center = spinCenter, Speed = o.Spin }
+	end
+	return vp
+end
+
+RunService.RenderStepped:Connect(function(dt)
+	for vp, spin in pairs(spinners) do
+		if not vp.Parent then
+			spinners[vp] = nil
+		elseif vp.Visible then
+			local m = spin.Model
+			m:PivotTo(spin.Center * CFrame.Angles(0, spin.Speed * dt, 0) * spin.Center:Inverse() * m:GetPivot())
+		end
+	end
+end)
+
+
+-- Icono de un meme: tu imagen (Config/Assets) o su FIGURA 3D sobre el color de su rareza.
+-- opts: { Golden = bool, Silhouette = bool (sin descubrir: figura negra), Spin = rad/s }
+function UIKit.memeIcon(memeId: string, props: { [string]: any }, opts: { [string]: any }?): Frame
+	local o = opts or {}
 	local rarity = Memes.GetRarity(memeId)
-	local frame = UIKit.new("Frame", UIKit.merge({ BackgroundColor3 = rarity.Color, BorderSizePixel = 0 }, props))
+	local base = if o.Silhouette then RGB(60, 70, 90) elseif o.Golden then T.Coin else rarity.Color
+	local frame = UIKit.new("Frame", UIKit.merge({ BackgroundColor3 = base, BorderSizePixel = 0, ClipsDescendants = true }, props))
 	UIKit.corner(frame, 10)
-	UIKit.gradient(frame, { rarity.Color:Lerp(Color3.new(1, 1, 1), 0.25), rarity.Color:Lerp(Color3.new(0, 0, 0), 0.35) }, 90)
-	local image = Assets.MemeImage(memeId)
+	UIKit.gradient(frame, { base:Lerp(Color3.new(1, 1, 1), 0.3), base:Lerp(Color3.new(0, 0, 0), 0.4) }, 90)
+	local image = not o.Silhouette and Assets.MemeImage(memeId)
 	if image then
 		UIKit.new("ImageLabel", { Name = "Image", BackgroundTransparency = 1, Image = image, ScaleType = Enum.ScaleType.Fit,
 			Size = UDim2.fromScale(0.9, 0.9), Position = UDim2.fromScale(0.05, 0.05), Parent = frame })
+	elseif MemeModels.Has(memeId) then
+		local model = MemeModels.Build(memeId, 1, o.Golden == true)
+		if o.Silhouette then
+			for _, d in ipairs(model:GetDescendants()) do
+				if d:IsA("BasePart") then
+					d.Color = RGB(15, 18, 28)
+					d.Material = Enum.Material.SmoothPlastic
+				end
+			end
+		end
+		UIKit.viewport(model, { Name = "Figure", Size = UDim2.fromScale(1, 1), ZIndex = frame.ZIndex, Parent = frame },
+			{ Spin = o.Spin, Ambient = if o.Silhouette then RGB(0, 0, 0) else nil })
+		if o.Silhouette then
+			UIKit.label({ Name = "Unknown", Text = "?", Size = UDim2.fromScale(0.5, 0.5), Position = UDim2.fromScale(0.25, 0.22),
+				Font = T.FontTitle, TextColor3 = T.TextDim, ZIndex = frame.ZIndex + 1, Parent = frame }, { Stroke = 3 })
+		end
 	else
+		local meme = Memes.Get(memeId)
 		UIKit.label({ Name = "Emoji", Text = meme and meme.Emoji or "❓", Size = UDim2.fromScale(0.8, 0.8),
 			Position = UDim2.fromScale(0.1, 0.1), Font = T.Font, Parent = frame }, { Stroke = false })
 	end
+	return frame
+end
+
+-- Icono de un modelo cualquiera (caña, mochila, objeto) sobre un fondo de color.
+function UIKit.modelIcon(model: Model, color: Color3, props: { [string]: any }, opts: { [string]: any }?): Frame
+	local frame = UIKit.new("Frame", UIKit.merge({ BackgroundColor3 = color, BorderSizePixel = 0, ClipsDescendants = true }, props))
+	UIKit.corner(frame, 10)
+	UIKit.gradient(frame, { color:Lerp(Color3.new(1, 1, 1), 0.3), color:Lerp(Color3.new(0, 0, 0), 0.4) }, 90)
+	UIKit.viewport(model, { Name = "Figure", Size = UDim2.fromScale(1, 1), ZIndex = frame.ZIndex, Parent = frame }, opts)
 	return frame
 end
 

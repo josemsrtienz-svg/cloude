@@ -10,7 +10,7 @@
 local GameConfig = {}
 
 GameConfig.GameName = "PESCA DE MEMES"
-GameConfig.Version = "P0 0.3"
+GameConfig.Version = "P0 0.4"
 
 -- ===== Moneda =====
 GameConfig.CurrencyName = "MemeCoin"
@@ -33,9 +33,9 @@ GameConfig.DepositCheckInterval = 0.5 -- cada cuánto se mira si estás dentro d
 
 -- ===== Mapa: río en el centro, 4 parcelas a cada lado (estilo "en fila"). Debe coincidir con WorldBuilder =====
 GameConfig.River = {
-	HalfWidth = 20, -- el agua va de x = -20 a x = 20 (coincide con las casillas de 10 del suelo)
-	MinZ = -140,
-	MaxZ = 140,
+	HalfWidth = 40, -- el agua va de x = -40 a x = 40 (coincide con las casillas de 10 del suelo)
+	MinZ = -180,
+	MaxZ = 180,
 	SurfaceY = -1,
 }
 
@@ -43,9 +43,9 @@ GameConfig.River = {
 GameConfig.Plots = {
 	Count = 8,
 	Size = 44,
-	CenterX = 58, -- distancia del centro del río al centro de cada parcela
-	Z = { 96, 32, -32, -96 }, -- filas (las parcelas impares a la derecha, las pares a la izquierda)
-	DockEndX = 12, -- el pasillo del muelle privado llega hasta |x| = 12; luego la plataforma de pesca (7 studs)
+	CenterX = 78, -- distancia del centro del río al centro de cada parcela
+	Z = { 120, 40, -40, -120 }, -- filas (las parcelas impares a la derecha, las pares a la izquierda)
+	DockEndX = 26, -- el pasillo del muelle privado llega hasta |x| = 26; luego la plataforma de pesca (7 studs)
 	FishingRange = 12, -- distancia máxima al final de TU muelle para poder pescar
 	GoHomeCooldown = 3,
 }
@@ -73,30 +73,48 @@ function GameConfig.InRiver(pos: Vector3, margin: number?): boolean
 end
 
 -- ===== Pesca =====
+-- Flujo v0.4 (INMERSIÓN, como en los juegos de pescar huevos):
+--   mantener click con la caña en la mano → barra de fuerza → soltar = lanzar
+--   → la cámara se mete bajo el agua: el anzuelo baja solo y tú lo GUÍAS (A/D, ratón o dedo)
+--   → tocar un meme lo engancha (hasta los anzuelos de tu caña). Si pesa más que tu caña, PELEA.
+--   → al llenar los anzuelos, tocar el fondo o pulsar SUBIR, el sedal sube y te llevas lo enganchado.
+-- Profundidad en METROS. En la escena submarina 1 m = Dive.StudsPerMeter studs.
 GameConfig.Fishing = {
 	CastCooldown = 0.8,
-	CastMinDistance = 6, -- studs
-	CastMaxDistance = 26,
-	PerfectPower = { Min = 0.82, Max = 0.95 }, -- zona "PERFECTO" de la barra de fuerza
-	BiteDelay = { Min = 2, Max = 7 },
-	HookWindow = 0.6, -- segundos que ve el jugador para tocar tras el "!"
-	HookServerGrace = 0.9, -- margen extra del servidor por la latencia
+	PerfectPower = { Min = 0.82, Max = 0.95 }, -- zona "PERFECTO" de la barra de fuerza (+suerte)
+	-- pelea (igual que antes: barra de tensión y tirones si pesa más que tu caña)
 	StartProgress = 0.25,
 	DrainFactor = 0.7, -- el progreso baja a este % de la velocidad de llenado
 	RedZoneStart = 0.94, -- a partir de aquí la barra está en rojo (demasiada tensión)
 	BaseGreenWidth = 0.26,
 	BaseFillRate = 0.3, -- progreso por segundo con un común y la caña básica
 	FightTimeout = 90,
-	SessionTimeout = 30, -- un lanzamiento sin picada se cancela solo
 	TugCount = 3, -- tirones fuertes cuando el meme pesa más que la capacidad
 	TugThresholds = { 0.4, 0.65, 0.88 }, -- progreso en el que llega cada tirón
 	TugWarning = 0.7, -- segundos de aviso antes de que se resuelva el tirón
 	TugGreenBonus = 1.5,
 	TugGreenMax = 0.95,
-	MaxOverload = 5, -- más de 5× la capacidad = el sedal se rompe en la picada
+	MaxOverload = 5, -- más de 5× la capacidad = no se puede ni enganchar (etiqueta roja)
 	MinSurvival = 0.001,
 	GoldenChance = 0.01,
 	GoldenMultiplier = 3,
+}
+
+GameConfig.Dive = {
+	IntroTime = 1.4, -- s desde el lanzamiento hasta que el anzuelo empieza a bajar (vuelo + chapuzón)
+	StartDepth = 2, -- m: los memes empiezan a esta profundidad
+	MemesPerMeter = 0.6, -- densidad de memes en la columna de agua
+	LaneHalfWidth = 9, -- m: el anzuelo y los memes se mueven entre -9 y 9
+	GrabRadius = 1.7, -- m: distancia a la que el anzuelo engancha un meme
+	GrabSlack = 2.5, -- m de margen del servidor al validar la x (latencia + nado del meme)
+	SteerSpeed = 12, -- m/s máximos del anzuelo hacia los lados (cliente y servidor)
+	GrabEarly = 0.5, -- s de margen por si el cliente va un poco por delante
+	GrabLate = 2, -- s de margen por la latencia (después ya lo has pasado)
+	BottomWait = 1.2, -- s en el fondo antes de subir solo
+	Timeout = 150, -- s máximos de una inmersión (contando peleas)
+	DepthLuck = 1, -- suerte extra según la profundidad: ×(1 + DepthLuck·(m/60)²) — las rarezas altas viven abajo
+	MaxMemes = 28, -- tope de memes por inmersión (rendimiento)
+	StudsPerMeter = 2,
 }
 
 -- ===== Datos iniciales del jugador (Version = versión del schema) =====

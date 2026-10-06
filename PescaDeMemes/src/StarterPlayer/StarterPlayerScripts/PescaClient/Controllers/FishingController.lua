@@ -2,15 +2,17 @@
 	PescaDeMemes • FishingController (ModuleScript, cliente)
 	StarterPlayerScripts > PescaClient > Controllers > FishingController
 
-	Todo lo que el jugador ve y toca al pescar:
-	  1. LANZAR: mantener el botón (o F) llena la barra de fuerza; al soltar se lanza el corcho.
-	  2. ESPERA: el corcho flota y hace amagos. Tocar antes de tiempo lo asusta.
-	  3. PICADA: aparece "!" → hay 0,6 s para tocar.
-	  4. DECISIÓN (solo si pesa más que tu caña): PELEAR o SOLTAR, viendo el % de aguante.
-	  5. PELEA: mantener = más tensión. Indicador en la zona verde = el progreso sube.
-	     Zona roja demasiado tiempo = se rompe. Con sobrecarga hay 3 tirones fuertes.
-	  6. RESULTADO: tarjeta de captura.
-	El servidor decide qué pica, valida los tiempos y los tirones (FishingService).
+	Pescar en la v0.4 (sin botón LANZAR: se controla con el CLICK directamente):
+	  1. LANZAR: con la caña en la mano y en tu muelle, MANTÉN click (o el dedo, o F) → barra de fuerza;
+	     al soltar, el personaje da el latigazo y el corcho vuela al agua.
+	  2. INMERSIÓN: chapuzón y la cámara se mete bajo el agua (DiveScene). El anzuelo baja solo;
+	     tú lo GUÍAS a izquierda/derecha con A/D, el ratón o el dedo. Tocar un meme lo engancha.
+	     Medidor de profundidad a la derecha y anzuelos usados abajo (0/3).
+	  3. PELEA: si el meme pesa más que tu caña, se para todo: ⚔️ PELEAR o ✂️ SOLTAR (FightUI).
+	     Perder = el sedal sube de golpe (y la caña puede romperse).
+	  4. SUBIR: al llenar los anzuelos, tocar el fondo o pulsar SUBIR (E). Los memes salen volando
+	     del agua hasta tu mochila-acuario y aparece la tarjeta con todo lo pescado.
+	El servidor genera la inmersión y valida cada enganche (FishingService).
 ]]
 
 local Players = game:GetService("Players")
@@ -21,60 +23,62 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local GameConfig = require(Root.Config.GameConfig)
-local Memes = require(Root.Config.Memes)
-local FishMath = require(Root.Shared.FishMath)
-local FishBehaviors = require(Root.Shared.FishBehaviors)
+local Rods = require(Root.Config.Rods)
 local Inventory = require(Root.Shared.Inventory)
+local FishMath = require(Root.Shared.FishMath)
+local MemeModels = require(Root.Shared.MemeModels)
 
 local Controllers = script.Parent
 local UIKit = require(Controllers.UIKit)
 local State = require(Controllers.State)
 local HUD = require(Controllers.HUD)
 local CatchCard = require(Controllers.CatchCard)
+local DiveScene = require(Controllers.DiveScene)
+local FightUI = require(Controllers.FightUI)
 
 local F = GameConfig.Fishing
+local D = GameConfig.Dive
 local T = UIKit.Theme
+local RGB = Color3.fromRGB
 local player = Players.LocalPlayer
+local TOOL_NAME = GameConfig.RodToolName
+local STEER_SPEED = D.SteerSpeed -- m/s máximos del anzuelo hacia los lados (el servidor valida lo mismo)
 
 local FishingController = {}
 
--- ===== Estado =====
--- "Idle" | "Charging" | "Casting" | "Waiting" | "Bite" | "Deciding" | "Fighting" | "Ending"
+-- "Idle" | "Charging" | "Casting" | "Diving" | "Ending"
 local phase: string = "Idle"
-
--- leer la fase a través de una función evita que el analizador "congele" su valor dentro de los bucles
 local function currentPhase(): string
 	return phase
 end
-local runId = 0 -- se incrementa en cada lanzamiento; invalida esperas de lanzamientos anteriores
+local runId = 0
 local useReinforced = false
-
-local bobber: BasePart? = nil
-local bobberBase: Vector3 = Vector3.zero
-local beam: Beam? = nil
+-- dirección de la inmersión: el ratón o el dedo marcan una x objetivo; el teclado la anula
+local pointerX: number? = nil
+local wantSurface = false
+local serverSession = false -- hay una inmersión abierta en el servidor (Cast respondió ok y aún no se cerró)
+local hookX = 0 -- x (m) actual del anzuelo, para mandarla con cada enganche
 local savedMovement: { WalkSpeed: number, JumpPower: number, JumpHeight: number }? = nil
 
 -- ===== UI =====
 local gui: ScreenGui
-local castButton: TextButton
-local castLabel: TextLabel
+local hint: Frame
+local hintLabel: TextLabel
+local rodChip: TextLabel
 local reinforcedButton: TextButton
 local reinforcedLabel: TextLabel
 local powerFrame: Frame
 local powerFill: Frame
-local biteLabel: TextLabel
-local decision: Frame
-local fight: Frame
-local fightRefs: { [string]: any } = {}
-local castArea: Frame
-local roulette: Frame
-local rouletteCells: { TextLabel } = {}
-local rouletteConn: RBXScriptConnection? = nil
-
-local function setCastText(text: string, color: Color3?)
-	castLabel.Text = text
-	castButton.BackgroundColor3 = color or T.Primary
-end
+local wipe: Frame
+local diveHud: Frame
+local depthBar: Frame
+local depthHook: Frame
+local depthHookLabel: TextLabel
+local depthMax: TextLabel
+local markerHolder: Frame
+local hookCounter: TextLabel
+local surfaceButton: TextButton
+local diveHint: TextLabel
 
 -- ===== Personaje =====
 
@@ -108,9 +112,6 @@ local function unlockMovement()
 	savedMovement = nil
 end
 
-local TOOL_NAME = GameConfig.RodToolName
-
--- La caña es una herramienta: solo cuenta si está en la mano (dentro del personaje).
 local function rodTool(): Tool?
 	local character = player.Character
 	local tool = character and character:FindFirstChild(TOOL_NAME)
@@ -123,46 +124,42 @@ local function rodTip(): Attachment?
 	return shaft and shaft:FindFirstChild("RodTip") :: Attachment?
 end
 
--- ===== Corcho y sedal (solo visual, en el cliente) =====
-
-local function destroyBobber()
-	if bobber then
-		bobber:Destroy()
-		bobber = nil
-	end
-	if beam then
-		beam:Destroy()
-		beam = nil
-	end
+local function equippedRod(): any
+	local data = State.Data
+	return Rods.Get(data and data.EquippedRod) or Rods.List[1]
 end
 
-local function makeBobber(at: Vector3): BasePart
-	destroyBobber()
-	local b = UIKit.new("Part", { Name = "Bobber", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.9, Color = Color3.fromRGB(235, 60, 60),
-		Material = Enum.Material.SmoothPlastic, Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-		CFrame = CFrame.new(at), Parent = Workspace })
-	UIKit.new("Part", { Name = "Top", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.55, Color = Color3.new(1, 1, 1),
-		Material = Enum.Material.SmoothPlastic, Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-		CFrame = CFrame.new(at + Vector3.new(0, 0.4, 0)), Parent = b })
-	b:SetAttribute("TopOffset", 0.4)
-	local att = UIKit.new("Attachment", { Name = "LineEnd", Parent = b })
-	local tip = rodTip()
-	if tip then
-		beam = UIKit.new("Beam", { Attachment0 = tip, Attachment1 = att, Width0 = 0.06, Width1 = 0.06, Segments = 12, CurveSize0 = -1,
-			CurveSize1 = 1, Color = ColorSequence.new(Color3.fromRGB(240, 240, 240)), LightInfluence = 0.5, FaceCamera = true, Parent = b })
+local function onOwnDock(): (boolean, string?)
+	local _, _, hrp = getCharacter()
+	if not hrp then
+		return false, nil
 	end
-	bobber = b
-	return b
+	local index = player:GetAttribute("PlotIndex")
+	if type(index) ~= "number" or index < 1 then
+		return false, "No tienes parcela (ni muelle) en este servidor"
+	end
+	local offset = hrp.Position - GameConfig.DockSpot(index)
+	if Vector2.new(offset.X, offset.Z).Magnitude > GameConfig.Plots.FishingRange then
+		return false, "🚶 Ve al final de TU muelle para pescar"
+	end
+	return true, nil
 end
 
-local function setBobberPos(pos: Vector3)
-	if bobber then
-		bobber.CFrame = CFrame.new(pos)
-		local top = bobber:FindFirstChild("Top") :: BasePart?
-		if top then
-			top.CFrame = CFrame.new(pos + Vector3.new(0, 0.4, 0))
-		end
+-- ===== Animaciones del personaje (locales) =====
+
+-- Latigazo del lanzamiento: el brazo derecho va atrás y luego adelante.
+local function castSwing()
+	local character = player.Character
+	local motor = character and (character:FindFirstChild("RightShoulder", true) or character:FindFirstChild("Right Shoulder", true))
+	if not motor or not motor:IsA("Motor6D") then
+		return
 	end
+	local base = motor.C0
+	UIKit.tween(motor, 0.22, { C0 = base * CFrame.Angles(math.rad(70), 0, 0) }, Enum.EasingStyle.Quad)
+	task.wait(0.22)
+	UIKit.tween(motor, 0.12, { C0 = base * CFrame.Angles(math.rad(-50), 0, 0) }, Enum.EasingStyle.Back)
+	task.wait(0.14)
+	UIKit.tween(motor, 0.35, { C0 = base }, Enum.EasingStyle.Quad)
 end
 
 local function splash(at: Vector3, size: number)
@@ -173,134 +170,14 @@ local function splash(at: Vector3, size: number)
 	task.delay(0.85, function()
 		ring:Destroy()
 	end)
-end
-
--- Meme saltando del agua hacia el jugador (celebración rápida).
-local function memeJump(memeId: string, from: Vector3)
-	local meme = Memes.Get(memeId)
-	local _, _, hrp = getCharacter()
-	if not meme or not hrp then
-		return
-	end
-	local rarity = Memes.Rarities[meme.Rarity]
-	local orb = UIKit.new("Part", { Shape = Enum.PartType.Ball, Size = Vector3.one * 2.4, Color = rarity.Color, Material = Enum.Material.Neon,
-		Transparency = 0.35, Anchored = true, CanCollide = false, CanQuery = false, CFrame = CFrame.new(from), Parent = Workspace })
-	local bb = UIKit.new("BillboardGui", { Size = UDim2.fromOffset(90, 90), AlwaysOnTop = true, LightInfluence = 0, Parent = orb })
-	UIKit.label({ Text = meme.Emoji, Size = UDim2.fromScale(1, 1), Parent = bb }, { Stroke = false })
-	local to = hrp.Position + Vector3.new(0, 4, 0)
-	local t0 = os.clock()
-	local conn
-	conn = RunService.RenderStepped:Connect(function()
-		local a = math.min(1, (os.clock() - t0) / 0.8)
-		local p = from:Lerp(to, a) + Vector3.new(0, math.sin(a * math.pi) * 10, 0)
-		orb.CFrame = CFrame.new(p)
-		if a >= 1 then
-			conn:Disconnect()
-			UIKit.tween(orb, 0.3, { Transparency = 1, Size = Vector3.one * 5 })
-			task.delay(0.35, function()
-				orb:Destroy()
-			end)
-		end
-	end)
-	splash(from, 8)
-end
-
--- ===== Ruleta: lo que puede picar (como al lanzar en los juegos de pescar huevos) =====
-
--- Bolsa de emojis ponderada por rareza: los comunes salen más, como en la tirada real.
-local rouletteBag: { any } = {}
-for _, meme in ipairs(Memes.List) do
-	local rarity = Memes.Rarities[meme.Rarity]
-	for _ = 1, math.max(1, math.floor(rarity.Odds * 2 + 0.5)) do
-		table.insert(rouletteBag, meme)
-	end
-end
-
-local function randomMeme(): any
-	return rouletteBag[math.random(1, #rouletteBag)]
-end
-
-local function setCell(cell: TextLabel, meme: any)
-	cell.Text = meme.Emoji
-	local stroke = cell:FindFirstChild("RarityStroke") :: UIStroke?
-	if stroke then
-		stroke.Color = Memes.Rarities[meme.Rarity].Color
-	end
-end
-
-local function stopRoulette()
-	if rouletteConn then
-		rouletteConn:Disconnect()
-		rouletteConn = nil
-	end
-end
-
-local function startRoulette()
-	stopRoulette()
-	roulette.Visible = true
-	UIKit.pop(roulette, 0.7)
-	for _, cell in ipairs(rouletteCells) do
-		setCell(cell, randomMeme())
-	end
-	local strip = roulette:FindFirstChild("Strip") :: Frame
-	local cellW = 70
-	local offset = 0
-	local speed = 520
-	rouletteConn = RunService.RenderStepped:Connect(function(dt)
-		offset += speed * dt
-		if offset >= cellW then
-			offset -= cellW
-			-- desplaza los emojis una casilla y mete uno nuevo por la derecha
-			for i = 1, #rouletteCells - 1 do
-				local nextCell = rouletteCells[i + 1]
-				rouletteCells[i].Text = nextCell.Text
-				local a = rouletteCells[i]:FindFirstChild("RarityStroke") :: UIStroke?
-				local b = nextCell:FindFirstChild("RarityStroke") :: UIStroke?
-				if a and b then
-					a.Color = b.Color
-				end
-			end
-			setCell(rouletteCells[#rouletteCells], randomMeme())
-		end
-		strip.Position = UDim2.fromOffset(-offset, 0)
-	end)
-end
-
--- Para la ruleta en lo que ha picado: el meme si ya lo conoces, si no "❓" con el color de su rareza.
-local function landRoulette(rarityId: string?, memeId: string?)
-	stopRoulette()
-	local strip = roulette:FindFirstChild("Strip") :: Frame
-	strip.Position = UDim2.fromOffset(0, 0)
-	local center = rouletteCells[math.ceil(#rouletteCells / 2)]
-	local meme = memeId and Memes.Get(memeId)
-	local rarity = Memes.Rarities[rarityId or "COMMON"] or Memes.Rarities.COMMON
-	center.Text = if meme then meme.Emoji else "❓"
-	local stroke = center:FindFirstChild("RarityStroke") :: UIStroke?
-	if stroke then
-		stroke.Color = rarity.Color
-	end
-	UIKit.pop(center, 1.5)
-	task.delay(1.4, function()
-		if phase ~= "Waiting" and phase ~= "Bite" then
-			roulette.Visible = false
-		end
-	end)
-end
-
--- El sedal sube rapidísimo y el corcho vuelve a la caña (el meme se ha escapado).
-local function reelUpFast()
-	local b = bobber
-	local tip = rodTip()
-	if not b or not tip then
-		return
-	end
-	local from = b.Position
-	local t0 = os.clock()
-	while os.clock() - t0 < 0.3 and b.Parent do
-		local a = (os.clock() - t0) / 0.3
-		local to = tip.WorldPosition
-		setBobberPos(from:Lerp(to, a) + Vector3.new(0, math.sin(a * math.pi) * 4, 0))
-		RunService.RenderStepped:Wait()
+	for _ = 1, 8 do
+		local drop = UIKit.new("Part", { Shape = Enum.PartType.Ball, Size = Vector3.one * 0.4, Color = RGB(200, 240, 255),
+			Material = Enum.Material.SmoothPlastic, Transparency = 0.2, CanCollide = false, CanQuery = false, CanTouch = false,
+			CFrame = CFrame.new(at + Vector3.new(0, 0.3, 0)), Parent = Workspace })
+		drop.AssemblyLinearVelocity = Vector3.new(math.random(-8, 8), math.random(14, 22), math.random(-8, 8))
+		task.delay(0.9, function()
+			drop:Destroy()
+		end)
 	end
 end
 
@@ -311,8 +188,8 @@ local function rodBreakEffect(at: Vector3?)
 	if not origin then
 		return
 	end
-	for _ = 1, 6 do
-		local shard = UIKit.new("Part", { Size = Vector3.new(0.2, 0.2, 0.7), Color = Color3.fromRGB(120, 85, 50), Material = Enum.Material.Wood,
+	for _ = 1, 8 do
+		local shard = UIKit.new("Part", { Size = Vector3.new(0.2, 0.2, 0.7), Color = RGB(120, 85, 50), Material = Enum.Material.Wood,
 			CFrame = CFrame.new(origin) * CFrame.Angles(math.random() * 6, math.random() * 6, 0), CanCollide = false,
 			CanQuery = false, Parent = Workspace })
 		shard.AssemblyLinearVelocity = Vector3.new(math.random(-12, 12), math.random(10, 22), math.random(-12, 12))
@@ -322,350 +199,371 @@ local function rodBreakEffect(at: Vector3?)
 	end
 end
 
--- ===== Final común de cualquier lanzamiento =====
-
-local function finish()
-	runId += 1
-	phase = "Idle"
-	State.Busy = false
-	destroyBobber()
-	unlockMovement()
-	powerFrame.Visible = false
-	biteLabel.Visible = false
-	decision.Visible = false
-	fight.Visible = false
-	stopRoulette()
-	roulette.Visible = false
-	setCastText("🎣\nLANZAR")
-	FishingController.RefreshReinforced()
-end
-
-local function release(message: string?, kind: string?)
-	task.spawn(State.Call, "Release")
-	if message then
-		HUD.Toast(message, kind or "Info")
-	end
-	finish()
-end
-
--- ===== Pelea =====
-
-local fightConn: RBXScriptConnection? = nil
-local holding = false
-
-local function stopFightLoop()
-	if fightConn then
-		fightConn:Disconnect()
-		fightConn = nil
-	end
-end
-
-local function endFight(success: boolean, reason: string?, breakAt: Vector3?)
-	if phase ~= "Fighting" then
-		return
-	end
-	phase = "Ending"
-	stopFightLoop()
-	local myRun = runId
-	if reason == "snap" or reason == "broke" then
-		UIKit.playSound("Snap")
-		UIKit.shake(fight)
-	end
-	if reason == "broke" then
-		rodBreakEffect(breakAt)
-	elseif not success then
-		reelUpFast()
-	end
-	local result = State.Call("FinishFight", success)
-	if myRun ~= runId then
-		return
-	end
-	local from = if bobber then bobber.Position else Vector3.zero
-	if success and result.ok and result.Catch then
-		memeJump(result.Catch.MemeId, from)
-		finish()
-		task.wait(0.6)
-		CatchCard.Show(result)
-		return
-	end
-	if success and not result.ok then
-		HUD.Toast(result.err or "Algo salió mal", "Error")
-	elseif reason == "broke" then
-		HUD.Toast("💥 ¡Se ROMPIÓ tu caña! Repárala en la tienda (llevas la de palo)", "Error")
-	elseif reason == "snap" then
-		HUD.Toast("💥 ¡El sedal se rompió!", "Error")
-	else
-		HUD.Toast("😢 Se escapó…", "Warning")
-	end
-	finish()
-end
-
-local function startFight(info: any)
-	phase = "Fighting"
-	decision.Visible = false
-	biteLabel.Visible = false
-	fight.Visible = true
-	setCastText("💪\nTIRAR", T.Secondary)
-	holding = false
-
-	local params = info.Params
-	local behavior = FishBehaviors.new(info.Personality, params.GreenWidth, F.RedZoneStart)
-	local tugs = info.Tugs or 0
-	local nextTug = 1
-	local tugState: string = "none" -- "none" | "warning" | "waiting"
-	local tugTimer = 0
-	local pos, vel = 0.3, 0
-	local progress = F.StartProgress
-	local redTime = 0
-	local myRun = runId
-
-	local refs = fightRefs
-	refs.Green.Size = UDim2.fromScale(params.GreenWidth, 1)
-	refs.Red.Size = UDim2.fromScale(1 - F.RedZoneStart, 1)
-	refs.Red.Position = UDim2.fromScale(F.RedZoneStart, 0)
-	for i, marker in ipairs(refs.TugMarkers) do
-		marker.Visible = i <= tugs
-		marker.BackgroundColor3 = T.Primary
-	end
-	refs.Survival.Text = if tugs > 0 then ("Aguante del sedal: %s"):format(FishMath.FormatPercent(info.Survival)) else "Dentro de la capacidad de tu caña ✅"
-	refs.Survival.TextColor3 = if tugs > 0 then T.PrimaryDark else T.Success
-	refs.Tug.Visible = false
-
-	fightConn = RunService.RenderStepped:Connect(function(dt)
-		if phase ~= "Fighting" or myRun ~= runId then
-			stopFightLoop()
-			return
-		end
-		dt = math.min(dt, 0.05)
-		local center, behaviorPull, event = behavior:Update(dt)
-		if event == "jump" then
-			UIKit.shake(refs.Bar)
-		end
-
-		if tugState ~= "waiting" then
-			local push = math.min(2.8, params.Pull * behaviorPull * 0.9)
-			local accel = (if holding then 3.4 else -2.0) - push
-			vel = math.clamp((vel + accel * dt) * (0.9 ^ (dt * 60)), -1.4, 1.4)
-			pos += vel * dt
-			if pos <= 0 then
-				pos, vel = 0, 0
-			elseif pos >= 1 then
-				pos, vel = 1, 0
-			end
-		end
-
-		local inGreen = math.abs(pos - center) <= params.GreenWidth / 2
-		if tugState ~= "waiting" then
-			local rate = if inGreen then params.FillRate else -params.FillRate * F.DrainFactor * (if pos <= 0 then 1.5 else 1)
-			progress = math.clamp(progress + rate * dt, 0, 1)
-			if nextTug <= tugs then
-				progress = math.min(progress, 0.97)
-			end
-			if pos >= F.RedZoneStart then
-				redTime += dt
-			else
-				redTime = math.max(0, redTime - dt)
-			end
-		end
-
-		-- tirones fuertes (solo con sobrecarga)
-		if nextTug <= tugs then
-			if tugState == "none" and progress >= F.TugThresholds[nextTug] then
-				tugState = "warning"
-				tugTimer = F.TugWarning
-				refs.Tug.Text = "⚡ ¡TIRÓN! Quédate en la zona verde"
-				refs.Tug.Visible = true
-				UIKit.pop(refs.Tug, 1.4)
-			elseif tugState == "warning" then
-				tugTimer -= dt
-				if tugTimer <= 0 then
-					tugState = "waiting"
-					local wasGreen = inGreen
-					UIKit.playSound("Tug")
-					UIKit.shake(refs.Bar)
-					-- guardamos dónde estaba la punta: si la caña se rompe, el servidor la cambia antes de responder
-					local tipNow = rodTip()
-					local tipPos = tipNow and tipNow.WorldPosition
-					task.spawn(function()
-						local r = State.Call("Tug", wasGreen)
-						if currentPhase() ~= "Fighting" or myRun ~= runId then
-							return
-						end
-						if r.ok and r.Survived then
-							refs.TugMarkers[nextTug].BackgroundColor3 = T.Success
-							refs.Tug.Text = "✅ ¡AGUANTÓ!"
-							nextTug += 1
-							tugState = "none"
-							task.delay(0.8, function()
-								-- solo se oculta si no ha empezado otro tirón mientras tanto
-								if refs.Tug.Text == "✅ ¡AGUANTÓ!" then
-									refs.Tug.Visible = false
-								end
-							end)
-						elseif r.ok then
-							refs.TugMarkers[nextTug].BackgroundColor3 = T.Danger
-							endFight(false, if r.Broke then "broke" else "snap", tipPos)
-						else
-							-- el servidor rechazó el tirón (latencia/validación): termina sin culpar al jugador
-							HUD.Toast(r.err or "Error de conexión", "Error")
-							endFight(false, "escape")
-						end
-					end)
-				end
-			end
-		end
-
-		-- dibujar
-		refs.Green.Position = UDim2.fromScale(center - params.GreenWidth / 2, 0)
-		refs.Green.BackgroundColor3 = if inGreen then T.Success else Color3.fromRGB(60, 150, 80)
-		refs.Indicator.Position = UDim2.new(pos, 0, 0.5, 0)
-		refs.Red.BackgroundTransparency = if redTime > 0 then 0.1 + 0.3 * math.abs(math.sin(os.clock() * 20)) else 0.35
-		refs.ProgressFill.Size = UDim2.fromScale(progress, 1)
-		refs.ProgressFill.BackgroundColor3 = if progress > 0.66 then T.Success elseif progress > 0.33 then T.Primary else T.Danger
-
-		if redTime > params.RedTolerance then
-			task.spawn(endFight, false, "snap")
-		elseif progress <= 0 then
-			task.spawn(endFight, false, "escape")
-		elseif progress >= 1 and nextTug > tugs then
-			task.spawn(endFight, true)
-		end
-	end)
-end
-
-local function showDecision(info: any)
-	phase = "Deciding"
-	biteLabel.Visible = false
-	local rarity = Memes.Rarities[info.Rarity]
-	local meme = info.MemeId and Memes.Get(info.MemeId)
-	local refs = fightRefs.Decision
-	refs.Name.Text = if meme then meme.Name else "???"
-	refs.Name.TextColor3 = rarity.Color
-	refs.Weight.Text = ("⚖️ ~%s   /   🎣 %s"):format(FishMath.FormatWeight(info.EstimatedWeight), FishMath.FormatWeight(info.Capacity))
-	local survival = info.Survival
-	refs.SurvivalFill.Size = UDim2.fromScale(math.max(0.02, survival), 1)
-	refs.SurvivalFill.BackgroundColor3 = if survival > 0.4 then T.Primary elseif survival > 0.1 then T.PrimaryDark else T.Danger
-	refs.SurvivalText.Text = "Aguante del sedal: " .. FishMath.FormatPercent(survival)
-	refs.Fight.Visible = not info.Snapped
-	refs.Release.Visible = not info.Snapped
-	refs.Title.Text = if info.Snapped then "💥 ¡DEMASIADO PESADO!" else "¡HA PICADO ALGO GORDO!"
-	decision.Visible = true
-	UIKit.pop(decision, 0.7)
-
-	if info.Snapped then
-		UIKit.playSound("Snap")
-		local myRun = runId
-		task.delay(2.2, function()
-			if myRun == runId then
-				HUD.Toast("💥 El sedal se rompió nada más picar. ¡Necesitas una caña mejor!", "Error")
-				finish()
-			end
-		end)
-	end
-end
-
-local function onHooked(info: any)
-	if not info.ok then
-		if info.Lost then
-			HUD.Toast(info.err or "Se escapó", "Warning")
-			finish()
-		else
-			release(info.err, "Error")
-		end
-		return
-	end
-	landRoulette(info.Rarity, info.MemeId)
-	local rarity = Memes.Rarities[info.Rarity]
-	local meme = info.MemeId and Memes.Get(info.MemeId)
-	fightRefs.Name.Text = (if meme then meme.Name else "???") .. "  ·  " .. (Memes.PersonalityNames[info.Personality] or "")
-	fightRefs.Name.TextColor3 = rarity.Color
-	fightRefs.Weight.Text = ("⚖️ ~%s / 🎣 %s"):format(FishMath.FormatWeight(info.EstimatedWeight), FishMath.FormatWeight(info.Capacity))
-	if info.Snapped or info.Survival < 1 then
-		fightRefs.PendingInfo = info
-		showDecision(info)
-	else
-		startFight(info)
-	end
-end
-
--- ===== Lanzar y esperar =====
-
-local function waterTarget(power: number): Vector3?
+-- El corcho vuela desde la punta de la caña hasta el agua. Devuelve dónde cayó.
+local function throwBobber(): Vector3?
 	local _, _, hrp = getCharacter()
+	local tip = rodTip()
 	if not hrp then
 		return nil
 	end
 	local look = hrp.CFrame.LookVector
 	local flat = Vector3.new(look.X, 0, look.Z)
-	if flat.Magnitude < 0.1 then
-		return nil
+	flat = if flat.Magnitude > 0.1 then flat.Unit else Vector3.new(0, 0, -1)
+	local target = Vector3.new(hrp.Position.X, GameConfig.River.SurfaceY, hrp.Position.Z) + flat * 12
+	local from = if tip then tip.WorldPosition else hrp.Position
+	local bobber = UIKit.new("Part", { Name = "Bobber", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.9, Color = RGB(235, 60, 60),
+		Material = Enum.Material.SmoothPlastic, Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		CFrame = CFrame.new(from), Parent = Workspace })
+	local att = UIKit.new("Attachment", { Parent = bobber })
+	if tip then
+		UIKit.new("Beam", { Attachment0 = tip, Attachment1 = att, Width0 = 0.06, Width1 = 0.06, Segments = 12, CurveSize0 = -1,
+			CurveSize1 = 1, Color = ColorSequence.new(RGB(240, 240, 240)), LightInfluence = 0.5, FaceCamera = true, Parent = bobber })
 	end
-	flat = flat.Unit
-	local dist = F.CastMinDistance + (F.CastMaxDistance - F.CastMinDistance) * power
-	local target = Vector3.new(hrp.Position.X, GameConfig.River.SurfaceY, hrp.Position.Z) + flat * dist
-	if not GameConfig.InRiver(target, 1) then
-		return nil
+	local t0 = os.clock()
+	while os.clock() - t0 < 0.5 do
+		local a = (os.clock() - t0) / 0.5
+		bobber.CFrame = CFrame.new(from:Lerp(target, a) + Vector3.new(0, math.sin(a * math.pi) * 7, 0))
+		RunService.RenderStepped:Wait()
 	end
+	bobber:Destroy()
+	splash(target, 6)
+	UIKit.playSound("Splash")
 	return target
 end
 
-local function waitForBite(delay: number, myRun: number)
-	phase = "Waiting"
-	setCastText("⏳\nESPERA…", T.PanelLight)
-	startRoulette()
-	local t0 = os.clock()
-	local nextNibble = t0 + math.random() * 1.2 + 0.8
-	while os.clock() - t0 < delay do
-		if myRun ~= runId or currentPhase() ~= "Waiting" then
-			return
-		end
-		local now = os.clock()
-		local dip = 0
-		if now >= nextNibble and now < nextNibble + 0.15 and delay - (now - t0) > 0.6 then
-			dip = 0.3 -- amago
-		elseif now >= nextNibble + 0.15 then
-			nextNibble = now + 0.7 + math.random() * 1.6
-		end
-		setBobberPos(bobberBase + Vector3.new(0, 0.12 * math.sin(now * 2.2) - dip, 0))
-		RunService.RenderStepped:Wait()
-	end
-	if myRun ~= runId or currentPhase() ~= "Waiting" then
+-- Los memes pescados saltan del agua y entran en la mochila-acuario de la espalda.
+local function flyToBackpack(catches: { any }, from: Vector3?)
+	local _, _, hrp = getCharacter()
+	if not hrp or not from then
 		return
 	end
-
-	-- ¡PICADA!
-	phase = "Bite"
-	setCastText("❗\n¡YA!", T.Danger)
-	biteLabel.Visible = true
-	UIKit.pop(biteLabel, 1.6)
-	UIKit.playSound("Bite")
-	if bobber then
-		splash(bobberBase, 4)
-	end
-	local biteStart = os.clock()
-	while os.clock() - biteStart < F.HookWindow do
-		if myRun ~= runId or currentPhase() ~= "Bite" then
-			return
+	for i, catch in ipairs(catches) do
+		if i > 5 then
+			break
 		end
-		setBobberPos(bobberBase + Vector3.new(0, -0.8 + 0.1 * math.sin(os.clock() * 30), 0))
-		RunService.RenderStepped:Wait()
-	end
-	if myRun == runId and currentPhase() == "Bite" then
-		release("🐟 Se escapó… ¡toca más rápido cuando salga el \"!\"!", "Warning")
+		if MemeModels.Has(catch.MemeId) then
+			local model = MemeModels.Build(catch.MemeId, 0.35, catch.Golden)
+			model.Parent = Workspace
+			task.spawn(function()
+				local t0 = os.clock()
+				local start = from + Vector3.new(math.random(-2, 2), 0, math.random(-2, 2))
+				while os.clock() - t0 < 0.75 and model.Parent do
+					local a = (os.clock() - t0) / 0.75
+					local back = hrp.CFrame * CFrame.new(0, 1, 1.2)
+					local p = start:Lerp(back.Position, a) + Vector3.new(0, math.sin(a * math.pi) * 9, 0)
+					local s = 1 - a * 0.7
+					model:PivotTo(CFrame.new(p) * CFrame.Angles(0, a * 8, 0))
+					for _, d in ipairs(model:GetDescendants()) do
+						if d:IsA("BasePart") then
+							d.LocalTransparencyModifier = math.max(0, a - 0.75) * 4
+						end
+					end
+					if s <= 0 then
+						break
+					end
+					RunService.RenderStepped:Wait()
+				end
+				model:Destroy()
+			end)
+			splash(from, 4)
+			task.wait(0.18)
+		end
 	end
 end
 
-local function cast(power: number)
-	local target = waterTarget(power)
-	if not target then
-		HUD.Toast("🌊 Apunta al río (mira hacia el agua)", "Warning")
-		finish()
-		return
+-- ===== Fundido de pantalla (chapuzón) =====
+
+local function wipeTo(alpha: number, time: number)
+	UIKit.tween(wipe, time, { BackgroundTransparency = alpha })
+	task.wait(time)
+end
+
+-- ===== Inmersión =====
+
+local function setDiveHudVisible(on: boolean)
+	diveHud.Visible = on
+	hint.Visible = not on and rodTool() ~= nil and phase == "Idle"
+end
+
+-- Puntos del medidor (uno por meme, del color de su rareza): se crean una vez por inmersión
+-- y solo se esconden cuando el meme ya no está libre.
+local markerDots: { [number]: Frame } = {}
+
+local function buildMarkers(maxDepth: number)
+	for _, child in ipairs(markerHolder:GetChildren()) do
+		child:Destroy()
 	end
+	table.clear(markerDots)
+	for i, m in pairs(DiveScene.Markers()) do
+		local dot = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, math.clamp(m.Depth / maxDepth, 0, 1)),
+			Size = UDim2.fromOffset(14, 14), BackgroundColor3 = m.Color, Parent = markerHolder })
+		UIKit.corner(dot, 7)
+		UIKit.stroke(dot, 2)
+		markerDots[i] = dot
+	end
+end
+
+local function updateMarkers()
+	for i, m in pairs(DiveScene.Markers()) do
+		local dot = markerDots[i]
+		if dot then
+			dot.Visible = m.Free
+		end
+	end
+end
+
+local function updateCounter(count: number, hooks: number)
+	hookCounter.Text = ("🎣 %d/%d"):format(count, hooks)
+	UIKit.pop(hookCounter, 1.25)
+end
+
+type DiveResult = { Summary: any?, How: string, Broke: boolean? }
+
+-- Bucle de la inmersión. Devuelve cómo terminó y el resumen del servidor.
+local function runDive(spec: any, myRun: number, castTime: number): DiveResult
+	DiveScene.Build(spec)
+	DiveScene.Enter()
+	wipeTo(1, 0.35)
+	setDiveHudVisible(true)
+	depthMax.Text = spec.MaxDepth .. " m"
+	updateCounter(0, spec.Hooks)
+	buildMarkers(spec.MaxDepth)
+	diveHint.Visible = true
+	diveHint.Text = if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+		then "¡Arrastra el dedo para guiar el anzuelo hacia los memes!"
+		else "¡Guía el anzuelo hacia los memes! (A / D o ratón)"
+	task.delay(4, function()
+		diveHint.Visible = false
+	end)
+
+	local diveStart = castTime + spec.IntroTime
+	local paused = 0
+	local x, targetX = 0, 0
+	hookX = 0
+	pointerX = nil
+	wantSurface = false
+	local tried: { [number]: boolean } = {}
+	local busy = false -- esperando al servidor por una pelea
+	local result: DiveResult? = nil
+	local bottomAt: number? = nil
+	local fullAt: number? = nil
+	local lastMarkers = 0
+	local grabbed = 0
+	local lastToast = 0
+	local currentDepth = 0
+
+	local function diveTime(): number
+		return math.max(0, os.clock() - diveStart - paused)
+	end
+
+	local function endWith(summary: any, how: string, broke: boolean?)
+		if not result then
+			result = { Summary = summary, How = how, Broke = broke }
+		end
+	end
+
+	local function blockToast(text: string)
+		if os.clock() - lastToast > 1.5 then
+			lastToast = os.clock()
+			HUD.Toast(text, "Warning")
+		end
+	end
+
+	-- pelea con un meme que pesa más que la caña (el anzuelo se queda quieto mientras tanto)
+	local function handleFight(index: number, info: any)
+		local pauseStart = os.clock()
+		local choice = FightUI.Decide(info)
+		if result or myRun ~= runId then
+			return
+		end
+		if choice ~= "fight" then
+			State.Call("Release")
+			DiveScene.Remove(index)
+			paused += os.clock() - pauseStart
+			return
+		end
+		local engaged = State.Call("Engage")
+		if not engaged.ok then
+			HUD.Toast(engaged.err or "Se escapó", "Warning")
+			DiveScene.Remove(index)
+			paused += os.clock() - pauseStart
+			return
+		end
+		local won, reason, tug = FightUI.Run(info, function(inGreen: boolean)
+			return State.Call("Tug", inGreen)
+		end)
+		if result or myRun ~= runId then
+			return
+		end
+		if won then
+			local r = State.Call("FinishFight", true)
+			if r.ok and r.Grabbed then
+				DiveScene.Attach(index)
+				grabbed = r.Count or grabbed + 1
+				updateCounter(grabbed, spec.Hooks)
+				UIKit.playSound("Catch")
+				HUD.Toast("💪 ¡Lo has sacado! Sigue bajando", "Success")
+			else
+				HUD.Toast(r.err or "Se escapó", "Warning")
+				DiveScene.Remove(index)
+			end
+			paused += os.clock() - pauseStart
+		elseif reason == "tug" and tug and tug.Summary then
+			DiveScene.Remove(index)
+			endWith(tug.Summary, "lost", tug.Broke)
+		elseif reason == "error" then
+			endWith(State.Call("Surface"), "lost")
+		else
+			DiveScene.Remove(index)
+			local r = State.Call("FinishFight", false)
+			endWith(r.Summary or State.Call("Surface"), "lost", r.Broke)
+		end
+	end
+
+	local function tryGrab(index: number)
+		tried[index] = true
+		task.spawn(function()
+			local r = State.Call("Grab", index, hookX)
+			if result or myRun ~= runId then
+				return
+			end
+			if r.ok and r.Grabbed then
+				DiveScene.Attach(index)
+				grabbed = r.Count or grabbed + 1
+				updateCounter(grabbed, spec.Hooks)
+				UIKit.playSound("Bite")
+			elseif r.ok and r.Fight then
+				busy = true
+				handleFight(index, r)
+				busy = false
+			else
+				local err = r.err or ""
+				if string.find(err, "pesado") then
+					DiveScene.Block(index, "⛔ Muy pesado")
+					blockToast("⛔ ¡Demasiado pesado para tu caña! Mejora tu caña en la tienda")
+				elseif string.find(err, "cabe") then
+					DiveScene.Block(index, "🐠 No cabe")
+					blockToast("🐠 No cabe en tu acuario")
+				else
+					-- otro motivo (latencia, otra pelea en curso…): se puede volver a intentar en un momento
+					task.delay(0.8, function()
+						tried[index] = nil
+					end)
+				end
+			end
+		end)
+	end
+
+	surfaceButton.Visible = true
+
+	while not result do
+		local dt = RunService.RenderStepped:Wait()
+		if myRun ~= runId then
+			return { How = "cancel" }
+		end
+		if busy then
+			continue
+		end
+		local now = os.clock()
+		local t = diveTime()
+		local depth = math.min(spec.MaxDepth, spec.Speed * t)
+		currentDepth = depth
+
+		-- dirección: teclado (A/D, flechas) o ratón/dedo
+		local axis = 0
+		if UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.Left) then
+			axis -= 1
+		end
+		if UserInputService:IsKeyDown(Enum.KeyCode.D) or UserInputService:IsKeyDown(Enum.KeyCode.Right) then
+			axis += 1
+		end
+		if axis ~= 0 then
+			pointerX = nil
+			targetX = x + axis * STEER_SPEED * 0.25
+		elseif pointerX then
+			targetX = pointerX
+		end
+		targetX = math.clamp(targetX, -D.LaneHalfWidth, D.LaneHalfWidth)
+		-- un pelín más lento que el máximo del servidor para que nunca rechace un movimiento legal
+		local maxStep = STEER_SPEED * 0.95 * dt
+		x += math.clamp(targetX - x, -maxStep, maxStep)
+		hookX = x
+		DiveScene.Update(t, x, depth)
+
+		-- medidor de profundidad
+		depthHook.Position = UDim2.fromScale(0.5, depth / spec.MaxDepth)
+		depthHookLabel.Text = ("%d m"):format(math.floor(depth))
+		if now - lastMarkers > 0.4 then
+			lastMarkers = now
+			updateMarkers()
+		end
+
+		-- ¿toca algún meme?
+		if grabbed < spec.Hooks and now >= diveStart then
+			local index = DiveScene.Touching(t, x, depth, tried)
+			if index then
+				tryGrab(index)
+			end
+		end
+
+		-- ¿hay que subir?
+		if grabbed >= spec.Hooks then
+			fullAt = fullAt or now
+		end
+		if depth >= spec.MaxDepth then
+			bottomAt = bottomAt or now
+		end
+		if wantSurface or (fullAt and now - fullAt > 0.6) or (bottomAt and now - bottomAt > D.BottomWait) or t > D.Timeout - 5 then
+			endWith(State.Call("Surface"), "normal")
+		end
+	end
+	surfaceButton.Visible = false
+	local final = result :: DiveResult
+
+	-- subida: normal (rápida) o "el sedal sube de golpe" (rapidísima, con temblor)
+	local fromDepth = currentDepth
+	local duration = if final.How == "lost" then 0.45 else math.clamp(fromDepth / 25, 0.6, 1.6)
+	if final.How == "lost" then
+		HUD.Toast(if final.Broke then "💥 ¡Se ROMPIÓ tu caña! Repárala en la tienda (llevas la de palo)" else "😢 ¡Se escapó! El sedal ha subido de golpe", "Error")
+	end
+	local t0 = os.clock()
+	local tFrozen = diveTime()
+	while os.clock() - t0 < duration do
+		local a = (os.clock() - t0) / duration
+		local depth = fromDepth * (1 - a * a)
+		local shakeX = if final.How == "lost" then math.sin(os.clock() * 60) * 0.4 else 0
+		DiveScene.Update(tFrozen, x + shakeX, depth)
+		depthHook.Position = UDim2.fromScale(0.5, depth / spec.MaxDepth)
+		depthHookLabel.Text = ("%d m"):format(math.floor(depth))
+		RunService.RenderStepped:Wait()
+	end
+	wipeTo(0, 0.25)
+	return final
+end
+
+-- ===== Flujo completo de un lanzamiento =====
+
+local function finish()
+	phase = "Idle"
+	State.Busy = false
+	FightUI.Hide()
+	if DiveScene.Active() then
+		DiveScene.Exit()
+	end
+	DiveScene.Destroy()
+	setDiveHudVisible(false)
+	surfaceButton.Visible = false
+	powerFrame.Visible = false
+	wipe.BackgroundTransparency = 1
+	unlockMovement()
+	FishingController.RefreshHint()
+end
+
+local function cast(power: number)
 	phase = "Casting"
 	runId += 1
 	local myRun = runId
-	setCastText("🎣", T.PanelLight)
+	local castTime = os.clock()
 	local result = State.Call("Cast", power, useReinforced)
 	if myRun ~= runId then
 		return
@@ -675,40 +573,82 @@ local function cast(power: number)
 		finish()
 		return
 	end
-	if result.Perfect then
-		HUD.Toast("✨ ¡Lanzamiento PERFECTO! +suerte", "Success")
-	end
+	castTime = os.clock() -- el servidor empieza a contar al recibir; respondió ahora
+	serverSession = true
 	if result.Reinforced then
 		useReinforced = false
 	end
-
-	-- vuelo del corcho
-	local tip = rodTip()
-	local from = if tip then tip.WorldPosition else target
-	makeBobber(from)
-	local t0 = os.clock()
-	while os.clock() - t0 < 0.55 do
-		if myRun ~= runId then
-			return
-		end
-		local a = (os.clock() - t0) / 0.55
-		setBobberPos(from:Lerp(target, a) + Vector3.new(0, math.sin(a * math.pi) * 8, 0))
-		RunService.RenderStepped:Wait()
+	if result.Perfect then
+		HUD.Toast("✨ ¡Lanzamiento PERFECTO! Más memes raros", "Success")
 	end
-	bobberBase = target + Vector3.new(0, 0.25, 0)
-	setBobberPos(bobberBase)
-	splash(target, 5)
-	UIKit.playSound("Splash")
-	-- el servidor empezó a contar al recibir el lanzamiento; descontamos el vuelo
-	waitForBite(math.max(0.3, result.BiteDelay - 0.55 - (os.clock() - t0 - 0.55)), myRun)
+	hint.Visible = false
+	castSwing()
+	local splashAt = throwBobber()
+	if myRun ~= runId then
+		return
+	end
+	wipeTo(0, 0.2)
+	phase = "Diving"
+	local dive = runDive(result, myRun, castTime)
+	if myRun ~= runId or dive.How == "cancel" then
+		return
+	end
+	serverSession = false -- Surface/FinishFight/Tug ya cerraron la inmersión en el servidor
+	-- de vuelta arriba: se sale de la escena y los memes vuelan a la mochila
+	DiveScene.Exit()
+	DiveScene.Destroy()
+	setDiveHudVisible(false)
+	wipeTo(1, 0.35)
+	phase = "Ending"
+	local summary = dive.Summary or {}
+	if dive.Broke then
+		rodBreakEffect(nil)
+		UIKit.playSound("Snap")
+	end
+	local catches = summary.Catches or {}
+	if #catches > 0 then
+		flyToBackpack(catches, splashAt)
+		task.wait(0.5)
+	end
+	finish()
+	if #catches > 0 then
+		CatchCard.ShowResults(summary)
+	elseif summary.ok ~= false then
+		HUD.Toast(if dive.How == "lost" then "Esta vez no hubo suerte… ¡otra!" else "🌊 Nada enganchado esta vez", "Info")
+	else
+		HUD.Toast(summary.err or "Error de conexión", "Error")
+	end
 end
+
+-- Cancela (guardaste la caña, moriste…): el servidor guarda lo enganchado.
+local function abort(message: string?)
+	if phase == "Idle" then
+		return
+	end
+	local hadSession = serverSession
+	serverSession = false
+	runId += 1
+	finish()
+	if message then
+		HUD.Toast(message, "Info")
+	end
+	if hadSession then
+		task.spawn(function()
+			local summary = State.Call("Surface")
+			if summary.ok and summary.Catches and #summary.Catches > 0 then
+				CatchCard.ShowResults(summary)
+			end
+		end)
+	end
+end
+
+-- ===== Cargar el lanzamiento (mantener click) =====
 
 local chargeStart = 0
 local chargeConn: RBXScriptConnection? = nil
 
 local function chargePower(): number
-	-- ida y vuelta 0 → 1 → 0
-	local x = ((os.clock() - chargeStart) * 0.9) % 2
+	local x = ((os.clock() - chargeStart) * 0.9) % 2 -- ida y vuelta 0 → 1 → 0
 	return if x <= 1 then x else 2 - x
 end
 
@@ -717,7 +657,6 @@ local function startCharging()
 		return
 	end
 	if not rodTool() then
-		HUD.Toast("🎣 Saca la caña (tecla 1) para pescar", "Warning")
 		return
 	end
 	local data = State.Data
@@ -729,18 +668,11 @@ local function startCharging()
 		HUD.Toast("🐠 Tu acuario está lleno: vuelve a tu parcela para descargarlo", "Warning")
 		return
 	end
-	local _, _, hrp = getCharacter()
-	if not hrp then
-		return
-	end
-	local index = player:GetAttribute("PlotIndex")
-	if type(index) ~= "number" or index < 1 then
-		HUD.Toast("No tienes parcela (ni muelle) en este servidor", "Error")
-		return
-	end
-	local offset = hrp.Position - GameConfig.DockSpot(index)
-	if Vector2.new(offset.X, offset.Z).Magnitude > GameConfig.Plots.FishingRange then
-		HUD.Toast("🚶 Ve al final de TU muelle para pescar", "Warning")
+	local ok, err = onOwnDock()
+	if not ok then
+		if err then
+			HUD.Toast(err, "Warning")
+		end
 		return
 	end
 	phase = "Charging"
@@ -748,9 +680,10 @@ local function startCharging()
 	lockMovement()
 	chargeStart = os.clock()
 	powerFrame.Visible = true
-	setCastText("🎣\nSUELTA", T.Primary)
+	hint.Visible = false
+	UIKit.pop(powerFrame, 0.8)
 	chargeConn = RunService.RenderStepped:Connect(function()
-		powerFill.Size = UDim2.fromScale(1, chargePower())
+		powerFill.Size = UDim2.fromScale(chargePower(), 1)
 	end)
 end
 
@@ -767,59 +700,27 @@ local function stopCharging()
 	task.spawn(cast, power)
 end
 
--- ===== Entrada =====
-
-local function onPrimaryDown()
-	if phase == "Idle" then
-		startCharging()
-	elseif phase == "Waiting" then
-		release("😱 ¡Demasiado pronto! Lo has asustado.", "Warning")
-	elseif phase == "Bite" then
-		phase = "Hooking"
-		biteLabel.Visible = false
-		local myRun = runId
-		task.spawn(function()
-			local info = State.Call("Hook")
-			if myRun == runId then
-				onHooked(info)
-			end
-		end)
-	elseif phase == "Fighting" then
-		holding = true
-	end
-end
-
-local function onPrimaryUp()
-	holding = false
-	if phase == "Charging" then
-		stopCharging()
-	end
-end
-
-local function isPrimary(input: InputObject): boolean
+local function isCastInput(input: InputObject): boolean
 	return input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch
 		or input.KeyCode == Enum.KeyCode.F
 end
 
--- ===== Construcción de la UI =====
+-- ===== UI =====
 
 local function buildUI()
-	gui = UIKit.new("ScreenGui", { Name = "PescaFishing", ResetOnSpawn = false, DisplayOrder = 6,
+	gui = UIKit.new("ScreenGui", { Name = "PescaFishing", ResetOnSpawn = false, DisplayOrder = 6, IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling, Parent = player:WaitForChild("PlayerGui") })
 
-	-- botón principal
-	local corner = UIKit.new("Frame", { Name = "CastArea", Visible = false, AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -24, 1, -24),
-		Size = UDim2.fromOffset(240, 220), BackgroundTransparency = 1, Parent = gui })
-	UIKit.responsive(corner)
-	castArea = corner
-	castButton = UIKit.button({ Name = "Cast", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1),
-		Size = UDim2.fromOffset(150, 150), Parent = corner }, { Color = T.Primary, Radius = 75, StrokeThickness = 5, HoverScale = 1.04 })
-	castLabel = UIKit.label({ Text = "🎣\nLANZAR", Size = UDim2.new(1, -20, 1, -20), Position = UDim2.fromOffset(10, 10),
-		Font = T.FontTitle, Parent = castButton }, { Stroke = 3, MaxSize = 34 })
-	castButton.MouseButton1Down:Connect(onPrimaryDown)
-
-	reinforcedButton = UIKit.button({ Name = "Reinforced", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -160, 1, -4),
-		Size = UDim2.fromOffset(74, 54), Parent = corner }, { Color = T.PanelLight, Radius = 14 })
+	-- pista con la caña en la mano: cómo se lanza y qué hace tu caña
+	hint = UIKit.new("Frame", { Name = "Hint", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -96),
+		Size = UDim2.fromOffset(420, 78), BackgroundTransparency = 1, Visible = false, Parent = gui })
+	UIKit.responsive(hint)
+	hintLabel = UIKit.label({ Text = "🖱️ Mantén CLICK para lanzar", Size = UDim2.new(1, 0, 0, 40), Font = T.FontTitle,
+		TextColor3 = T.Primary, Parent = hint }, { Stroke = 3, MaxSize = 30 })
+	rodChip = UIKit.label({ Text = "", Size = UDim2.new(1, 0, 0, 26), Position = UDim2.fromOffset(0, 44), Font = T.Font,
+		Parent = hint }, { Stroke = 2, MaxSize = 20 })
+	reinforcedButton = UIKit.button({ Name = "Reinforced", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(1, 8, 0, 20),
+		Size = UDim2.fromOffset(84, 44), Parent = hint }, { Color = T.PanelLight, Radius = 12 })
 	reinforcedLabel = UIKit.label({ Text = "🧵 0", Size = UDim2.new(1, -8, 1, -8), Position = UDim2.fromOffset(4, 4), Font = T.Font,
 		Parent = reinforcedButton }, { MaxSize = 20 })
 	reinforcedButton.Activated:Connect(function()
@@ -828,198 +729,137 @@ local function buildUI()
 		end
 		useReinforced = not useReinforced
 		HUD.Toast(if useReinforced then "🧵 Sedal Reforzado ACTIVADO para el próximo lanzamiento (+25 % capacidad)" else "🧵 Sedal Reforzado desactivado", "Info")
-		FishingController.RefreshReinforced()
+		FishingController.RefreshHint()
 	end)
 
-	-- barra de fuerza (vertical, junto al botón)
-	powerFrame = UIKit.new("Frame", { Name = "Power", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -164, 1, -64),
-		Size = UDim2.fromOffset(34, 150), BackgroundColor3 = T.PanelDark, Visible = false, Parent = corner })
-	UIKit.corner(powerFrame, 10)
-	UIKit.stroke(powerFrame, 3)
-	UIKit.new("Frame", { Name = "Perfect", AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.fromScale(0, 1 - F.PerfectPower.Min), Size = UDim2.fromScale(1, F.PerfectPower.Max - F.PerfectPower.Min),
-		BackgroundColor3 = T.Coin, BackgroundTransparency = 0.2, ZIndex = 3, Parent = powerFrame })
-	powerFill = UIKit.new("Frame", { Name = "Fill", AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1),
-		Size = UDim2.fromScale(1, 0), BackgroundColor3 = T.Accent, ZIndex = 2, Parent = powerFrame })
-	UIKit.corner(powerFill, 10)
+	-- barra de fuerza (horizontal, bajo el personaje)
+	powerFrame = UIKit.new("Frame", { Name = "Power", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.7),
+		Size = UDim2.fromOffset(360, 34), BackgroundColor3 = T.PanelDark, Visible = false, Parent = gui })
+	UIKit.corner(powerFrame, 12)
+	UIKit.stroke(powerFrame, 4)
+	UIKit.responsive(powerFrame)
+	UIKit.new("Frame", { Name = "Perfect", Position = UDim2.fromScale(F.PerfectPower.Min, 0), Size = UDim2.fromScale(F.PerfectPower.Max - F.PerfectPower.Min, 1),
+		BackgroundColor3 = T.Coin, BackgroundTransparency = 0.15, ZIndex = 3, Parent = powerFrame })
+	powerFill = UIKit.new("Frame", { Name = "Fill", Size = UDim2.fromScale(0, 1), BackgroundColor3 = T.Accent, ZIndex = 2, Parent = powerFrame })
+	UIKit.corner(powerFill, 12)
+	UIKit.label({ Text = "SUELTA en la zona dorada = PERFECTO", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0, -6),
+		Size = UDim2.fromOffset(420, 30), Font = T.FontTitle, TextColor3 = T.Coin, Parent = powerFrame }, { Stroke = 3, MaxSize = 24 })
 
-	-- ruleta de lo que puede picar (arriba, centrada)
-	roulette = UIKit.new("Frame", { Name = "Roulette", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 90),
-		Size = UDim2.fromOffset(5 * 70 + 16, 86), BackgroundColor3 = T.PanelDark, ClipsDescendants = true, Visible = false, Parent = gui })
-	UIKit.corner(roulette, 16)
-	UIKit.stroke(roulette, 4, T.Primary)
-	UIKit.responsive(roulette)
-	local strip = UIKit.new("Frame", { Name = "Strip", BackgroundTransparency = 1, Size = UDim2.new(1, 70, 1, 0), Parent = roulette })
-	for i = 1, 6 do
-		local cell = UIKit.label({ Name = "Cell" .. i, Text = "❓", Position = UDim2.fromOffset(8 + (i - 1) * 70 + 4, 8),
-			Size = UDim2.fromOffset(62, 62), BackgroundTransparency = 0, BackgroundColor3 = T.Panel, Parent = strip }, { Stroke = false })
-		UIKit.corner(cell, 12)
-		local st = UIKit.stroke(cell, 3, T.TextDim)
-		st.Name = "RarityStroke"
-		rouletteCells[i] = cell
-	end
-	local marker = UIKit.new("Frame", { Name = "Marker", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 0),
-		Size = UDim2.new(0, 70, 1, 0), BackgroundTransparency = 1, ZIndex = 5, Parent = roulette })
-	UIKit.stroke(marker, 4, T.Coin)
-	UIKit.corner(marker, 12)
-	-- la casilla central (3ª) queda bajo el marcador
-	strip.Position = UDim2.fromOffset(0, 0)
+	-- fundido del chapuzón
+	wipe = UIKit.new("Frame", { Name = "Wipe", Size = UDim2.fromScale(1, 1), BackgroundColor3 = RGB(60, 170, 220), BackgroundTransparency = 1,
+		ZIndex = 50, Parent = gui })
 
-	-- aviso de picada
-	biteLabel = UIKit.label({ Name = "Bite", Text = "❗ ¡TOCA YA! ❗", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.36),
-		Size = UDim2.fromOffset(520, 90), Font = T.FontTitle, TextColor3 = T.Danger, Visible = false, Parent = gui }, { Stroke = 5, MaxSize = 72 })
-	UIKit.responsive(biteLabel)
-
-	-- panel de decisión (PELEAR / SOLTAR)
-	decision = UIKit.new("Frame", { Name = "Decision", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45),
-		Size = UDim2.fromOffset(460, 300), BackgroundColor3 = T.Panel, Visible = false, Parent = gui })
-	UIKit.corner(decision, 22)
-	UIKit.stroke(decision, 5, T.PrimaryDark)
-	UIKit.responsive(decision)
-	local d = {}
-	d.Title = UIKit.label({ Text = "¡HA PICADO ALGO GORDO!", Size = UDim2.new(1, -20, 0, 44), Position = UDim2.fromOffset(10, 10),
-		Font = T.FontTitle, TextColor3 = T.Primary, Parent = decision }, { Stroke = 3, MaxSize = 34 })
-	d.Name = UIKit.label({ Text = "???", Size = UDim2.new(1, -20, 0, 34), Position = UDim2.fromOffset(10, 58), Font = T.FontTitle,
-		Parent = decision }, { Stroke = 3, MaxSize = 30 })
-	d.Weight = UIKit.label({ Text = "", Size = UDim2.new(1, -20, 0, 30), Position = UDim2.fromOffset(10, 96), Font = T.Font,
-		Parent = decision }, { MaxSize = 26 })
-	local survBar = UIKit.new("Frame", { Size = UDim2.new(1, -60, 0, 26), Position = UDim2.fromOffset(30, 136), BackgroundColor3 = T.PanelDark, Parent = decision })
-	UIKit.corner(survBar, 13)
-	UIKit.stroke(survBar, 3)
-	d.SurvivalFill = UIKit.new("Frame", { Size = UDim2.fromScale(0.5, 1), BackgroundColor3 = T.Primary, Parent = survBar })
-	UIKit.corner(d.SurvivalFill, 13)
-	d.SurvivalText = UIKit.label({ Text = "", Size = UDim2.new(1, -20, 0, 26), Position = UDim2.fromOffset(10, 168), Font = T.Font,
-		Parent = decision }, { MaxSize = 22 })
-	local row = UIKit.new("Frame", { Size = UDim2.new(1, -40, 0, 70), Position = UDim2.new(0, 20, 1, -86), BackgroundTransparency = 1, Parent = decision })
-	UIKit.list(row, Enum.FillDirection.Horizontal, 16, Enum.HorizontalAlignment.Center)
-	d.Fight = UIKit.button({ LayoutOrder = 1, Size = UDim2.fromOffset(190, 66), Parent = row }, { Color = T.Danger, Text = "⚔️ PELEAR", TextSize = 30 })
-	d.Release = UIKit.button({ LayoutOrder = 2, Size = UDim2.fromOffset(190, 66), Parent = row }, { Color = T.PanelLight, Text = "✂️ SOLTAR", TextSize = 30 })
-	d.Fight.Activated:Connect(function()
-		if phase ~= "Deciding" or not fightRefs.PendingInfo then
-			return
-		end
-		phase = "Engaging"
-		local myRun = runId
-		local r = State.Call("Engage")
-		if myRun ~= runId then
-			return
-		end
-		if r.ok then
-			startFight(fightRefs.PendingInfo)
-		else
-			HUD.Toast(r.err or "Se escapó", "Warning")
-			finish()
-		end
+	-- HUD de la inmersión
+	diveHud = UIKit.new("Frame", { Name = "DiveHud", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false, Parent = gui })
+	diveHint = UIKit.label({ Text = "", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 70), Size = UDim2.fromOffset(760, 44),
+		Font = T.FontTitle, Parent = diveHud }, { Stroke = 3, MaxSize = 34 })
+	UIKit.responsive(diveHint)
+	-- medidor de profundidad (derecha)
+	local meter = UIKit.new("Frame", { Name = "DepthMeter", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -24, 0.5, 0),
+		Size = UDim2.fromOffset(120, 420), BackgroundTransparency = 1, Parent = diveHud })
+	UIKit.responsive(meter)
+	depthBar = UIKit.new("Frame", { Name = "Bar", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(1, -20, 0, 20),
+		Size = UDim2.new(0, 8, 1, -40), BackgroundColor3 = Color3.new(1, 1, 1), Parent = meter })
+	UIKit.corner(depthBar, 4)
+	UIKit.stroke(depthBar, 2)
+	UIKit.label({ Text = "0 m", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0, -4), Size = UDim2.fromOffset(60, 20),
+		Font = T.FontTitle, Parent = depthBar }, { Stroke = 2, MaxSize = 16 })
+	depthMax = UIKit.label({ Text = "15 m", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 4), Size = UDim2.fromOffset(60, 20),
+		Font = T.FontTitle, TextColor3 = T.Danger, Parent = depthBar }, { Stroke = 2, MaxSize = 16 })
+	markerHolder = UIKit.new("Frame", { Name = "Markers", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = depthBar })
+	depthHook = UIKit.new("Frame", { Name = "HookMarker", AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(20, 20),
+		BackgroundColor3 = T.Danger, ZIndex = 4, Parent = depthBar })
+	UIKit.corner(depthHook, 10)
+	UIKit.stroke(depthHook, 3)
+	local pill = UIKit.new("Frame", { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(0, -8, 0.5, 0), Size = UDim2.fromOffset(72, 32),
+		BackgroundColor3 = Color3.new(1, 1, 1), ZIndex = 4, Parent = depthHook })
+	UIKit.corner(pill, 8)
+	UIKit.stroke(pill, 3)
+	depthHookLabel = UIKit.label({ Text = "0 m", Size = UDim2.fromScale(1, 1), Font = T.FontTitle, TextColor3 = T.PanelDark, ZIndex = 5,
+		Parent = pill }, { Stroke = false, MaxSize = 22 })
+	-- anzuelos usados (abajo, grande)
+	hookCounter = UIKit.label({ Name = "Hooks", Text = "🎣 0/1", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -30),
+		Size = UDim2.fromOffset(260, 70), Font = T.FontTitle, Parent = diveHud }, { Stroke = 4, MaxSize = 60 })
+	UIKit.responsive(hookCounter)
+	-- botón SUBIR
+	surfaceButton = UIKit.button({ Name = "Surface", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -24, 1, -24),
+		Size = UDim2.fromOffset(170, 76), Visible = false, Parent = diveHud }, { Color = T.Accent, Text = "⬆️ SUBIR (E)", TextSize = 28, Radius = 16 })
+	UIKit.responsive(surfaceButton)
+	surfaceButton.Activated:Connect(function()
+		wantSurface = true
 	end)
-	d.Release.Activated:Connect(function()
-		if phase == "Deciding" then
-			release("✂️ Lo has soltado. ¡Mejor suerte con el siguiente!", "Info")
-		end
-	end)
-	fightRefs.Decision = d
-
-	-- panel de pelea
-	fight = UIKit.new("Frame", { Name = "Fight", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -40),
-		Size = UDim2.fromOffset(640, 190), BackgroundColor3 = T.Panel, BackgroundTransparency = 0.1, Visible = false, Parent = gui })
-	UIKit.corner(fight, 20)
-	UIKit.stroke(fight, 4)
-	UIKit.responsive(fight)
-	fightRefs.Name = UIKit.label({ Text = "", Size = UDim2.new(0.62, -10, 0, 30), Position = UDim2.fromOffset(16, 8), Font = T.FontTitle,
-		TextXAlignment = Enum.TextXAlignment.Left, Parent = fight }, { Stroke = 2, MaxSize = 26 })
-	fightRefs.Weight = UIKit.label({ Text = "", AnchorPoint = Vector2.new(1, 0), Size = UDim2.new(0.38, -10, 0, 30),
-		Position = UDim2.new(1, -16, 0, 8), Font = T.Font, TextXAlignment = Enum.TextXAlignment.Right, Parent = fight }, { MaxSize = 22 })
-
-	local bar = UIKit.new("Frame", { Name = "Bar", Position = UDim2.fromOffset(20, 46), Size = UDim2.new(1, -40, 0, 46),
-		BackgroundColor3 = T.PanelDark, ClipsDescendants = false, Parent = fight })
-	UIKit.corner(bar, 12)
-	UIKit.stroke(bar, 3)
-	fightRefs.Bar = bar
-	fightRefs.Green = UIKit.new("Frame", { Name = "Green", Size = UDim2.fromScale(0.25, 1), BackgroundColor3 = T.Success, Parent = bar })
-	UIKit.corner(fightRefs.Green, 10)
-	fightRefs.Red = UIKit.new("Frame", { Name = "Red", BackgroundColor3 = T.Danger, BackgroundTransparency = 0.35, Parent = bar })
-	UIKit.corner(fightRefs.Red, 10)
-	UIKit.label({ Text = "💥", Size = UDim2.fromScale(1, 1), Parent = fightRefs.Red }, { Stroke = false })
-	fightRefs.Indicator = UIKit.new("Frame", { Name = "Indicator", AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.new(0, 10, 1, 18),
-		BackgroundColor3 = Color3.new(1, 1, 1), ZIndex = 5, Parent = bar })
-	UIKit.corner(fightRefs.Indicator, 5)
-	UIKit.stroke(fightRefs.Indicator, 3)
-
-	local progress = UIKit.new("Frame", { Name = "Progress", Position = UDim2.fromOffset(20, 106), Size = UDim2.new(1, -40, 0, 22),
-		BackgroundColor3 = T.PanelDark, Parent = fight })
-	UIKit.corner(progress, 11)
-	UIKit.stroke(progress, 3)
-	fightRefs.ProgressFill = UIKit.new("Frame", { Size = UDim2.fromScale(0.25, 1), BackgroundColor3 = T.Primary, Parent = progress })
-	UIKit.corner(fightRefs.ProgressFill, 11)
-	fightRefs.TugMarkers = {}
-	for i, threshold in ipairs(F.TugThresholds) do
-		local m = UIKit.new("Frame", { Name = "Tug" .. i, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(threshold, 0.5),
-			Size = UDim2.fromOffset(16, 30), BackgroundColor3 = T.Primary, ZIndex = 4, Parent = progress })
-		UIKit.corner(m, 4)
-		UIKit.stroke(m, 2)
-		fightRefs.TugMarkers[i] = m
-	end
-
-	fightRefs.Survival = UIKit.label({ Text = "", Size = UDim2.new(0.6, -20, 0, 24), Position = UDim2.fromOffset(16, 140), Font = T.Font,
-		TextXAlignment = Enum.TextXAlignment.Left, Parent = fight }, { MaxSize = 20 })
-	UIKit.label({ Text = "Mantén pulsado = más tensión", AnchorPoint = Vector2.new(1, 0), Size = UDim2.new(0.4, 0, 0, 24),
-		Position = UDim2.new(1, -16, 0, 140), Font = T.Font, TextColor3 = T.TextDim, TextXAlignment = Enum.TextXAlignment.Right,
-		Parent = fight }, { MaxSize = 18 })
-	fightRefs.Tug = UIKit.label({ Text = "", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0, -8),
-		Size = UDim2.fromOffset(560, 50), Font = T.FontTitle, TextColor3 = T.Coin, Visible = false, Parent = fight }, { Stroke = 4, MaxSize = 40 })
 end
 
-function FishingController.RefreshReinforced()
-	local data = State.Data
-	local count = data and data.Items and data.Items.SedalReforzado or 0
-	if not reinforcedButton then
+function FishingController.RefreshHint()
+	if not hint then
 		return
 	end
-	reinforcedButton.Visible = count > 0
+	local data = State.Data
+	local count = data and data.Items and data.Items.SedalReforzado or 0
 	if count <= 0 then
 		useReinforced = false
 	end
+	reinforcedButton.Visible = count > 0
 	reinforcedLabel.Text = "🧵 " .. count
 	reinforcedButton.BackgroundColor3 = if useReinforced then T.Success else T.PanelLight
+	local rod = equippedRod()
+	local broken = data and data.BrokenRods and data.BrokenRods[rod.Id]
+	hintLabel.Text = if broken then "💥 Caña rota: repárala en la tienda"
+		elseif UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then "👆 Mantén pulsado para lanzar"
+		else "🖱️ Mantén CLICK para lanzar"
+	rodChip.Text = ("%s · ⚖️ %s · 🎣 %d anzuelo%s · ⬇️ %d m"):format(rod.Name, FishMath.FormatWeight(rod.Capacity), rod.Hooks,
+		if rod.Hooks == 1 then "" else "s", rod.MaxDepth)
+	hint.Visible = phase == "Idle" and rodTool() ~= nil and not diveHud.Visible
 end
 
 function FishingController.Init()
+	FightUI.Init()
 	buildUI()
-	State.Changed:Connect(FishingController.RefreshReinforced)
-	FishingController.RefreshReinforced()
+	State.Changed:Connect(FishingController.RefreshHint)
+	FishingController.RefreshHint()
 
 	UserInputService.InputBegan:Connect(function(input, processed)
-		if processed or not isPrimary(input) then
+		if processed then
 			return
 		end
-		-- clic/toque en el mundo: solo cuenta a partir de la espera (para lanzar se usa el botón o F)
-		if phase == "Idle" and input.KeyCode ~= Enum.KeyCode.F then
-			return
+		if phase == "Diving" then
+			if input.KeyCode == Enum.KeyCode.E then
+				wantSurface = true
+			elseif input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+				pointerX = DiveScene.ScreenToX(Vector2.new(input.Position.X, input.Position.Y))
+			end
+		elseif phase == "Idle" and isCastInput(input) and rodTool() then
+			startCharging()
 		end
-		onPrimaryDown()
+	end)
+	-- el ratón (o el dedo arrastrando) marca hacia dónde va el anzuelo
+	UserInputService.InputChanged:Connect(function(input)
+		if phase == "Diving" and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			pointerX = DiveScene.ScreenToX(Vector2.new(input.Position.X, input.Position.Y))
+		end
 	end)
 	UserInputService.InputEnded:Connect(function(input)
-		if isPrimary(input) then
-			onPrimaryUp()
+		if isCastInput(input) and phase == "Charging" then
+			stopCharging()
 		end
 	end)
 
 	player.CharacterRemoving:Connect(function()
 		if phase ~= "Idle" then
 			savedMovement = nil
-			release(nil)
+			abort(nil)
 		end
 	end)
 
-	-- el botón de lanzar solo aparece con la caña en la mano; si la guardas, se cancela la pesca
+	-- si guardas la caña a mitad de lanzamiento, se cancela (lo enganchado se guarda)
 	local function watchCharacter(character: Model)
 		local function update()
-			local equipped = rodTool() ~= nil
-			castArea.Visible = equipped
-			if not equipped and phase ~= "Idle" and phase ~= "Ending" then
+			FishingController.RefreshHint()
+			if rodTool() == nil and phase ~= "Idle" and phase ~= "Ending" then
 				-- el servidor cambia la caña al romperse/repararse: esperamos un poco antes de cancelar
 				task.delay(0.4, function()
-					if rodTool() == nil and phase ~= "Idle" and phase ~= "Ending" then
-						release("🎣 Has guardado la caña", "Info")
+					if rodTool() == nil and currentPhase() ~= "Idle" and currentPhase() ~= "Ending" then
+						abort("🎣 Has guardado la caña")
 					end
 				end)
 			end

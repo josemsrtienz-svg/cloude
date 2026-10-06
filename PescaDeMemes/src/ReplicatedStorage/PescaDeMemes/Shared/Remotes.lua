@@ -18,16 +18,16 @@ Remotes.Definitions = {
 	Notify = "RemoteEvent", -- servidor → cliente (texto, tipo)
 	Announce = "RemoteEvent", -- servidor → todos (capturas épicas)
 	-- Pesca
-	Cast = "RemoteFunction", -- (power, useReinforced) → { BiteDelay }
-	Hook = "RemoteFunction", -- () → datos de la pelea
-	Engage = "RemoteFunction", -- PELEAR tras ver el aguante (solo con sobrecarga)
+	Cast = "RemoteFunction", -- (power, useReinforced) → inmersión: memes, profundidad, anzuelos
+	Grab = "RemoteFunction", -- (index) el anzuelo toca un meme → enganchado o PELEA
+	Engage = "RemoteFunction", -- PELEAR tras ver el aguante
 	Tug = "RemoteFunction", -- (inGreen) → { Survived }
-	FinishFight = "RemoteFunction", -- (success) → { Catch }
-	Release = "RemoteFunction", -- soltar / cancelar
+	FinishFight = "RemoteFunction", -- (success) → sigue la inmersión, o termina si perdiste
+	Release = "RemoteFunction", -- SOLTAR el meme que pelea y seguir bajando
+	Surface = "RemoteFunction", -- subir: termina la inmersión y te llevas lo enganchado
 	-- Acuario, parcela y tienda
 	SellCatch = "RemoteFunction",
 	SellAll = "RemoteFunction",
-	ResolvePending = "RemoteFunction", -- ("sell" | "release") captura que no cabía en el acuario
 	GoHome = "RemoteFunction", -- teletransporte a tu parcela
 	RepairRod = "RemoteFunction", -- (rodId) reparar una caña rota
 	BuyAquarium = "RemoteFunction", -- (tier) mochila-acuario más grande

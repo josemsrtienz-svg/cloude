@@ -17,6 +17,8 @@ local Memes = require(Root.Config.Memes)
 local Remotes = require(Root.Shared.Remotes)
 local Util = require(Root.Shared.Util)
 local Inventory = require(Root.Shared.Inventory)
+local GearModels = require(Root.Shared.GearModels)
+local Rods = require(Root.Config.Rods)
 
 local Controllers = script.Parent
 local UIKit = require(Controllers.UIKit)
@@ -34,6 +36,9 @@ local xpFill: Frame
 local aquariumLabel: TextLabel
 local aquariumFill: Frame
 local RGB = Color3.fromRGB
+local shownCoins: number? = nil -- nil = aún no se ha mostrado nada (la primera vez no se anima)
+local coinTween = 0
+local coinTarget: number? = nil
 
 local TOAST_COLORS = {
 	Info = T.Accent,
@@ -83,11 +88,43 @@ local function showAnnouncement(text: string, rarityId: string?)
 	end)
 end
 
+-- El dinero sube contando (y el número da un saltito si ganas). La primera vez se pone directo.
+local function animateCoins(target: number)
+	if target == coinTarget then
+		return -- llegan datos nuevos a menudo (ingresos, etc.): solo se anima si cambió el dinero
+	end
+	coinTarget = target
+	coinTween += 1
+	if shownCoins == nil then
+		shownCoins = target
+		coinsLabel.Text = Util.formatShort(target)
+		return
+	end
+	local from = shownCoins :: number
+	local myTween = coinTween
+	if target > from then
+		UIKit.pop(coinsLabel, 1.15)
+	end
+	task.spawn(function()
+		local t0 = os.clock()
+		while myTween == coinTween do
+			local a = math.min(1, (os.clock() - t0) / 0.5)
+			local value = math.floor(from + (target - from) * (1 - (1 - a) ^ 3))
+			shownCoins = value
+			coinsLabel.Text = Util.formatShort(value)
+			if a >= 1 then
+				break
+			end
+			task.wait()
+		end
+	end)
+end
+
 local function refresh(data: any)
 	if not data then
 		return
 	end
-	coinsLabel.Text = Util.formatShort(data.MemeCoin)
+	animateCoins(data.MemeCoin)
 	levelLabel.Text = "Nv " .. data.Level
 	local need = GameConfig.XPForLevel(data.Level)
 	UIKit.tween(xpFill, 0.3, { Size = UDim2.fromScale(math.clamp(data.XP / need, 0, 1), 1) })
@@ -118,7 +155,9 @@ function HUD.Init()
 	xpFill = UIKit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = T.Accent, Parent = bar })
 	UIKit.corner(xpFill, 7)
 	-- mochila-acuario: kg usados / capacidad
-	UIKit.label({ Text = "🐠", Position = UDim2.fromOffset(0, 42), Size = UDim2.fromOffset(46, 46), Parent = stats }, { Stroke = false })
+	local tankIcon = UIKit.viewport(GearModels.Tank(Rods.Aquariums[1], { "NoobFeliz" }), { Position = UDim2.fromOffset(0, 40),
+		Size = UDim2.fromOffset(50, 50), Parent = stats }, { Angle = 160, Zoom = 1.3 })
+	tankIcon.Name = "TankIcon"
 	local aqBar = UIKit.new("Frame", { Position = UDim2.fromOffset(52, 52), Size = UDim2.fromOffset(200, 26), BackgroundColor3 = T.PanelDark, Parent = stats })
 	UIKit.corner(aqBar, 13)
 	UIKit.stroke(aqBar, 3)
@@ -127,7 +166,8 @@ function HUD.Init()
 	aquariumLabel = UIKit.label({ Text = "0 / 25 kg", Size = UDim2.new(1, -10, 1, -4), Position = UDim2.fromOffset(5, 2), Font = T.FontTitle,
 		ZIndex = 3, Parent = aqBar }, { Stroke = 2, MaxSize = 20 })
 	-- dinero gigante
-	UIKit.label({ Text = GameConfig.CurrencyEmoji, Position = UDim2.fromOffset(0, 96), Size = UDim2.fromOffset(62, 62), Parent = stats }, { Stroke = false })
+	UIKit.viewport(GearModels.Coin(), { Name = "CoinIcon", Position = UDim2.fromOffset(0, 96), Size = UDim2.fromOffset(62, 62), Parent = stats },
+		{ Spin = 1.5, Angle = 0, Zoom = 1.25 })
 	coinsLabel = UIKit.label({ Text = "0", Size = UDim2.fromOffset(260, 66), Position = UDim2.fromOffset(66, 94), Font = T.FontTitle,
 		TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = RGB(90, 255, 90), Parent = stats }, { Stroke = 4, MaxSize = 64 })
 
@@ -136,10 +176,18 @@ function HUD.Init()
 		Size = UDim2.fromOffset(200, 170), BackgroundTransparency = 1, Parent = gui })
 	UIKit.responsive(left)
 	UIKit.list(left, Enum.FillDirection.Vertical, 12, Enum.HorizontalAlignment.Left)
-	for i, b in ipairs({ { "Shop", "🛒", "Tienda", RGB(60, 200, 80) }, { "Bestiary", "📖", "Índice", RGB(40, 170, 255) } }) do
+	-- iconos 3D en vez de emojis: la caña para la tienda y el libro para el índice
+	local leftButtons = {
+		{ "Shop", function()
+			return GearModels.Rod(Rods.List[3])
+		end, "Tienda", RGB(60, 200, 80), 60 },
+		{ "Bestiary", GearModels.Book, "Índice", RGB(40, 170, 255), 20 },
+	}
+	for i, b in ipairs(leftButtons) do
 		local btn = UIKit.button({ Name = b[1], LayoutOrder = i, Size = UDim2.fromOffset(190, 74), Parent = left },
 			{ Color = b[4], Radius = 10, StrokeThickness = 4 })
-		UIKit.label({ Text = b[2], Size = UDim2.fromOffset(56, 56), Position = UDim2.fromOffset(8, 9), Parent = btn }, { Stroke = false })
+		UIKit.viewport(b[2](), { Name = "Icon", Size = UDim2.fromOffset(62, 62), Position = UDim2.fromOffset(4, 6), Parent = btn },
+			{ Angle = b[5], Zoom = 1.3 })
 		UIKit.label({ Text = b[3], Size = UDim2.new(1, -74, 0, 52), Position = UDim2.fromOffset(66, 11), Font = T.FontTitle,
 			TextXAlignment = Enum.TextXAlignment.Left, Parent = btn }, { Stroke = 3, MaxSize = 38 })
 		btn.Activated:Connect(function()
@@ -152,10 +200,19 @@ function HUD.Init()
 		Size = UDim2.fromOffset(84, 190), BackgroundTransparency = 1, Parent = gui })
 	UIKit.responsive(right)
 	UIKit.list(right, Enum.FillDirection.Vertical, 12)
-	for i, b in ipairs({ { "Aquarium", "🐠", RGB(255, 140, 40) }, { "Plot", "🏠", RGB(235, 60, 60) } }) do
+	local rightButtons = {
+		{ "Aquarium", function()
+			return GearModels.Tank(Rods.Aquariums[3], { "PerroBonk", "NoobFeliz" })
+		end, RGB(255, 140, 40), 160, "Acuario" },
+		{ "Plot", GearModels.House, RGB(235, 60, 60), 30, "Parcela" },
+	}
+	for i, b in ipairs(rightButtons) do
 		local btn = UIKit.button({ Name = b[1], LayoutOrder = i, Size = UDim2.fromOffset(80, 80), Parent = right },
 			{ Color = b[3], Radius = 10, StrokeThickness = 4 })
-		UIKit.label({ Text = b[2], Size = UDim2.fromScale(0.78, 0.78), Position = UDim2.fromScale(0.11, 0.11), Parent = btn }, { Stroke = false })
+		UIKit.viewport(b[2](), { Name = "Icon", Size = UDim2.fromScale(0.9, 0.78), Position = UDim2.fromScale(0.05, 0.02), Parent = btn },
+			{ Angle = b[4], Zoom = 1.25 })
+		UIKit.label({ Text = b[5], AnchorPoint = Vector2.new(0.5, 1), Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0.5, 0, 1, -2),
+			Font = T.FontTitle, Parent = btn }, { Stroke = 2, MaxSize = 16 })
 		btn.Activated:Connect(function()
 			HUD.ButtonPressed:Fire(b[1])
 		end)

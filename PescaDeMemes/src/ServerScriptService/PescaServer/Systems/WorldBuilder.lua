@@ -131,7 +131,17 @@ local function studded(parent: Instance, name: string, size: Vector3, cf: CFrame
 	})
 end
 
-local MAP = { MinX = -110, MaxX = 110, MinZ = -170, MaxZ = 200, Tile = 10 }
+-- Límites del mapa: salen del río y de las parcelas (redondeados a casillas de 10)
+local function roundUp(v: number): number
+	return math.ceil(v / 10) * 10
+end
+local MAP = {
+	MaxX = roundUp(GameConfig.Plots.CenterX + GameConfig.Plots.Size / 2 + 14),
+	MinX = -roundUp(GameConfig.Plots.CenterX + GameConfig.Plots.Size / 2 + 14),
+	MinZ = -roundUp(-GameConfig.River.MinZ + 30),
+	MaxZ = roundUp(GameConfig.River.MaxZ + 60),
+	Tile = 10,
+}
 
 -- ===== Suelo, paredes y río =====
 
@@ -214,7 +224,7 @@ local function buildRiver(map: Instance)
 			part(bridge, "RailPost", Vector3.new(0.5, 3, 0.5), CFrame.new(x, 1.5, z), PALETTE.WoodDark, Enum.Material.Wood)
 		end
 	end
-	for _, x in ipairs({ -10, 10 }) do
+	for x = -r.HalfWidth + 10, r.HalfWidth - 10, 20 do
 		for _, z in ipairs({ -bw / 2 + 1, bw / 2 - 1 }) do
 			post(bridge, "Pillar", 1.2, 10, Vector3.new(x, -10, z), PALETTE.WoodDark)
 		end
@@ -272,6 +282,13 @@ local function buildDock(plot: Instance, at: (number, number, number) -> CFrame,
 		local color = if i % 4 == 0 then PALETTE.WoodLight else PALETTE.Wood:Lerp(PALETTE.WoodDark, rng:NextNumber(0, 0.3))
 		part(dock, "Plank", Vector3.new(7, 0.5, 1.8), at(rng:NextNumber(-0.08, 0.08), 0.25, z - 0.9)
 			* CFrame.Angles(0, math.rad(rng:NextNumber(-1, 1)), 0), color, Enum.Material.WoodPlanks)
+		-- pilotes del pasillo cada 8 studs (el muelle es largo: el río es ancho)
+		if i % 4 == 0 then
+			for _, x in ipairs({ -3.2, 3.2 }) do
+				local base = at(x, 0, z - 0.9).Position
+				post(dock, "Pile", 0.6, 9.6, Vector3.new(base.X, -9.2, base.Z), PALETTE.WoodDark)
+			end
+		end
 		z -= 2
 	end
 	-- plataforma final para pescar (aquí está GameConfig.DockSpot)

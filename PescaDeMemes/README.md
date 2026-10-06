@@ -28,21 +28,25 @@ rojo build default.project.json -o PescaDeMemes.rbxlx
 ## Cómo se juega
 1. Apareces en **tu parcela** (cartel con tu nombre). Delante tienes **tu muelle privado** sobre el río.
 2. Saca la **caña** de la barra de abajo (tecla **1**) y ve al **final de tu muelle** (solo puedes pescar en el tuyo).
-3. **Mantén** 🎣 LANZAR (o **F**) y suelta. Mientras esperas, una **ruleta** enseña los memes que pueden picar.
-4. No toques hasta **"❗ ¡TOCA YA!"**. Si pesa más que tu caña verás el **% de aguante** → PELEAR o SOLTAR.
-5. Pelea con la barra de tensión. Si pierdes, el sedal **sube rapidísimo** y se escapa.
-   Si fallas un **⚡ TIRÓN** con sobrecarga, **la caña se ROMPE** (repárala en la tienda; la de palo es irrompible).
-6. Lo que pescas entra en tu **mochila-acuario** (a la espalda). Cada meme ocupa su peso en kg.
-   Pesca varios en la misma "ronda" hasta llenarla; si algo no cabe: **vender ya** o **soltar**.
-7. Vuelve a tu parcela: **al entrar se colocan solos** en el césped (los más valiosos primero) y generan
-   MemeCoins en el **círculo verde** (písalo para cobrar). "Recoger" junto a un meme lo devuelve al acuario.
-8. Tienda (entrada del mapa): cañas, **reparar**, mochilas-acuario más grandes y Sedal Reforzado.
+3. **Mantén CLICK** (o el dedo, o **F**) y suelta: la barra de fuerza en la **zona dorada** = PERFECTO (+suerte).
+4. **Inmersión:** la cámara baja al agua. El anzuelo baja solo; **guíalo** con **A/D**, el **ratón** o el **dedo**
+   hacia los memes. Encima de cada uno ves su rareza y sus kg: **verde** se engancha solo, **naranja ⚔️** pesa más
+   que tu caña (PELEAR o SOLTAR) y **rojo ⛔** es demasiado pesado. Tu caña tiene X **anzuelos** y baja X **metros**.
+5. Pelea con la barra de tensión. Si pierdes, el sedal **sube de golpe**; si fallas un **⚡ TIRÓN**,
+   **la caña se ROMPE** (repárala en la tienda; la de palo es irrompible).
+6. Se sube al llenar los anzuelos, al tocar el fondo o con **SUBIR (E)**. Los memes saltan a tu **mochila-acuario**.
+7. Vuelve a tu parcela: **al entrar se colocan solos** en el césped y generan MemeCoins en el **círculo verde**
+   (písalo para cobrar). "Recoger" junto a un meme lo devuelve al acuario.
+8. **Tienda** (entrada del mapa): cañas (más kg, anzuelos y profundidad), **reparar**, mochilas más grandes y Sedal Reforzado.
+
+Estado y fases del proyecto: [`docs/GAME_STATE.md`](../docs/GAME_STATE.md).
 
 ## Estructura
 ```
 src/ReplicatedStorage/PescaDeMemes/
   Config/   GameConfig (reglas, mapa del río y parcelas) · Memes (8 memes) · Rods (cañas, mochilas-acuario, Sedal) · Assets
-  Shared/   Remotes · Inventory (acuario/parcela) · MemeModels (figuras de bloques) · FishMath (peso/capacidad/aguante/valor) · FishBehaviors (cómo pelea cada meme) · Util
+  Shared/   Remotes · Inventory (acuario/parcela) · MemeModels (figuras de bloques) · GearModels (caña, mochila, iconos 3D)
+            FishMath (peso/capacidad/aguante/valor) · FishBehaviors (cómo pelea cada meme) · Util
 src/ServerScriptService/PescaServer/
   Main.server.lua
   Systems/  PlayerData (guardado con session lock) · FishingService (autoridad de la pesca)
@@ -50,15 +54,14 @@ src/ServerScriptService/PescaServer/
             EconomyService (ventas, tienda, reparar) · WorldBuilder (río + 8 parcelas con muelle propio)
 src/StarterPlayer/StarterPlayerScripts/PescaClient/
   init.client.lua
-  Controllers/  State · UIKit · HUD · FishingController (minijuego) · CatchCard · Panels · PlotController
+  Controllers/  State · UIKit (fotos 3D) · HUD · FishingController (lanzar + inmersión) · DiveScene (escena submarina)
+                FightUI (pelea) · CatchCard (resultados) · Panels (tienda, acuario, parcela, índice) · PlotController · Ambience
 ```
 
 ## Seguridad
-El servidor decide qué meme pica, su peso, si es dorado y su valor; valida distancia al agua,
-cooldowns, ventana de la picada, tiempo mínimo de pelea, número y ritmo de tirones, y crea cada captura
-con un id único. **Riesgo conocido del prototipo:** el resultado de la pelea (y si estabas en verde en un tirón)
-lo informa el cliente, así que un exploit podría automatizar peleas respetando los tiempos mínimos.
-Para la beta: registrar tasas de éxito por jugador y marcar valores anómalos.
-
-## Balance
-Todos los números están en `Config/` y son **valores iniciales**: se ajustan tras probar con 3–5 personas.
+El servidor genera cada inmersión (qué memes hay, profundidad, peso, si son dorados y su valor) y valida cada
+enganche: que el anzuelo PUEDE estar a esa profundidad en ese momento (baja a velocidad fija) y en esa x (se mueve
+de lado a velocidad limitada y el meme tiene que estar cerca), que quedan anzuelos,
+que cabe en el acuario y que no es demasiado pesado. También valida tiempo mínimo de pelea y ritmo de tirones, y crea
+cada captura con un id único. **Riesgo conocido del prototipo:** el resultado de la pelea (y si estabas en verde en un
+tirón) lo informa el cliente, así que un exploit podría automatizar peleas respetando los tiempos mínimos.
