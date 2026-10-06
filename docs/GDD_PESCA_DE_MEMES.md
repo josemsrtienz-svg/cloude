@@ -54,6 +54,36 @@ Tiene que ser divertido sin mejoras y fácil de jugar en móvil con un solo dedo
 
    Esto convierte cada captura nueva en algo que **aprender** y no solo en un número más alto.
 
+### 3b. Peso del meme vs. capacidad de la caña (idea del equipo)
+Cada captura tiene un **peso en kg** y cada caña una **capacidad máxima**.
+
+**Sobrecarga** `r = peso / capacidad`
+
+**Probabilidad de que el sedal aguante** (valores iniciales):
+
+| r | Situación | Aguante |
+|---|---|---|
+| ≤ 1,0 | Dentro de capacidad | 100 % (solo depende de tu habilidad) |
+| 1,25 | Algo pesado | ~41 % |
+| 1,5 | Pesado | ~20 % |
+| 2 | Muy pesado | ~6 % |
+| 3 | Bestia | ~1 % |
+| 5 | Imposible… casi | ~0,1 % (mínimo) |
+| > 5 | Demasiado pesado | El sedal se rompe en la picada |
+
+Fórmula: `aguante = max(0,001, (1/r)^4)` si `r > 1`.
+
+**Cómo se juega:**
+1. Al picar se muestra `⚖️ ~87 kg / 🎣 40 kg` y la barra de **Aguante del sedal** con su %. El peso exacto se ve al pescarlo; antes es una estimación de ±10 %.
+2. Decisión: **PELEAR** o **SOLTAR** (cortas el sedal y no pierdes el cebo).
+3. Si hay sobrecarga, el meme da **3 tirones fuertes** durante la pelea. En cada uno el servidor tira dados con `aguante^(1/3)`. Si en ese momento tu indicador está en la zona verde, ese tirón tiene ×1,5 de probabilidad (máximo 95 %). Así la suerte importa, pero jugar bien también.
+4. Con sobrecarga la zona verde se hace más estrecha y el meme empuja más fuerte (escala con `r`).
+5. Si sale bien: aviso a todo el servidor (*"¡Pescó 260 kg con una Caña de Palo!"*) + insignia **"Imposible"** en la captura.
+
+**Rangos de peso (iniciales):** Común 1–8 kg · Poco común 5–25 · Raro 20–80 · Épico 60–250 · Legendario 200–900 · Mítico 800–3.000. El tamaño (S…Gigante) sale del peso dentro de su rango.
+
+**Consumible "Sedal Reforzado":** +25 % de capacidad durante un lanzamiento. Se gana jugando y en la tienda con MemeCoins.
+
 ## 4. Coleccionables
 Reutilizamos los 16 memes de `MemeCatalog` como la primera tanda de "peces", repartidos por zona.
 
@@ -73,7 +103,15 @@ Reutilizamos los 16 memes de `MemeCatalog` como la primera tanda de "peces", rep
 **Bestiario:** cuadrícula por zona; descubrir un meme da XP y completar una zona da un premio único (cosmético de caña).
 
 ## 5. Progresión
-- **Cañas** (vertical, cada una cambia algo): más ancho de zona verde, más resistencia o más suerte. La caña nº 4, por ejemplo, permite pescar en aguas profundas.
+- **Cañas** (vertical, cada una cambia algo): **capacidad de peso** + un efecto propio.
+
+| Caña | Capacidad | Efecto |
+|---|---|---|
+| Caña de Palo | 10 kg | — |
+| Caña de Fibra | 40 kg | Zona verde más ancha |
+| Caña Turbo | 120 kg | Progreso más rápido |
+| Caña Abisal | 400 kg | Pesca en aguas profundas |
+| Caña Legendaria | 1.500 kg | +suerte, aguanta más el rojo |
 - **Cebos** (horizontal): cambian *qué* pica, no solo cuánto (cebo "Wifi" → memes de internet; cebo "8-bit" → Pixelado).
 - **Zonas** (desbloqueo por nivel + MemeCoins):
 
