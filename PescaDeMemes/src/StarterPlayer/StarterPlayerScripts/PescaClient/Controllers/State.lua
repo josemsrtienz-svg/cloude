@@ -1,0 +1,72 @@
+--[[
+	PescaDeMemes • State (ModuleScript, cliente)
+	StarterPlayerScripts > PescaClient > Controllers > State
+
+	Copia local (solo lectura) de los datos del jugador que manda el servidor.
+	State.Changed se dispara cada vez que llegan datos nuevos.
+	State.Busy = true mientras se está pescando (para que los paneles no estorben).
+]]
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
+local Remotes = require(Root.Shared.Remotes)
+local Util = require(Root.Shared.Util)
+
+local State = {}
+State.Data = nil :: any
+State.Changed = Util.Signal()
+State.Busy = false
+
+function State.Init()
+	Remotes.Get("DataChanged").OnClientEvent:Connect(function(data)
+		State.Data = data
+		State.Changed:Fire(data)
+	end)
+	task.spawn(function()
+		local data = Remotes.Get("GetData"):InvokeServer()
+		if data and not State.Data then
+			State.Data = data
+			State.Changed:Fire(data)
+		end
+	end)
+end
+
+-- Capturas que no están en el acuario, ordenadas de más a menos valiosas.
+function State.Backpack(): { any }
+	local data = State.Data
+	if not data then
+		return {}
+	end
+	local inAquarium = {}
+	for _, id in ipairs(data.Aquarium) do
+		inAquarium[id] = true
+	end
+	local list = {}
+	for id, c in pairs(data.Catches) do
+		if not inAquarium[id] then
+			table.insert(list, c)
+		end
+	end
+	table.sort(list, function(a, b)
+		if a.Value ~= b.Value then
+			return a.Value > b.Value
+		end
+		return a.Time > b.Time
+	end)
+	return list
+end
+
+-- Llama a una RemoteFunction y devuelve su resultado; si falla, devuelve { ok = false }.
+function State.Call(name: string, ...: any): any
+	local args = table.pack(...)
+	local ok, result = pcall(function()
+		return Remotes.Get(name):InvokeServer(table.unpack(args, 1, args.n))
+	end)
+	if ok and type(result) == "table" then
+		return result
+	end
+	return { ok = false, err = "Error de conexión" }
+end
+
+return State

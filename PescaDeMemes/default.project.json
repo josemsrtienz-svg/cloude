@@ -1,0 +1,23 @@
+{
+  "name": "PescaDeMemes",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "PescaDeMemes": {
+        "$path": "src/ReplicatedStorage/PescaDeMemes"
+      }
+    },
+    "ServerScriptService": {
+      "PescaServer": {
+        "$path": "src/ServerScriptService/PescaServer"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "PescaClient": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/PescaClient"
+        }
+      }
+    }
+  }
+}

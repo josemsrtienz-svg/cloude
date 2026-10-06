@@ -2,19 +2,19 @@
 
 ```text
 PROJECT: Pesca de Memes (nombre provisional)
-STATUS: Preproducción
-CURRENT_PHASE: FASE 1 — PREPRODUCCIÓN
-GAME_VERSION: —
-CORE_LOOP_STATUS: Diseñado (sin probar)
-MAP_STATUS: Esquema de zonas
-SYSTEMS_STATUS: Lista de sistemas + qué se reutiliza de MEME WARRIORS
-UI_STATUS: Pendiente
-DATA_STATUS: Esquema propuesto
-SECURITY_STATUS: Reglas definidas
-QA_STATUS: —
+STATUS: Prototipo
+CURRENT_PHASE: FASE 2 — PROTOTIPO (P0)
+GAME_VERSION: P0 0.1 (carpeta PescaDeMemes/)
+CORE_LOOP_STATUS: Implementado (pesca + peso/capacidad + tirones + acuario + tienda); falta probar con jugadores
+MAP_STATUS: Zona 1 "Charca del Noob" por script (WorldBuilder)
+SYSTEMS_STATUS: PlayerData, FishingService, EconomyService
+UI_STATUS: HUD, minijuego, tarjeta de captura, mochila, acuario, tienda, bestiario
+DATA_STATUS: Schema v1 con session lock y migraciones
+SECURITY_STATUS: Servidor decide capturas/valores; riesgo conocido: resultado de la pelea lo informa el cliente
+QA_STATUS: Análisis estático (luau-lsp) y rojo build OK; sin probar en Studio
 DECISIONS: Concepto A elegido (ver GAME_IDEAS.md); mobile-first; servidor con autoridad total sobre capturas y monedas
 OPEN_QUESTIONS: ver sección 15
-NEXT_STEP: Prototipo P0 — minijuego de pesca + acuario (sección 13)
+NEXT_STEP: Probar el P0 en Roblox Studio con 3–5 personas y ajustar balance
 ```
 
 ## 1. High concept
