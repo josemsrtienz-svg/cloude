@@ -4,9 +4,9 @@
 
 	Ayudas visuales de la parcela (solo para ti):
 	  · Marca "🏠 TU PARCELA" visible desde lejos sobre tu cartel.
-	  · Oculta los pedestales de las parcelas de otros (no puedes usarlos).
-	  · Mientras llevas un meme: aviso arriba + botón "🎒 A la mochila" + rastro hasta tu parcela.
-	El estado viene de los atributos que pone el servidor: PlotIndex y Carrying.
+	  · "Recoger" solo aparece en los huecos OCUPADOS de TU parcela (el servidor marca "Occupied").
+	  · Con la mochila-acuario llena: aviso arriba + rastro amarillo hasta tu parcela para descargar.
+	El estado viene de los atributos que pone el servidor: PlotIndex y Occupied (en cada hueco).
 ]]
 
 local Players = game:GetService("Players")
@@ -15,22 +15,21 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local GameConfig = require(Root.Config.GameConfig)
-local Memes = require(Root.Config.Memes)
+local Inventory = require(Root.Shared.Inventory)
 
 local Controllers = script.Parent
 local UIKit = require(Controllers.UIKit)
 local State = require(Controllers.State)
-local HUD = require(Controllers.HUD)
 
 local T = UIKit.Theme
 local player = Players.LocalPlayer
 local PlotController = {}
 
 local banner: Frame
-local bannerText: TextLabel
 local marker: BillboardGui? = nil
 local trail: Beam? = nil
 local trailAttachments: { Attachment } = {}
+local watched: { [Instance]: RBXScriptConnection } = {}
 
 local function plotFolder(index: number): Instance?
 	local map = Workspace:FindFirstChild("Map")
@@ -43,16 +42,20 @@ local function myPlotIndex(): number
 	return if type(index) == "number" then index else 0
 end
 
--- Solo puedes interactuar con los pedestales de tu parcela.
+-- "Recoger" solo en los huecos ocupados de tu parcela.
 local function updatePrompts()
 	local mine = myPlotIndex()
 	for index = 1, GameConfig.Plots.Count do
 		local plot = plotFolder(index)
-		local pedestals = plot and plot:FindFirstChild("Pedestals")
-		if pedestals then
-			for _, prompt in ipairs(pedestals:GetDescendants()) do
-				if prompt:IsA("ProximityPrompt") then
-					prompt.Enabled = index == mine
+		local spots = plot and plot:FindFirstChild("Spots")
+		if spots then
+			for _, spot in ipairs(spots:GetChildren()) do
+				local prompt = spot:FindFirstChildOfClass("ProximityPrompt")
+				if prompt then
+					prompt.Enabled = index == mine and spot:GetAttribute("Occupied") == true
+				end
+				if not watched[spot] then
+					watched[spot] = spot:GetAttributeChangedSignal("Occupied"):Connect(updatePrompts)
 				end
 			end
 		end
@@ -69,7 +72,7 @@ local function updateMarker()
 	if not ownerSign then
 		return
 	end
-	local bb = UIKit.new("BillboardGui", { Name = "MyPlotMarker", Size = UDim2.fromOffset(200, 60), StudsOffsetWorldSpace = Vector3.new(0, 7, 0),
+	local bb = UIKit.new("BillboardGui", { Name = "MyPlotMarker", Size = UDim2.fromOffset(220, 64), StudsOffsetWorldSpace = Vector3.new(0, 7, 0),
 		AlwaysOnTop = true, MaxDistance = 1000, LightInfluence = 0, Parent = ownerSign })
 	UIKit.label({ Text = "🏠 TU PARCELA", Size = UDim2.fromScale(1, 1), Font = T.FontTitle, TextColor3 = T.Primary, Parent = bb }, { Stroke = 3 })
 	marker = bb
@@ -86,7 +89,10 @@ local function clearTrail()
 	table.clear(trailAttachments)
 end
 
-local function updateTrail(active: boolean)
+local function setTrail(active: boolean)
+	if active == (trail ~= nil) then
+		return
+	end
 	clearTrail()
 	if not active then
 		return
@@ -105,47 +111,37 @@ local function updateTrail(active: boolean)
 		Color = ColorSequence.new(T.Primary), Transparency = NumberSequence.new(0.35), Segments = 20, Parent = hrp })
 end
 
-local function updateCarry()
-	local carrying = player:GetAttribute("Carrying")
-	local active = type(carrying) == "string" and carrying ~= ""
-	banner.Visible = active
-	if active then
-		local data = State.Data
-		local catch = data and data.Catches[carrying :: string]
-		local meme = catch and Memes.Get(catch.MemeId)
-		bannerText.Text = ("🏠 Llevas %s %s → colócalo en un pedestal de tu parcela"):format(meme and meme.Emoji or "", meme and meme.Name or "un meme")
+-- Acuario lleno → aviso + rastro hasta casa.
+local function updateFull()
+	local data = State.Data
+	local full = data ~= nil and Inventory.Free(data) < 1
+	if full and not banner.Visible then
 		UIKit.pop(banner, 0.8)
 	end
-	updateTrail(active)
+	banner.Visible = full
+	setTrail(full)
 end
 
 function PlotController.Init()
 	local gui = UIKit.new("ScreenGui", { Name = "PescaPlot", ResetOnSpawn = false, DisplayOrder = 7,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling, Parent = player:WaitForChild("PlayerGui") })
-	banner = UIKit.new("Frame", { Name = "CarryBanner", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 16),
-		Size = UDim2.fromOffset(640, 60), BackgroundColor3 = T.PanelDark, Visible = false, Parent = gui })
+	banner = UIKit.new("Frame", { Name = "FullBanner", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 16),
+		Size = UDim2.fromOffset(600, 56), BackgroundColor3 = T.PanelDark, Visible = false, Parent = gui })
 	UIKit.corner(banner, 16)
 	UIKit.stroke(banner, 4, T.Primary)
 	UIKit.responsive(banner)
-	bannerText = UIKit.label({ Text = "", Size = UDim2.new(1, -190, 1, -12), Position = UDim2.fromOffset(12, 6), Font = T.Font,
-		TextXAlignment = Enum.TextXAlignment.Left, Parent = banner }, { MaxSize = 22 })
-	local drop = UIKit.button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.fromOffset(170, 46),
-		Parent = banner }, { Color = T.Success, Text = "🎒 A la mochila", TextSize = 20 })
-	drop.Activated:Connect(function()
-		local r = State.Call("DropCarry")
-		if not r.ok and r.err then
-			HUD.Toast(r.err, "Error")
-		end
-	end)
+	UIKit.label({ Text = "🐠 ¡Acuario lleno! Sigue el rastro hasta tu parcela para descargarlo", Size = UDim2.new(1, -20, 1, -12),
+		Position = UDim2.fromOffset(10, 6), Font = T.Font, Parent = banner }, { MaxSize = 22 })
 
 	player:GetAttributeChangedSignal("PlotIndex"):Connect(function()
 		updatePrompts()
 		updateMarker()
 	end)
-	player:GetAttributeChangedSignal("Carrying"):Connect(updateCarry)
+	State.Changed:Connect(updateFull)
 	player.CharacterAdded:Connect(function()
 		task.wait(0.5)
-		updateCarry()
+		clearTrail()
+		updateFull()
 	end)
 	-- el mapa lo construye el servidor; esperamos a que exista antes de tocar parcelas
 	task.spawn(function()
@@ -155,7 +151,7 @@ function PlotController.Init()
 		end
 		updatePrompts()
 		updateMarker()
-		updateCarry()
+		updateFull()
 	end)
 end
 

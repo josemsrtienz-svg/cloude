@@ -3,7 +3,8 @@
 	StarterPlayerScripts > PescaClient > Controllers > CatchCard
 
 	Tarjeta que aparece al pescar algo: meme, rareza, peso, tamaño, insignias y valor.
-	Botones: 🏠 Llevar a tu parcela · 💰 Vender · 🎒 Guardar (cada acción la valida el servidor).
+	La captura entra sola en tu mochila-acuario. Botones: 🐠 OK · 💰 Vender.
+	Si no cabe: 💰 Vender ya · 🌊 Soltar (cada acción la valida el servidor).
 ]]
 
 local Players = game:GetService("Players")
@@ -77,7 +78,7 @@ function CatchCard.Show(result: any)
 		Font = T.FontTitle, TextColor3 = if catch.Golden then T.Coin else T.Text, Parent = card }, { Stroke = 3, MaxSize = 34 })
 	UIKit.label({ Text = rarity.Name, Size = UDim2.new(1, -20, 0, 24), Position = UDim2.fromOffset(10, 232), Font = T.Font,
 		TextColor3 = rarity.Color, Parent = card }, { Stroke = 2, MaxSize = 22 })
-	UIKit.label({ Text = ("⚖️ %s  ·  Tamaño %s"):format(FishMath.FormatWeight(catch.Weight), sizeName), Size = UDim2.new(1, -20, 0, 26),
+	UIKit.label({ Text = ("⚖️ %s  ·  Tamaño %s  ·  ocupa %d"):format(FishMath.FormatWeight(catch.Weight), sizeName, catch.Size or 0), Size = UDim2.new(1, -20, 0, 26),
 		Position = UDim2.fromOffset(10, 260), Font = T.Font, Parent = card }, { MaxSize = 22 })
 
 	local badges = UIKit.new("Frame", { Size = UDim2.new(1, -20, 0, 34), Position = UDim2.fromOffset(10, 292), BackgroundTransparency = 1, Parent = card })
@@ -92,43 +93,50 @@ function CatchCard.Show(result: any)
 		badge(badges, "🏆 IMPOSIBLE", T.Secondary, 3)
 	end
 
-	UIKit.label({ Text = ("Valor: 🪙 %s   ·   +%d XP"):format(Util.formatNumber(catch.Value), result.XP or 0), Size = UDim2.new(1, -20, 0, 28),
+	UIKit.label({ Text = ("Valor: 🪙 %s   ·   +%d XP"):format(Util.formatShort(catch.Value), result.XP or 0), Size = UDim2.new(1, -20, 0, 28),
 		Position = UDim2.fromOffset(10, 332), Font = T.Font, TextColor3 = T.Coin, Parent = card }, { MaxSize = 24 })
 
 	local row = UIKit.new("Frame", { Size = UDim2.new(1, -24, 0, 64), Position = UDim2.new(0, 12, 1, -78), BackgroundTransparency = 1, Parent = card })
 	UIKit.list(row, Enum.FillDirection.Horizontal, 8, Enum.HorizontalAlignment.Center)
 	local function action(text: string, color: Color3, order: number, fn: () -> ())
-		local btn = UIKit.button({ LayoutOrder = order, Size = UDim2.fromOffset(122, 60), Parent = row }, { Color = color, Text = text, TextSize = 22 })
+		local btn = UIKit.button({ LayoutOrder = order, Size = UDim2.fromOffset(180, 60), Parent = row }, { Color = color, Text = text, TextSize = 22 })
 		btn.Activated:Connect(fn)
 		return btn
 	end
 	local busy = false
-	local function run(remote: string, ...: any)
+	local function run(remote: string, arg: any)
 		if busy then
 			return
 		end
 		busy = true
-		local r = State.Call(remote, ...)
+		local r = State.Call(remote, arg)
 		busy = false
 		if r.ok then
-			if remote == "SellCatch" then
-				HUD.Toast(("💰 +%s MemeCoins"):format(Util.formatNumber(r.Earned or 0)), "Success")
+			if r.Earned then
+				HUD.Toast(("💰 +%s MemeCoins"):format(Util.formatShort(r.Earned)), "Success")
 				UIKit.playSound("Coins")
-			else
-				HUD.Toast("🏠 ¡Llévalo a un pedestal de tu parcela!", "Success")
 			end
 			close()
 		else
 			HUD.Toast(r.err or "No se pudo", "Error")
 		end
 	end
-	action("🏠 Llevar", T.Accent, 1, function()
-		run("CarryCatch", catch.Id)
-	end)
-	action("💰 " .. Util.formatNumber(catch.Value), T.Primary, 2, function()
-		run("SellCatch", catch.Id)
-	end)
-	action("🎒 Guardar", T.Success, 3, close)
+	if result.NoSpace then
+		-- no cabe en la mochila-acuario: venderlo ya o soltarlo
+		UIKit.label({ Text = ("🐠 ¡No cabe en tu acuario! (ocupa %d kg)"):format(catch.Size or 0), Size = UDim2.new(1, -20, 0, 24),
+			Position = UDim2.new(0, 10, 1, -106), Font = T.Font, TextColor3 = T.Danger, Parent = card }, { MaxSize = 20 })
+		action("💰 Vender " .. Util.formatShort(catch.Value), T.Primary, 1, function()
+			run("ResolvePending", "sell")
+		end)
+		action("🌊 Soltar", T.PanelLight, 2, function()
+			run("ResolvePending", "release")
+		end)
+	else
+		action("🐠 ¡Al acuario!", T.Accent, 1, close)
+		action("💰 Vender " .. Util.formatShort(catch.Value), T.Primary, 2, function()
+			run("SellCatch", catch.Id)
+		end)
+	end
 
 	UIKit.tween(card, 0.45, { Position = UDim2.fromScale(0.5, 0.5) }, Enum.EasingStyle.Back)
 	UIKit.playSound("Catch")

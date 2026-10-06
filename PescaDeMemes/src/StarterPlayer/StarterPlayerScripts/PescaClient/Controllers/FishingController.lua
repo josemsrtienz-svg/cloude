@@ -24,6 +24,7 @@ local GameConfig = require(Root.Config.GameConfig)
 local Memes = require(Root.Config.Memes)
 local FishMath = require(Root.Shared.FishMath)
 local FishBehaviors = require(Root.Shared.FishBehaviors)
+local Inventory = require(Root.Shared.Inventory)
 
 local Controllers = script.Parent
 local UIKit = require(Controllers.UIKit)
@@ -65,6 +66,10 @@ local biteLabel: TextLabel
 local decision: Frame
 local fight: Frame
 local fightRefs: { [string]: any } = {}
+local castArea: Frame
+local roulette: Frame
+local rouletteCells: { TextLabel } = {}
+local rouletteConn: RBXScriptConnection? = nil
 
 local function setCastText(text: string, color: Color3?)
 	castLabel.Text = text
@@ -103,9 +108,17 @@ local function unlockMovement()
 	savedMovement = nil
 end
 
-local function rodTip(): Attachment?
+local TOOL_NAME = GameConfig.RodToolName
+
+-- La caña es una herramienta: solo cuenta si está en la mano (dentro del personaje).
+local function rodTool(): Tool?
 	local character = player.Character
-	local rod = character and character:FindFirstChild("FishingRod")
+	local tool = character and character:FindFirstChild(TOOL_NAME)
+	return if tool and tool:IsA("Tool") then tool else nil
+end
+
+local function rodTip(): Attachment?
+	local rod = rodTool()
 	local shaft = rod and rod:FindFirstChild("Shaft")
 	return shaft and shaft:FindFirstChild("RodTip") :: Attachment?
 end
@@ -192,6 +205,123 @@ local function memeJump(memeId: string, from: Vector3)
 	splash(from, 8)
 end
 
+-- ===== Ruleta: lo que puede picar (como al lanzar en los juegos de pescar huevos) =====
+
+-- Bolsa de emojis ponderada por rareza: los comunes salen más, como en la tirada real.
+local rouletteBag: { any } = {}
+for _, meme in ipairs(Memes.List) do
+	local rarity = Memes.Rarities[meme.Rarity]
+	for _ = 1, math.max(1, math.floor(rarity.Odds * 2 + 0.5)) do
+		table.insert(rouletteBag, meme)
+	end
+end
+
+local function randomMeme(): any
+	return rouletteBag[math.random(1, #rouletteBag)]
+end
+
+local function setCell(cell: TextLabel, meme: any)
+	cell.Text = meme.Emoji
+	local stroke = cell:FindFirstChild("RarityStroke") :: UIStroke?
+	if stroke then
+		stroke.Color = Memes.Rarities[meme.Rarity].Color
+	end
+end
+
+local function stopRoulette()
+	if rouletteConn then
+		rouletteConn:Disconnect()
+		rouletteConn = nil
+	end
+end
+
+local function startRoulette()
+	stopRoulette()
+	roulette.Visible = true
+	UIKit.pop(roulette, 0.7)
+	for _, cell in ipairs(rouletteCells) do
+		setCell(cell, randomMeme())
+	end
+	local strip = roulette:FindFirstChild("Strip") :: Frame
+	local cellW = 70
+	local offset = 0
+	local speed = 520
+	rouletteConn = RunService.RenderStepped:Connect(function(dt)
+		offset += speed * dt
+		if offset >= cellW then
+			offset -= cellW
+			-- desplaza los emojis una casilla y mete uno nuevo por la derecha
+			for i = 1, #rouletteCells - 1 do
+				local nextCell = rouletteCells[i + 1]
+				rouletteCells[i].Text = nextCell.Text
+				local a = rouletteCells[i]:FindFirstChild("RarityStroke") :: UIStroke?
+				local b = nextCell:FindFirstChild("RarityStroke") :: UIStroke?
+				if a and b then
+					a.Color = b.Color
+				end
+			end
+			setCell(rouletteCells[#rouletteCells], randomMeme())
+		end
+		strip.Position = UDim2.fromOffset(-offset, 0)
+	end)
+end
+
+-- Para la ruleta en lo que ha picado: el meme si ya lo conoces, si no "❓" con el color de su rareza.
+local function landRoulette(rarityId: string?, memeId: string?)
+	stopRoulette()
+	local strip = roulette:FindFirstChild("Strip") :: Frame
+	strip.Position = UDim2.fromOffset(0, 0)
+	local center = rouletteCells[math.ceil(#rouletteCells / 2)]
+	local meme = memeId and Memes.Get(memeId)
+	local rarity = Memes.Rarities[rarityId or "COMMON"] or Memes.Rarities.COMMON
+	center.Text = if meme then meme.Emoji else "❓"
+	local stroke = center:FindFirstChild("RarityStroke") :: UIStroke?
+	if stroke then
+		stroke.Color = rarity.Color
+	end
+	UIKit.pop(center, 1.5)
+	task.delay(1.4, function()
+		if phase ~= "Waiting" and phase ~= "Bite" then
+			roulette.Visible = false
+		end
+	end)
+end
+
+-- El sedal sube rapidísimo y el corcho vuelve a la caña (el meme se ha escapado).
+local function reelUpFast()
+	local b = bobber
+	local tip = rodTip()
+	if not b or not tip then
+		return
+	end
+	local from = b.Position
+	local t0 = os.clock()
+	while os.clock() - t0 < 0.3 and b.Parent do
+		local a = (os.clock() - t0) / 0.3
+		local to = tip.WorldPosition
+		setBobberPos(from:Lerp(to, a) + Vector3.new(0, math.sin(a * math.pi) * 4, 0))
+		RunService.RenderStepped:Wait()
+	end
+end
+
+-- La caña se parte: trozos que saltan desde la punta.
+local function rodBreakEffect(at: Vector3?)
+	local tip = rodTip()
+	local origin = at or (tip and tip.WorldPosition)
+	if not origin then
+		return
+	end
+	for _ = 1, 6 do
+		local shard = UIKit.new("Part", { Size = Vector3.new(0.2, 0.2, 0.7), Color = Color3.fromRGB(120, 85, 50), Material = Enum.Material.Wood,
+			CFrame = CFrame.new(origin) * CFrame.Angles(math.random() * 6, math.random() * 6, 0), CanCollide = false,
+			CanQuery = false, Parent = Workspace })
+		shard.AssemblyLinearVelocity = Vector3.new(math.random(-12, 12), math.random(10, 22), math.random(-12, 12))
+		task.delay(1.5, function()
+			shard:Destroy()
+		end)
+	end
+end
+
 -- ===== Final común de cualquier lanzamiento =====
 
 local function finish()
@@ -204,6 +334,8 @@ local function finish()
 	biteLabel.Visible = false
 	decision.Visible = false
 	fight.Visible = false
+	stopRoulette()
+	roulette.Visible = false
 	setCastText("🎣\nLANZAR")
 	FishingController.RefreshReinforced()
 end
@@ -228,16 +360,21 @@ local function stopFightLoop()
 	end
 end
 
-local function endFight(success: boolean, reason: string?)
+local function endFight(success: boolean, reason: string?, breakAt: Vector3?)
 	if phase ~= "Fighting" then
 		return
 	end
 	phase = "Ending"
 	stopFightLoop()
 	local myRun = runId
-	if reason == "snap" then
+	if reason == "snap" or reason == "broke" then
 		UIKit.playSound("Snap")
 		UIKit.shake(fight)
+	end
+	if reason == "broke" then
+		rodBreakEffect(breakAt)
+	elseif not success then
+		reelUpFast()
 	end
 	local result = State.Call("FinishFight", success)
 	if myRun ~= runId then
@@ -253,6 +390,8 @@ local function endFight(success: boolean, reason: string?)
 	end
 	if success and not result.ok then
 		HUD.Toast(result.err or "Algo salió mal", "Error")
+	elseif reason == "broke" then
+		HUD.Toast("💥 ¡Se ROMPIÓ tu caña! Repárala en la tienda (llevas la de palo)", "Error")
 	elseif reason == "snap" then
 		HUD.Toast("💥 ¡El sedal se rompió!", "Error")
 	else
@@ -344,6 +483,9 @@ local function startFight(info: any)
 					local wasGreen = inGreen
 					UIKit.playSound("Tug")
 					UIKit.shake(refs.Bar)
+					-- guardamos dónde estaba la punta: si la caña se rompe, el servidor la cambia antes de responder
+					local tipNow = rodTip()
+					local tipPos = tipNow and tipNow.WorldPosition
 					task.spawn(function()
 						local r = State.Call("Tug", wasGreen)
 						if currentPhase() ~= "Fighting" or myRun ~= runId then
@@ -362,7 +504,7 @@ local function startFight(info: any)
 							end)
 						elseif r.ok then
 							refs.TugMarkers[nextTug].BackgroundColor3 = T.Danger
-							endFight(false, "snap")
+							endFight(false, if r.Broke then "broke" else "snap", tipPos)
 						else
 							-- el servidor rechazó el tirón (latencia/validación): termina sin culpar al jugador
 							HUD.Toast(r.err or "Error de conexión", "Error")
@@ -432,6 +574,7 @@ local function onHooked(info: any)
 		end
 		return
 	end
+	landRoulette(info.Rarity, info.MemeId)
 	local rarity = Memes.Rarities[info.Rarity]
 	local meme = info.MemeId and Memes.Get(info.MemeId)
 	fightRefs.Name.Text = (if meme then meme.Name else "???") .. "  ·  " .. (Memes.PersonalityNames[info.Personality] or "")
@@ -459,10 +602,8 @@ local function waterTarget(power: number): Vector3?
 	end
 	flat = flat.Unit
 	local dist = F.CastMinDistance + (F.CastMaxDistance - F.CastMinDistance) * power
-	local pond = GameConfig.Pond
-	local target = Vector3.new(hrp.Position.X, pond.SurfaceY, hrp.Position.Z) + flat * dist
-	local fromCenter = Vector3.new(target.X - pond.Center.X, 0, target.Z - pond.Center.Z)
-	if fromCenter.Magnitude > pond.WaterRadius - 2 then
+	local target = Vector3.new(hrp.Position.X, GameConfig.River.SurfaceY, hrp.Position.Z) + flat * dist
+	if not GameConfig.InRiver(target, 1) then
 		return nil
 	end
 	return target
@@ -471,6 +612,7 @@ end
 local function waitForBite(delay: number, myRun: number)
 	phase = "Waiting"
 	setCastText("⏳\nESPERA…", T.PanelLight)
+	startRoulette()
 	local t0 = os.clock()
 	local nextNibble = t0 + math.random() * 1.2 + 0.8
 	while os.clock() - t0 < delay do
@@ -516,7 +658,7 @@ end
 local function cast(power: number)
 	local target = waterTarget(power)
 	if not target then
-		HUD.Toast("🌊 Apunta al agua (mira hacia la charca)", "Warning")
+		HUD.Toast("🌊 Apunta al río (mira hacia el agua)", "Warning")
 		finish()
 		return
 	end
@@ -574,18 +716,31 @@ local function startCharging()
 	if phase ~= "Idle" or CatchCard.IsOpen() then
 		return
 	end
-	local carrying = player:GetAttribute("Carrying")
-	if type(carrying) == "string" and carrying ~= "" then
-		HUD.Toast("🏠 Primero lleva el meme a tu parcela (o guárdalo en la mochila)", "Warning")
+	if not rodTool() then
+		HUD.Toast("🎣 Saca la caña (tecla 1) para pescar", "Warning")
+		return
+	end
+	local data = State.Data
+	if data and data.BrokenRods and data.BrokenRods[data.EquippedRod] then
+		HUD.Toast("💥 Tu caña está rota: repárala en la tienda", "Error")
+		return
+	end
+	if data and Inventory.Free(data) < 1 then
+		HUD.Toast("🐠 Tu acuario está lleno: vuelve a tu parcela para descargarlo", "Warning")
 		return
 	end
 	local _, _, hrp = getCharacter()
 	if not hrp then
 		return
 	end
-	local offset = hrp.Position - GameConfig.Pond.Center
-	if Vector2.new(offset.X, offset.Z).Magnitude > GameConfig.Pond.FishingRadius then
-		HUD.Toast("🚶 Acércate al agua para pescar", "Warning")
+	local index = player:GetAttribute("PlotIndex")
+	if type(index) ~= "number" or index < 1 then
+		HUD.Toast("No tienes parcela (ni muelle) en este servidor", "Error")
+		return
+	end
+	local offset = hrp.Position - GameConfig.DockSpot(index)
+	if Vector2.new(offset.X, offset.Z).Magnitude > GameConfig.Plots.FishingRange then
+		HUD.Toast("🚶 Ve al final de TU muelle para pescar", "Warning")
 		return
 	end
 	phase = "Charging"
@@ -653,9 +808,10 @@ local function buildUI()
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling, Parent = player:WaitForChild("PlayerGui") })
 
 	-- botón principal
-	local corner = UIKit.new("Frame", { Name = "CastArea", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -24, 1, -24),
+	local corner = UIKit.new("Frame", { Name = "CastArea", Visible = false, AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -24, 1, -24),
 		Size = UDim2.fromOffset(240, 220), BackgroundTransparency = 1, Parent = gui })
 	UIKit.responsive(corner)
+	castArea = corner
 	castButton = UIKit.button({ Name = "Cast", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(1, 1),
 		Size = UDim2.fromOffset(150, 150), Parent = corner }, { Color = T.Primary, Radius = 75, StrokeThickness = 5, HoverScale = 1.04 })
 	castLabel = UIKit.label({ Text = "🎣\nLANZAR", Size = UDim2.new(1, -20, 1, -20), Position = UDim2.fromOffset(10, 10),
@@ -686,6 +842,28 @@ local function buildUI()
 	powerFill = UIKit.new("Frame", { Name = "Fill", AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1),
 		Size = UDim2.fromScale(1, 0), BackgroundColor3 = T.Accent, ZIndex = 2, Parent = powerFrame })
 	UIKit.corner(powerFill, 10)
+
+	-- ruleta de lo que puede picar (arriba, centrada)
+	roulette = UIKit.new("Frame", { Name = "Roulette", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 90),
+		Size = UDim2.fromOffset(5 * 70 + 16, 86), BackgroundColor3 = T.PanelDark, ClipsDescendants = true, Visible = false, Parent = gui })
+	UIKit.corner(roulette, 16)
+	UIKit.stroke(roulette, 4, T.Primary)
+	UIKit.responsive(roulette)
+	local strip = UIKit.new("Frame", { Name = "Strip", BackgroundTransparency = 1, Size = UDim2.new(1, 70, 1, 0), Parent = roulette })
+	for i = 1, 6 do
+		local cell = UIKit.label({ Name = "Cell" .. i, Text = "❓", Position = UDim2.fromOffset(8 + (i - 1) * 70 + 4, 8),
+			Size = UDim2.fromOffset(62, 62), BackgroundTransparency = 0, BackgroundColor3 = T.Panel, Parent = strip }, { Stroke = false })
+		UIKit.corner(cell, 12)
+		local st = UIKit.stroke(cell, 3, T.TextDim)
+		st.Name = "RarityStroke"
+		rouletteCells[i] = cell
+	end
+	local marker = UIKit.new("Frame", { Name = "Marker", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 0),
+		Size = UDim2.new(0, 70, 1, 0), BackgroundTransparency = 1, ZIndex = 5, Parent = roulette })
+	UIKit.stroke(marker, 4, T.Coin)
+	UIKit.corner(marker, 12)
+	-- la casilla central (3ª) queda bajo el marcador
+	strip.Position = UDim2.fromOffset(0, 0)
 
 	-- aviso de picada
 	biteLabel = UIKit.label({ Name = "Bite", Text = "❗ ¡TOCA YA! ❗", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.36),
@@ -831,6 +1009,37 @@ function FishingController.Init()
 			release(nil)
 		end
 	end)
+
+	-- el botón de lanzar solo aparece con la caña en la mano; si la guardas, se cancela la pesca
+	local function watchCharacter(character: Model)
+		local function update()
+			local equipped = rodTool() ~= nil
+			castArea.Visible = equipped
+			if not equipped and phase ~= "Idle" and phase ~= "Ending" then
+				-- el servidor cambia la caña al romperse/repararse: esperamos un poco antes de cancelar
+				task.delay(0.4, function()
+					if rodTool() == nil and phase ~= "Idle" and phase ~= "Ending" then
+						release("🎣 Has guardado la caña", "Info")
+					end
+				end)
+			end
+		end
+		character.ChildAdded:Connect(function(child)
+			if child.Name == TOOL_NAME then
+				update()
+			end
+		end)
+		character.ChildRemoved:Connect(function(child)
+			if child.Name == TOOL_NAME then
+				update()
+			end
+		end)
+		update()
+	end
+	if player.Character then
+		watchCharacter(player.Character)
+	end
+	player.CharacterAdded:Connect(watchCharacter)
 end
 
 return FishingController

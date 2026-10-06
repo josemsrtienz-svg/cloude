@@ -24,12 +24,13 @@ Remotes.Definitions = {
 	Tug = "RemoteFunction", -- (inGreen) → { Survived }
 	FinishFight = "RemoteFunction", -- (success) → { Catch }
 	Release = "RemoteFunction", -- soltar / cancelar
-	-- Mochila, acuario y tienda
+	-- Acuario, parcela y tienda
 	SellCatch = "RemoteFunction",
 	SellAll = "RemoteFunction",
-	CarryCatch = "RemoteFunction", -- (catchId) llevar un meme sobre la cabeza hasta tu parcela
-	DropCarry = "RemoteFunction", -- dejar de llevarlo (vuelve a la mochila)
+	ResolvePending = "RemoteFunction", -- ("sell" | "release") captura que no cabía en el acuario
 	GoHome = "RemoteFunction", -- teletransporte a tu parcela
+	RepairRod = "RemoteFunction", -- (rodId) reparar una caña rota
+	BuyAquarium = "RemoteFunction", -- (tier) mochila-acuario más grande
 	BuyRod = "RemoteFunction",
 	EquipRod = "RemoteFunction",
 	BuyItem = "RemoteFunction",

@@ -24,6 +24,7 @@ local Memes = require(Root.Config.Memes)
 local Rods = require(Root.Config.Rods)
 local Remotes = require(Root.Shared.Remotes)
 local Util = require(Root.Shared.Util)
+local Inventory = require(Root.Shared.Inventory)
 
 local PlayerData = {}
 PlayerData.Loaded = Util.Signal() -- (player, data)
@@ -49,6 +50,29 @@ local MIGRATIONS: { [number]: (any) -> any } = {
 		data.Plot = type(data.Aquarium) == "table" and data.Aquarium or {}
 		data.Aquarium = nil
 		data.PlotBank = 0
+		return data
+	end,
+	-- 2 → 3: mochila-acuario con capacidad (tamaño = peso) y cañas que se pueden romper
+	[2] = function(data)
+		data.BrokenRods = {}
+		-- la mochila antigua (30 huecos) pasa a ser una mochila-acuario donde quepa todo lo que tenía
+		local inPlot = {}
+		for _, id in ipairs(type(data.Plot) == "table" and data.Plot or {}) do
+			inPlot[id] = true
+		end
+		local used = 0
+		for id, c in pairs(type(data.Catches) == "table" and data.Catches or {}) do
+			if not inPlot[id] and type(c) == "table" then
+				used += Inventory.SizeOf(tonumber(c.Weight) or 1)
+			end
+		end
+		data.AquariumTier = #Rods.Aquariums
+		for _, aq in ipairs(Rods.Aquariums) do
+			if aq.Capacity >= used then
+				data.AquariumTier = aq.Tier
+				break
+			end
+		end
 		return data
 	end,
 }
@@ -86,6 +110,7 @@ local function sanitize(data: any): any
 					Id = id,
 					MemeId = c.MemeId,
 					Weight = tonumber(c.Weight),
+					Size = Inventory.SizeOf(tonumber(c.Weight) :: number),
 					Golden = c.Golden == true,
 					Impossible = c.Impossible == true,
 					Value = math.max(1, math.floor(tonumber(c.Value) or 1)),
@@ -121,6 +146,18 @@ local function sanitize(data: any): any
 	if not rods[data.EquippedRod] then
 		data.EquippedRod = "Palo"
 	end
+	local broken = {}
+	if type(data.BrokenRods) == "table" then
+		for id, value in pairs(data.BrokenRods) do
+			local rod = Rods.Get(id)
+			if value == true and rods[id] and rod and rod.RepairCost > 0 then
+				broken[id] = true
+			end
+		end
+	end
+	data.BrokenRods = broken
+	local tier = math.floor(tonumber(data.AquariumTier) or 1)
+	data.AquariumTier = if Rods.GetAquarium(tier) then tier else 1
 
 	local discovered = {}
 	if type(data.Discovered) == "table" then

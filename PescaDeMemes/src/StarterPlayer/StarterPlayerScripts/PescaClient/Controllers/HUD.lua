@@ -2,9 +2,9 @@
 	PescaDeMemes • HUD (ModuleScript, cliente)
 	StarterPlayerScripts > PescaClient > Controllers > HUD
 
-	Lo que siempre está en pantalla:
-	  · MemeCoins y nivel/XP (arriba a la izquierda)
-	  · Botones de paneles (derecha): Mochila, Parcela, Tienda, Bestiario
+	Lo que siempre está en pantalla (estilo de los juegos de "steal"):
+	  · Abajo a la izquierda: nivel/XP, capacidad de la mochila-acuario y el dinero en grande
+	  · Izquierda: botones grandes Tienda e Índice · Derecha: botones cuadrados Acuario y Parcela
 	  · Avisos (toasts) y anuncios de capturas épicas de otros jugadores
 ]]
 
@@ -16,6 +16,7 @@ local GameConfig = require(Root.Config.GameConfig)
 local Memes = require(Root.Config.Memes)
 local Remotes = require(Root.Shared.Remotes)
 local Util = require(Root.Shared.Util)
+local Inventory = require(Root.Shared.Inventory)
 
 local Controllers = script.Parent
 local UIKit = require(Controllers.UIKit)
@@ -30,6 +31,9 @@ local toastHolder: Frame
 local coinsLabel: TextLabel
 local levelLabel: TextLabel
 local xpFill: Frame
+local aquariumLabel: TextLabel
+local aquariumFill: Frame
+local RGB = Color3.fromRGB
 
 local TOAST_COLORS = {
 	Info = T.Accent,
@@ -83,10 +87,15 @@ local function refresh(data: any)
 	if not data then
 		return
 	end
-	coinsLabel.Text = GameConfig.CurrencyEmoji .. " " .. Util.formatNumber(data.MemeCoin)
+	coinsLabel.Text = Util.formatShort(data.MemeCoin)
 	levelLabel.Text = "Nv " .. data.Level
 	local need = GameConfig.XPForLevel(data.Level)
 	UIKit.tween(xpFill, 0.3, { Size = UDim2.fromScale(math.clamp(data.XP / need, 0, 1), 1) })
+	local used, cap = Inventory.Used(data), Inventory.Capacity(data)
+	aquariumLabel.Text = ("%d / %d kg"):format(used, cap)
+	local ratio = math.clamp(used / math.max(1, cap), 0, 1)
+	UIKit.tween(aquariumFill, 0.3, { Size = UDim2.fromScale(ratio, 1) })
+	aquariumFill.BackgroundColor3 = if ratio >= 1 then T.Danger elseif ratio > 0.75 then T.PrimaryDark else T.Accent
 end
 
 function HUD.Init()
@@ -94,41 +103,59 @@ function HUD.Init()
 	gui = UIKit.new("ScreenGui", { Name = "PescaHUD", ResetOnSpawn = false, IgnoreGuiInset = false, DisplayOrder = 5,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling, Parent = player:WaitForChild("PlayerGui") })
 
-	-- monedas y nivel
-	local stats = UIKit.new("Frame", { Name = "Stats", Position = UDim2.fromOffset(14, 10), Size = UDim2.fromOffset(250, 104),
-		BackgroundTransparency = 1, Parent = gui })
+	-- ===== Abajo a la izquierda: cifras grandes (estilo de la referencia) =====
+	local stats = UIKit.new("Frame", { Name = "Stats", AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 14, 1, -16),
+		Size = UDim2.fromOffset(330, 170), BackgroundTransparency = 1, Parent = gui })
 	UIKit.responsive(stats)
-	local coins = UIKit.new("Frame", { Size = UDim2.fromOffset(240, 48), BackgroundColor3 = T.PanelDark, Parent = stats })
-	UIKit.corner(coins, 24)
-	UIKit.stroke(coins, 3, T.Coin)
-	coinsLabel = UIKit.label({ Text = "🪙 0", Size = UDim2.new(1, -24, 1, -8), Position = UDim2.fromOffset(14, 4),
-		TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = T.Coin, Font = T.FontTitle, Parent = coins }, { Stroke = 2, MaxSize = 30 })
-
-	local level = UIKit.new("Frame", { Position = UDim2.fromOffset(0, 56), Size = UDim2.fromOffset(240, 40), BackgroundColor3 = T.PanelDark, Parent = stats })
-	UIKit.corner(level, 20)
+	-- nivel + XP
+	local level = UIKit.new("Frame", { Size = UDim2.fromOffset(230, 34), BackgroundColor3 = T.PanelDark, Parent = stats })
+	UIKit.corner(level, 17)
 	UIKit.stroke(level, 3, T.Accent)
-	levelLabel = UIKit.label({ Text = "Nv 1", Size = UDim2.fromOffset(70, 32), Position = UDim2.fromOffset(10, 4), Font = T.FontTitle,
-		Parent = level }, { Stroke = 2, MaxSize = 24 })
-	local bar = UIKit.new("Frame", { Position = UDim2.fromOffset(84, 13), Size = UDim2.fromOffset(140, 14), BackgroundColor3 = T.Panel, Parent = level })
+	levelLabel = UIKit.label({ Text = "Nv 1", Size = UDim2.fromOffset(64, 28), Position = UDim2.fromOffset(8, 3), Font = T.FontTitle,
+		Parent = level }, { Stroke = 2, MaxSize = 22 })
+	local bar = UIKit.new("Frame", { Position = UDim2.fromOffset(76, 10), Size = UDim2.fromOffset(140, 14), BackgroundColor3 = T.Panel, Parent = level })
 	UIKit.corner(bar, 7)
 	xpFill = UIKit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = T.Accent, Parent = bar })
 	UIKit.corner(xpFill, 7)
+	-- mochila-acuario: kg usados / capacidad
+	UIKit.label({ Text = "🐠", Position = UDim2.fromOffset(0, 42), Size = UDim2.fromOffset(46, 46), Parent = stats }, { Stroke = false })
+	local aqBar = UIKit.new("Frame", { Position = UDim2.fromOffset(52, 52), Size = UDim2.fromOffset(200, 26), BackgroundColor3 = T.PanelDark, Parent = stats })
+	UIKit.corner(aqBar, 13)
+	UIKit.stroke(aqBar, 3)
+	aquariumFill = UIKit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = T.Accent, Parent = aqBar })
+	UIKit.corner(aquariumFill, 13)
+	aquariumLabel = UIKit.label({ Text = "0 / 25 kg", Size = UDim2.new(1, -10, 1, -4), Position = UDim2.fromOffset(5, 2), Font = T.FontTitle,
+		ZIndex = 3, Parent = aqBar }, { Stroke = 2, MaxSize = 20 })
+	-- dinero gigante
+	UIKit.label({ Text = GameConfig.CurrencyEmoji, Position = UDim2.fromOffset(0, 96), Size = UDim2.fromOffset(62, 62), Parent = stats }, { Stroke = false })
+	coinsLabel = UIKit.label({ Text = "0", Size = UDim2.fromOffset(260, 66), Position = UDim2.fromOffset(66, 94), Font = T.FontTitle,
+		TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = RGB(90, 255, 90), Parent = stats }, { Stroke = 4, MaxSize = 64 })
 
-	-- botones de paneles
-	local column = UIKit.new("Frame", { Name = "Buttons", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -14, 0.42, 0),
-		Size = UDim2.fromOffset(84, 380), BackgroundTransparency = 1, Parent = gui })
-	UIKit.responsive(column)
-	UIKit.list(column, Enum.FillDirection.Vertical, 10)
-	local buttons = {
-		{ "Backpack", "🎒", "Mochila", T.Primary },
-		{ "Plot", "🏠", "Parcela", T.Accent },
-		{ "Shop", "🛒", "Tienda", T.Secondary },
-		{ "Bestiary", "📖", "Bestiario", T.Success },
-	}
-	for i, b in ipairs(buttons) do
-		local btn = UIKit.button({ Name = b[1], LayoutOrder = i, Size = UDim2.fromOffset(80, 80), Parent = column }, { Color = b[4], Radius = 18 })
-		UIKit.label({ Text = b[2], Size = UDim2.new(1, 0, 0.62, 0), Position = UDim2.fromScale(0, 0.04), Parent = btn }, { Stroke = false })
-		UIKit.label({ Text = b[3], Size = UDim2.new(1, -6, 0.3, 0), Position = UDim2.new(0, 3, 0.66, 0), Font = T.Font, Parent = btn }, { MaxSize = 16 })
+	-- ===== Izquierda: botones grandes rectangulares =====
+	local left = UIKit.new("Frame", { Name = "LeftButtons", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 10, 0.42, 0),
+		Size = UDim2.fromOffset(200, 170), BackgroundTransparency = 1, Parent = gui })
+	UIKit.responsive(left)
+	UIKit.list(left, Enum.FillDirection.Vertical, 12, Enum.HorizontalAlignment.Left)
+	for i, b in ipairs({ { "Shop", "🛒", "Tienda", RGB(60, 200, 80) }, { "Bestiary", "📖", "Índice", RGB(40, 170, 255) } }) do
+		local btn = UIKit.button({ Name = b[1], LayoutOrder = i, Size = UDim2.fromOffset(190, 74), Parent = left },
+			{ Color = b[4], Radius = 10, StrokeThickness = 4 })
+		UIKit.label({ Text = b[2], Size = UDim2.fromOffset(56, 56), Position = UDim2.fromOffset(8, 9), Parent = btn }, { Stroke = false })
+		UIKit.label({ Text = b[3], Size = UDim2.new(1, -74, 0, 52), Position = UDim2.fromOffset(66, 11), Font = T.FontTitle,
+			TextXAlignment = Enum.TextXAlignment.Left, Parent = btn }, { Stroke = 3, MaxSize = 38 })
+		btn.Activated:Connect(function()
+			HUD.ButtonPressed:Fire(b[1])
+		end)
+	end
+
+	-- ===== Derecha: botones cuadrados =====
+	local right = UIKit.new("Frame", { Name = "RightButtons", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.4, 0),
+		Size = UDim2.fromOffset(84, 190), BackgroundTransparency = 1, Parent = gui })
+	UIKit.responsive(right)
+	UIKit.list(right, Enum.FillDirection.Vertical, 12)
+	for i, b in ipairs({ { "Aquarium", "🐠", RGB(255, 140, 40) }, { "Plot", "🏠", RGB(235, 60, 60) } }) do
+		local btn = UIKit.button({ Name = b[1], LayoutOrder = i, Size = UDim2.fromOffset(80, 80), Parent = right },
+			{ Color = b[3], Radius = 10, StrokeThickness = 4 })
+		UIKit.label({ Text = b[2], Size = UDim2.fromScale(0.78, 0.78), Position = UDim2.fromScale(0.11, 0.11), Parent = btn }, { Stroke = false })
 		btn.Activated:Connect(function()
 			HUD.ButtonPressed:Fire(b[1])
 		end)

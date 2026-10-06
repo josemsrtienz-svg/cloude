@@ -19,34 +19,35 @@ Para generar el archivo:
 rojo build default.project.json -o PescaDeMemes.rbxlx
 ```
 
-> El mapa (agua, muelle, tienda, 8 parcelas) se construye **por script** al darle a Play.
+> El mapa (río, 8 parcelas con muelle, tienda) se construye **por script** al darle a Play.
+> Para verlo sin Play: Command Bar → `require(game.ServerScriptService.PescaServer.Systems.WorldBuilder).Build()`
 > Pon el máximo de jugadores del servidor en **8** (una parcela por jugador).
 > Para que se guarde el progreso en Studio: publica el place y activa
 > *Game Settings → Security → Enable Studio Access to API Services*. Si no, se juega con datos temporales.
 
 ## Cómo se juega
-1. Apareces en **tu parcela** (cartel "Parcela de TuNombre"). Camina por tu **muelle privado** hasta el agua.
-2. **Mantén** el botón 🎣 LANZAR (o la tecla **F**) y suelta: cuanto más lleno, más lejos (zona dorada = PERFECTO).
-3. Espera. **No toques** hasta que salga **"❗ ¡TOCA YA!"**, y entonces toca rápido.
-4. Si el meme pesa más que tu caña, verás el **% de aguante** → **PELEAR** o **SOLTAR**.
-5. Pelea: **mantén pulsado** (clic/toque en cualquier sitio o F) para subir la tensión, suelta para bajarla.
-   Mantén el indicador blanco en la **zona verde**. Si te quedas en el **rojo 💥**, se rompe.
-   Con sobrecarga llegan 3 **⚡ TIRONES**: si en ese momento estás en verde, tienes más probabilidad de aguantar.
-6. Tarjeta de captura → **🏠 Llevar** / 💰 Vender / 🎒 Guardar. Si lo llevas, flota sobre tu cabeza:
-   camina a tu parcela y pulsa **"Colocar meme"** en un pedestal. Genera monedas que se acumulan en el
-   **cobrador amarillo** (písalo para cobrar). "Recoger" en un pedestal te lo vuelve a poner encima.
-7. Compra cañas con más capacidad en la **Tienda** (caseta de la derecha) y mira tu colección en el **Bestiario**.
+1. Apareces en **tu parcela** (cartel con tu nombre). Delante tienes **tu muelle privado** sobre el río.
+2. Saca la **caña** de la barra de abajo (tecla **1**) y ve al **final de tu muelle** (solo puedes pescar en el tuyo).
+3. **Mantén** 🎣 LANZAR (o **F**) y suelta. Mientras esperas, una **ruleta** enseña los memes que pueden picar.
+4. No toques hasta **"❗ ¡TOCA YA!"**. Si pesa más que tu caña verás el **% de aguante** → PELEAR o SOLTAR.
+5. Pelea con la barra de tensión. Si pierdes, el sedal **sube rapidísimo** y se escapa.
+   Si fallas un **⚡ TIRÓN** con sobrecarga, **la caña se ROMPE** (repárala en la tienda; la de palo es irrompible).
+6. Lo que pescas entra en tu **mochila-acuario** (a la espalda). Cada meme ocupa su peso en kg.
+   Pesca varios en la misma "ronda" hasta llenarla; si algo no cabe: **vender ya** o **soltar**.
+7. Vuelve a tu parcela: **al entrar se colocan solos** en el césped (los más valiosos primero) y generan
+   MemeCoins en el **círculo verde** (písalo para cobrar). "Recoger" junto a un meme lo devuelve al acuario.
+8. Tienda (entrada del mapa): cañas, **reparar**, mochilas-acuario más grandes y Sedal Reforzado.
 
 ## Estructura
 ```
 src/ReplicatedStorage/PescaDeMemes/
-  Config/   GameConfig (reglas, balance y posición de las parcelas) · Memes (8 memes) · Rods (cañas + Sedal Reforzado) · Assets
-  Shared/   Remotes · Inventory (mochila/parcela) · FishMath (peso/capacidad/aguante/valor) · FishBehaviors (cómo pelea cada meme) · Util
+  Config/   GameConfig (reglas, mapa del río y parcelas) · Memes (8 memes) · Rods (cañas, mochilas-acuario, Sedal) · Assets
+  Shared/   Remotes · Inventory (acuario/parcela) · MemeModels (figuras de bloques) · FishMath (peso/capacidad/aguante/valor) · FishBehaviors (cómo pelea cada meme) · Util
 src/ServerScriptService/PescaServer/
   Main.server.lua
   Systems/  PlayerData (guardado con session lock) · FishingService (autoridad de la pesca)
-            PlotService (parcelas, llevar, pedestales, cobrador) · EconomyService (ventas, tienda)
-            WorldBuilder (charca + 8 parcelas con muelle)
+            GearService (caña-herramienta, mochila visible) · PlotService (parcelas, descarga, cobrador)
+            EconomyService (ventas, tienda, reparar) · WorldBuilder (río + 8 parcelas con muelle propio)
 src/StarterPlayer/StarterPlayerScripts/PescaClient/
   init.client.lua
   Controllers/  State · UIKit · HUD · FishingController (minijuego) · CatchCard · Panels · PlotController

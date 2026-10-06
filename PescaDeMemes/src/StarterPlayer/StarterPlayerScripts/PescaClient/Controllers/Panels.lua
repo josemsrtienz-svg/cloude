@@ -2,7 +2,7 @@
 	PescaDeMemes • Panels (ModuleScript, cliente)
 	StarterPlayerScripts > PescaClient > Controllers > Panels
 
-	Paneles modales: 🎒 Mochila · 🏠 Parcela · 🛒 Tienda · 📖 Bestiario.
+	Paneles modales: 🐠 Acuario (mochila) · 🏠 Parcela · 🛒 Tienda · 📖 Índice.
 	Se abren con los botones del HUD o con el ProximityPrompt de la tienda.
 ]]
 
@@ -24,6 +24,7 @@ local State = require(Controllers.State)
 local HUD = require(Controllers.HUD)
 
 local T = UIKit.Theme
+local RGB = Color3.fromRGB
 local Panels = {}
 
 local gui: ScreenGui
@@ -78,14 +79,14 @@ local function catchTile(parent: Instance, catch: any, order: number): TextButto
 		TextColor3 = if catch.Golden then T.Coin else T.Text, Parent = tile }, { MaxSize = 18 })
 	UIKit.label({ Text = FishMath.FormatWeight(catch.Weight) .. (if catch.Impossible then " 🏆" else ""), Size = UDim2.new(1, -8, 0, 18),
 		Position = UDim2.fromOffset(4, 104), Font = T.FontBody, TextColor3 = T.TextDim, Parent = tile }, { Stroke = false, MaxSize = 15 })
-	UIKit.label({ Text = "🪙 " .. Util.formatNumber(catch.Value), Size = UDim2.new(1, -8, 0, 20), Position = UDim2.fromOffset(4, 124),
+	UIKit.label({ Text = "🪙 " .. Util.formatShort(catch.Value), Size = UDim2.new(1, -8, 0, 20), Position = UDim2.fromOffset(4, 124),
 		Font = T.Font, TextColor3 = T.Coin, Parent = tile }, { MaxSize = 17 })
 	return tile
 end
 
 -- Menú de opciones al tocar una captura de la mochila.
 local function catchOptions(catch: any)
-	local panel = panels.Backpack
+	local panel = panels.Aquarium
 	local old = panel.Frame:FindFirstChild("Options")
 	if old then
 		old:Destroy()
@@ -103,32 +104,34 @@ local function catchOptions(catch: any)
 		local b = UIKit.button({ LayoutOrder = order, Size = UDim2.new(1, 0, 0, 44), ZIndex = 12, Parent = list }, { Color = color, Text = text, TextSize = 22 })
 		b.Activated:Connect(fn)
 	end
-	opt("🏠 Llevar a mi parcela", T.Accent, 1, function()
-		if call("CarryCatch", "🏠 ¡Llévalo a un pedestal de tu parcela!", catch.Id).ok then
-			Panels.Close()
-		end
-	end)
-	opt(("💰 Vender por %s"):format(Util.formatNumber(catch.Value)), T.Primary, 2, function()
+	opt(("💰 Vender por %s"):format(Util.formatShort(catch.Value)), T.Primary, 1, function()
 		local r = call("SellCatch", nil, catch.Id)
 		if r.ok then
-			HUD.Toast(("💰 +%s MemeCoins"):format(Util.formatNumber(r.Earned or 0)), "Success")
+			HUD.Toast(("💰 +%s MemeCoins"):format(Util.formatShort(r.Earned or 0)), "Success")
 			box:Destroy()
 		end
+	end)
+	opt("🏠 Al entrar en tu parcela se coloca solo", T.PanelLight, 2, function()
+		box:Destroy()
 	end)
 	opt("Cancelar", T.PanelLight, 3, function()
 		box:Destroy()
 	end)
 end
 
--- ===== Mochila =====
-local function renderBackpack()
-	local p = panels.Backpack
+-- ===== Mochila-acuario =====
+local function renderAquarium()
+	local p = panels.Aquarium
 	local grid = p.Content:FindFirstChild("Grid") :: ScrollingFrame
 	clear(grid)
-	local list = State.Backpack()
-	p.Content.Count.Text = ("%d / %d capturas"):format(#list, GameConfig.MaxBackpack)
+	local data = State.Data
+	if not data then
+		return
+	end
+	local list = Inventory.Aquarium(data)
+	p.Content.Count.Text = ("%d memes · %d / %d kg"):format(#list, Inventory.Used(data), Inventory.Capacity(data))
 	if #list == 0 then
-		UIKit.label({ Text = "Tu mochila está vacía. ¡Ve a pescar! 🎣", Size = UDim2.fromOffset(400, 40), Font = T.Font, Parent = grid }, { MaxSize = 24 })
+		UIKit.label({ Text = "Tu acuario está vacío. ¡Ve a pescar a tu muelle! 🎣", Size = UDim2.fromOffset(460, 40), Font = T.Font, Parent = grid }, { MaxSize = 24 })
 	end
 	for i, catch in ipairs(list) do
 		catchTile(grid, catch, i).Activated:Connect(function()
@@ -151,24 +154,44 @@ local function renderPlot()
 		local catch = id ~= "" and data.Catches[id]
 		if catch then
 			local tile = catchTile(grid, catch, slot)
-			UIKit.label({ Text = "Pedestal " .. slot, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -2), Size = UDim2.new(1, -8, 0, 14),
+			UIKit.label({ Text = "Hueco " .. slot, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -2), Size = UDim2.new(1, -8, 0, 14),
 				Font = T.FontBody, TextColor3 = T.TextDim, Parent = tile }, { Stroke = false, MaxSize = 12 })
 			tile.Activated:Connect(function()
-				HUD.Toast("Para moverlo, ve a tu parcela y pulsa \"Recoger\" en su pedestal", "Info")
+				HUD.Toast("Para quitarlo, ve a tu parcela y pulsa \"Recoger\" junto a él", "Info")
 			end)
 		else
 			local empty = UIKit.new("Frame", { LayoutOrder = slot, BackgroundColor3 = T.PanelDark, Parent = grid })
 			UIKit.corner(empty, 12)
 			UIKit.stroke(empty, 3, T.PanelLight)
-			UIKit.label({ Text = ("Pedestal %d\nlibre"):format(slot), Size = UDim2.fromScale(1, 1), Font = T.Font, TextColor3 = T.TextDim, Parent = empty }, { MaxSize = 20 })
+			UIKit.label({ Text = ("Hueco %d\nlibre"):format(slot), Size = UDim2.fromScale(1, 1), Font = T.Font, TextColor3 = T.TextDim, Parent = empty }, { MaxSize = 20 })
 		end
 	end
 	local bank = Players.LocalPlayer:GetAttribute("PlotBank")
 	p.Content.Count.Text = ("🪙 %s · Cobrador: 🪙 %s"):format(Inventory.FormatIncome(Inventory.PlotIncomePerMinute(data, GameConfig.PlotIncomeRate)),
-		Util.formatNumber(if type(bank) == "number" then bank else data.PlotBank or 0))
+		Util.formatShort(if type(bank) == "number" then bank else data.PlotBank or 0))
 end
 
 -- ===== Tienda =====
+
+-- Tarjeta de la tienda: título, línea de datos, descripción y un botón.
+local function shopCard(grid: Instance, order: number, title: string, info: string, desc: string, stroke: Color3,
+	btnText: string, btnColor: Color3, onClick: (() -> ())?)
+	local card = UIKit.new("Frame", { LayoutOrder = order, BackgroundColor3 = T.PanelLight, Parent = grid })
+	UIKit.corner(card, 14)
+	UIKit.stroke(card, 3, stroke)
+	UIKit.label({ Text = title, Size = UDim2.new(1, -12, 0, 28), Position = UDim2.fromOffset(6, 6), Font = T.FontTitle,
+		Parent = card }, { Stroke = 2, MaxSize = 22 })
+	UIKit.label({ Text = info, Size = UDim2.new(1, -12, 0, 22), Position = UDim2.fromOffset(6, 38), Font = T.Font,
+		TextColor3 = T.Coin, Parent = card }, { MaxSize = 18 })
+	UIKit.label({ Text = desc, Size = UDim2.new(1, -12, 0, 40), Position = UDim2.fromOffset(6, 62), Font = T.FontBody,
+		TextColor3 = T.TextDim, Parent = card }, { Stroke = false, MaxSize = 15 })
+	local btn = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, -16, 0, 42), Parent = card },
+		{ Color = btnColor, Text = btnText, TextSize = 22 })
+	if onClick then
+		btn.Activated:Connect(onClick)
+	end
+end
+
 local function renderShop()
 	local p = panels.Shop
 	local data = State.Data
@@ -177,55 +200,65 @@ local function renderShop()
 	if not data then
 		return
 	end
-	p.Content.Count.Text = ("Tienes 🪙 %s"):format(Util.formatNumber(data.MemeCoin))
+	p.Content.Count.Text = ("Tienes 🪙 %s"):format(Util.formatShort(data.MemeCoin))
+	local function can(price: number): Color3
+		return if data.MemeCoin >= price then T.Primary else T.PanelDark
+	end
+
+	-- cañas: comprar, equipar o reparar
 	for i, rod in ipairs(Rods.List) do
 		local owned = data.Rods[rod.Id] == true
 		local equipped = data.EquippedRod == rod.Id
-		local card = UIKit.new("Frame", { LayoutOrder = i, BackgroundColor3 = T.PanelLight, Parent = grid })
-		UIKit.corner(card, 14)
-		UIKit.stroke(card, 3, if equipped then T.Success else rod.Color)
-		UIKit.label({ Text = rod.Emoji .. " " .. rod.Name, Size = UDim2.new(1, -12, 0, 28), Position = UDim2.fromOffset(6, 6), Font = T.FontTitle,
-			Parent = card }, { Stroke = 2, MaxSize = 22 })
-		UIKit.label({ Text = ("🎣 Capacidad: %s"):format(FishMath.FormatWeight(rod.Capacity)), Size = UDim2.new(1, -12, 0, 22),
-			Position = UDim2.fromOffset(6, 38), Font = T.Font, TextColor3 = T.Coin, Parent = card }, { MaxSize = 18 })
-		UIKit.label({ Text = rod.Description, Size = UDim2.new(1, -12, 0, 40), Position = UDim2.fromOffset(6, 62), Font = T.FontBody,
-			TextColor3 = T.TextDim, Parent = card }, { Stroke = false, MaxSize = 15 })
-		local text, color = "", T.Primary
-		if equipped then
+		local broken = data.BrokenRods and data.BrokenRods[rod.Id] == true
+		local text, color, action = "", T.Primary, nil :: (() -> ())?
+		if broken then
+			text, color = "🔧 Reparar 🪙" .. Util.formatShort(rod.RepairCost), can(rod.RepairCost)
+			action = function()
+				call("RepairRod", "🔧 " .. rod.Name .. " reparada y equipada", rod.Id)
+			end
+		elseif equipped then
 			text, color = "✅ Equipada", T.PanelDark
 		elseif owned then
 			text, color = "Equipar", T.Accent
-		else
-			text = "🪙 " .. Util.formatNumber(rod.Price)
-			color = if data.MemeCoin >= rod.Price then T.Primary else T.PanelDark
-		end
-		local btn = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, -16, 0, 42), Parent = card },
-			{ Color = color, Text = text, TextSize = 22 })
-		btn.Activated:Connect(function()
-			if equipped then
-				return
-			elseif owned then
+			action = function()
 				call("EquipRod", "🎣 " .. rod.Name .. " equipada", rod.Id)
-			else
+			end
+		else
+			text, color = "🪙 " .. Util.formatShort(rod.Price), can(rod.Price)
+			action = function()
 				call("BuyRod", "🎉 ¡Has comprado la " .. rod.Name .. "!", rod.Id)
 			end
-		end)
+		end
+		local info = ("🎣 %s%s"):format(FishMath.FormatWeight(rod.Capacity), if rod.RepairCost == 0 then " · irrompible" else "")
+		shopCard(grid, i, rod.Emoji .. " " .. rod.Name .. (if broken then " 💥" else ""), info, rod.Description,
+			if broken then T.Danger elseif equipped then T.Success else rod.Color, text, color, action)
 	end
+
+	-- mochilas-acuario: se compran en orden
+	for i, aq in ipairs(Rods.Aquariums) do
+		local text, color, action = "", T.Primary, nil :: (() -> ())?
+		if aq.Tier == data.AquariumTier then
+			text, color = "✅ La llevas", T.PanelDark
+		elseif aq.Tier < data.AquariumTier then
+			text, color = "Superada", T.PanelDark
+		elseif aq.Tier == data.AquariumTier + 1 then
+			text, color = "🪙 " .. Util.formatShort(aq.Price), can(aq.Price)
+			action = function()
+				call("BuyAquarium", "🐠 ¡Nueva mochila: " .. aq.Name .. "!", aq.Tier)
+			end
+		else
+			text, color = "🔒 Compra la anterior", T.PanelDark
+		end
+		shopCard(grid, 10 + i, aq.Emoji .. " " .. aq.Name, ("🐠 Capacidad: %d kg"):format(aq.Capacity),
+			"Mochila-acuario: más kg = más memes por ronda de pesca.", if aq.Tier == data.AquariumTier then T.Success else aq.Color,
+			text, color, action)
+	end
+
 	local item = Rods.Items.SedalReforzado
-	local card = UIKit.new("Frame", { LayoutOrder = 100, BackgroundColor3 = T.PanelLight, Parent = grid })
-	UIKit.corner(card, 14)
-	UIKit.stroke(card, 3, T.Secondary)
-	UIKit.label({ Text = item.Emoji .. " " .. item.Name, Size = UDim2.new(1, -12, 0, 28), Position = UDim2.fromOffset(6, 6), Font = T.FontTitle,
-		Parent = card }, { Stroke = 2, MaxSize = 22 })
-	UIKit.label({ Text = ("Tienes: %d"):format(data.Items.SedalReforzado or 0), Size = UDim2.new(1, -12, 0, 22), Position = UDim2.fromOffset(6, 38),
-		Font = T.Font, TextColor3 = T.Coin, Parent = card }, { MaxSize = 18 })
-	UIKit.label({ Text = item.Description, Size = UDim2.new(1, -12, 0, 40), Position = UDim2.fromOffset(6, 62), Font = T.FontBody,
-		TextColor3 = T.TextDim, Parent = card }, { Stroke = false, MaxSize = 15 })
-	local buy = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, -16, 0, 42), Parent = card },
-		{ Color = if data.MemeCoin >= item.Price then T.Primary else T.PanelDark, Text = "🪙 " .. Util.formatNumber(item.Price), TextSize = 22 })
-	buy.Activated:Connect(function()
-		call("BuyItem", "🧵 +1 Sedal Reforzado (actívalo junto al botón LANZAR)", item.Id)
-	end)
+	shopCard(grid, 100, item.Emoji .. " " .. item.Name, ("Tienes: %d"):format(data.Items.SedalReforzado or 0), item.Description,
+		T.Secondary, "🪙 " .. Util.formatShort(item.Price), can(item.Price), function()
+			call("BuyItem", "🧵 +1 Sedal Reforzado (actívalo junto al botón LANZAR)", item.Id)
+		end)
 end
 
 -- ===== Bestiario =====
@@ -301,8 +334,8 @@ function Panels.Signature(name: string): string
 	table.sort(ids)
 	local catches = table.concat(ids, ",")
 	local plot = table.concat(data.Plot, ",")
-	if name == "Backpack" then
-		return catches .. "|" .. plot
+	if name == "Aquarium" then
+		return catches .. "|" .. plot .. "|" .. tostring(data.AquariumTier)
 	elseif name == "Plot" then
 		return plot .. "|" .. tostring(Players.LocalPlayer:GetAttribute("PlotBank"))
 	elseif name == "Shop" then
@@ -316,8 +349,20 @@ function Panels.Signature(name: string): string
 		for _, rod in ipairs(Rods.List) do
 			table.insert(affordable, if data.MemeCoin >= rod.Price then "1" else "0")
 		end
+		for _, rod in ipairs(Rods.List) do
+			table.insert(affordable, if data.MemeCoin >= rod.RepairCost then "1" else "0")
+		end
+		for _, aq in ipairs(Rods.Aquariums) do
+			table.insert(affordable, if data.MemeCoin >= aq.Price then "1" else "0")
+		end
 		table.insert(affordable, if data.MemeCoin >= Rods.Items.SedalReforzado.Price then "1" else "0")
+		local broken = {}
+		for id in pairs(data.BrokenRods or {}) do
+			table.insert(broken, id)
+		end
+		table.sort(broken)
 		return table.concat(rods, ",") .. "|" .. data.EquippedRod .. "|" .. tostring(data.Items.SedalReforzado) .. "|" .. table.concat(affordable)
+			.. "|" .. table.concat(broken, ",") .. "|" .. tostring(data.AquariumTier)
 	elseif name == "Bestiary" then
 		local parts = {}
 		for id, entry in pairs(data.Discovered) do
@@ -366,13 +411,13 @@ function Panels.Init()
 	gui = UIKit.new("ScreenGui", { Name = "PescaPanels", ResetOnSpawn = false, DisplayOrder = 10,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling, Parent = Players.LocalPlayer:WaitForChild("PlayerGui") })
 
-	makePanel("Backpack", "🎒 MOCHILA", T.Primary, Vector2.new(140, 150), renderBackpack, function(content)
+	makePanel("Aquarium", "🐠 TU ACUARIO", RGB(255, 140, 40), Vector2.new(140, 150), renderAquarium, function(content)
 		local sellAll = UIKit.button({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, -2), Size = UDim2.fromOffset(190, 36),
 			Parent = content }, { Color = T.Success, Text = "💰 Vender comunes–raros", TextSize = 18 })
 		sellAll.Activated:Connect(function()
 			local r = call("SellAll", nil)
 			if r.ok then
-				HUD.Toast(("💰 Vendidos %d memes: +%s MemeCoins"):format(r.Count or 0, Util.formatNumber(r.Earned or 0)), "Success")
+				HUD.Toast(("💰 Vendidos %d memes: +%s MemeCoins"):format(r.Count or 0, Util.formatShort(r.Earned or 0)), "Success")
 			end
 		end)
 	end)
@@ -385,8 +430,8 @@ function Panels.Init()
 			end
 		end)
 	end)
-	makePanel("Shop", "🛒 CAÑAS & CEBOS", T.Secondary, Vector2.new(220, 170), renderShop)
-	makePanel("Bestiary", "📖 BESTIARIO", T.Success, Vector2.new(330, 140), renderBestiary)
+	makePanel("Shop", "🛒 TIENDA", RGB(60, 200, 80), Vector2.new(220, 170), renderShop)
+	makePanel("Bestiary", "📖 ÍNDICE", RGB(40, 170, 255), Vector2.new(330, 140), renderBestiary)
 
 	HUD.ButtonPressed:Connect(Panels.Open)
 	Players.LocalPlayer:GetAttributeChangedSignal("PlotBank"):Connect(function()
@@ -409,7 +454,7 @@ function Panels.Init()
 				p.Signature = signature
 				p.Render()
 			elseif openName == "Shop" and State.Data then
-				p.Content.Count.Text = ("Tienes 🪙 %s"):format(Util.formatNumber(State.Data.MemeCoin))
+				p.Content.Count.Text = ("Tienes 🪙 %s"):format(Util.formatShort(State.Data.MemeCoin))
 			end
 		end
 	end)

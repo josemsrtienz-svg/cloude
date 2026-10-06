@@ -2,19 +2,21 @@
 	PescaDeMemes • WorldBuilder (ModuleScript, servidor)
 	ServerScriptService > PescaServer > Systems > WorldBuilder
 
-	Construye por script la zona 1 "Charca del Noob" para el prototipo.
+	Construye el mapa por script (estilo "en fila" de los juegos de steal).
 
-	DIRECCIÓN DE ARTE
-	  Estilo:        cartoon acogedor de lago, tarde soleada.
-	  Formas:        madera algo torcida, postes de alturas distintas, tejados inclinados.
-	  Materiales:    WoodPlanks / Wood para el muelle y casetas, Slate para tejas, Glass en el acuario.
-	  Paleta:        maderas cálidas + agua turquesa + arena; acentos amarillo (marca) y rosa.
-	  Foco:          el arco "CHARCA DEL NOOB" a la entrada del muelle, visto desde el spawn.
-	  Secundarios:   tienda de cañas (derecha), acuario (izquierda), plataforma en T al final.
-	  Entorno:       nenúfares, juncos, boyas, rocas y árboles alrededor de la charca.
+	DIRECCIÓN DE ARTE (referencia: captura del jugador, juegos tipo Steal a Brainrot/Egg)
+	  Estilo:        Roblox clásico de juguete: casillas con STUDS, colores vivos, formas cuadradas.
+	  Suelo:         césped en tablero de ajedrez de dos verdes, con studs. Camino de arena junto al río.
+	  Paredes:       muros altos de tierra en casillas marrones (cierran el mapa como en la referencia).
+	  Composición:   pasillo largo; RÍO en el centro; 4 parcelas a cada lado mirando al río.
+	  Parcelas:      plataforma de césped más claro, valla de madera en X, 8 huecos en el césped para los
+	                 memes (sin estantes), cartel del dueño con su color, círculo cobrador verde y
+	                 SU PROPIO MUELLE que entra en el río (solo se pesca desde el tuyo).
+	  Entrada:       arco "PESCA DE MEMES", spawn y tienda con toldo a rayas (al norte).
+	  Detalle:       puentes con barandilla, nenúfares y boyas en el río, arbustos junto a las paredes.
 
-	Jerarquía: Workspace > Map > { Spawn, Dock, Shop, Signpost, Plots > PlotN, Nature } (+ Terrain: agua/arena)
-	El agua es Terrain; su centro y radio deben coincidir con GameConfig.Pond.
+	Jerarquía: Workspace > Map > { Ground, Walls, River, Plots > PlotN { Spots, Displays, ... }, Hub, Nature }
+	Las medidas salen de GameConfig.River y GameConfig.Plots (no las dupliques aquí).
 ]]
 
 local Workspace = game:GetService("Workspace")
@@ -25,6 +27,7 @@ local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local GameConfig = require(Root.Config.GameConfig)
 
 local WorldBuilder = {}
+
 
 local RGB = Color3.fromRGB
 local rng = Random.new(20261006) -- semilla fija: el mapa sale siempre igual
@@ -113,305 +116,185 @@ local function lantern(parent: Instance, base: Vector3, height: number)
 	new("PointLight", { Color = RGB(255, 200, 130), Range = 16, Brightness = 1.4, Parent = bulb })
 end
 
--- ===== Terreno: hierba, arena, charca =====
+-- ===== Estilo de casillas con studs =====
 
-local function buildTerrain()
+local GRASS = { RGB(96, 200, 70), RGB(84, 184, 60) }
+local PLOT_GRASS = { RGB(128, 222, 92), RGB(112, 208, 80) }
+local SAND = { RGB(236, 210, 150), RGB(222, 194, 134) }
+local DIRT = { RGB(186, 128, 84), RGB(168, 112, 72) }
+
+-- Pieza con studs en todas las caras (material Plastic: así Roblox dibuja los studs clásicos).
+local function studded(parent: Instance, name: string, size: Vector3, cf: CFrame, color: Color3): Part
+	return part(parent, name, size, cf, color, Enum.Material.Plastic, {
+		TopSurface = Enum.SurfaceType.Studs, FrontSurface = Enum.SurfaceType.Studs, BackSurface = Enum.SurfaceType.Studs,
+		LeftSurface = Enum.SurfaceType.Studs, RightSurface = Enum.SurfaceType.Studs, BottomSurface = Enum.SurfaceType.Smooth,
+	})
+end
+
+local MAP = { MinX = -110, MaxX = 110, MinZ = -170, MaxZ = 200, Tile = 10 }
+
+-- ===== Suelo, paredes y río =====
+
+local function buildGround(map: Instance)
+	local ground = folder(map, "Ground")
+	local river = GameConfig.River
+	local T = MAP.Tile
+	for x = MAP.MinX + T / 2, MAP.MaxX - T / 2, T do
+		for z = MAP.MinZ + T / 2, MAP.MaxZ - T / 2, T do
+			local inRiver = math.abs(x) < river.HalfWidth + 1 and z > river.MinZ and z < river.MaxZ
+			if not inRiver then
+				local checker = (math.floor(x / T) + math.floor(z / T)) % 2 + 1
+				local bank = math.abs(x) <= river.HalfWidth + 11 and z > river.MinZ - 6 and z < river.MaxZ + 6
+				local palette = if bank then SAND else GRASS
+				studded(ground, "Tile", Vector3.new(T, 2, T), CFrame.new(x, -1, z), palette[checker])
+			end
+		end
+	end
+end
+
+local function buildWalls(map: Instance)
+	local walls = folder(map, "Walls")
+	local T, H = 10, 3 -- casillas de 10 studs, 3 filas de alto
+	local function wallRun(fixed: number, from: number, to: number, alongX: boolean)
+		for a = from + T / 2, to - T / 2, T do
+			for row = 0, H - 1 do
+				local checker = (math.floor(a / T) + row) % 2 + 1
+				local pos = if alongX then Vector3.new(a, row * T + T / 2, fixed) else Vector3.new(fixed, row * T + T / 2, a)
+				local size = if alongX then Vector3.new(T, T, 4) else Vector3.new(4, T, T)
+				studded(walls, "Wall", size, CFrame.new(pos), DIRT[checker])
+			end
+		end
+		-- borde de césped encima del muro, como en la referencia
+		local mid = (from + to) / 2
+		local len = to - from
+		local pos = if alongX then Vector3.new(mid, H * T + 0.5, fixed) else Vector3.new(fixed, H * T + 0.5, mid)
+		local size = if alongX then Vector3.new(len, 1, 4.4) else Vector3.new(4.4, 1, len)
+		studded(walls, "WallGrass", size, CFrame.new(pos), GRASS[1])
+	end
+	wallRun(MAP.MinZ - 2, MAP.MinX, MAP.MaxX, true)
+	wallRun(MAP.MaxZ + 2, MAP.MinX, MAP.MaxX, true)
+	wallRun(MAP.MinX - 2, MAP.MinZ, MAP.MaxZ, false)
+	wallRun(MAP.MaxX + 2, MAP.MinZ, MAP.MaxZ, false)
+end
+
+local function buildRiver(map: Instance)
+	local riverFolder = folder(map, "River")
+	local r = GameConfig.River
 	local terrain = Workspace.Terrain
-	local c = GameConfig.Pond.Center
 	terrain:Clear()
-	terrain:FillBlock(CFrame.new(c.X, -8, c.Z + 40), Vector3.new(460, 16, 460), Enum.Material.Grass)
-	terrain:FillCylinder(CFrame.new(c.X, -4, c.Z), 8, 94, Enum.Material.Sand)
-	terrain:FillCylinder(CFrame.new(c.X, -7, c.Z), 14, 80, Enum.Material.Water)
-	terrain:FillCylinder(CFrame.new(c.X, -17, c.Z), 6, 84, Enum.Material.Sand)
-	-- pequeñas calas para que la orilla no sea un círculo perfecto
-	for _, cove in ipairs({ Vector3.new(-62, 0, -60), Vector3.new(58, 0, -150), Vector3.new(-40, 0, -168) }) do
-		terrain:FillBall(c + cove + Vector3.new(0, -5, 0), 16, Enum.Material.Water)
-	end
-	terrain.WaterColor = RGB(40, 170, 190)
-	terrain.WaterTransparency = 0.35
-	terrain.WaterWaveSize = 0.12
+	local length = r.MaxZ - r.MinZ
+	local width = r.HalfWidth * 2 + 2
+	terrain:FillBlock(CFrame.new(0, -11, (r.MinZ + r.MaxZ) / 2), Vector3.new(width, 4, length), Enum.Material.Sand)
+	terrain:FillBlock(CFrame.new(0, -5 + r.SurfaceY / 2, (r.MinZ + r.MaxZ) / 2), Vector3.new(width, 10 + r.SurfaceY, length), Enum.Material.Water)
+	terrain.WaterColor = RGB(40, 180, 210)
+	terrain.WaterTransparency = 0.3
+	terrain.WaterWaveSize = 0.1
 	terrain.WaterWaveSpeed = 8
-	terrain.WaterReflectance = 0.4
-end
-
--- ===== Muelle =====
-
-local DOCK_START_Z = -6
-local DOCK_END_Z = -62
-local DOCK_HALF_W = 6
-local DECK_Y = 1.2
-
-local function buildDock(map: Instance)
-	local dock = folder(map, "Dock")
-	local planks = folder(dock, "Planks")
-	local structure = folder(dock, "Structure")
-
-	-- tablones del pasillo (cruzados), con color y giro levemente distintos
-	local z = DOCK_START_Z
-	local i = 0
-	while z > DOCK_END_Z do
-		i += 1
-		local color = if i % 3 == 0 then PALETTE.WoodLight else PALETTE.Wood:Lerp(PALETTE.WoodDark, rng:NextNumber(0, 0.35))
-		part(planks, "Plank", Vector3.new(DOCK_HALF_W * 2 + rng:NextNumber(-0.3, 0.4), 0.5, 1.8),
-			CFrame.new(rng:NextNumber(-0.15, 0.15), DECK_Y, z - 0.9) * CFrame.Angles(0, math.rad(rng:NextNumber(-1.5, 1.5)), 0),
-			color, Enum.Material.WoodPlanks)
-		z -= 2
-	end
-
-	-- plataforma en T al final: tablones en el otro sentido para contraste
-	local platformZ0, platformZ1 = DOCK_END_Z, DOCK_END_Z - 16
-	for x = -14, 13, 2 do
-		local color = PALETTE.Wood:Lerp(PALETTE.WoodDark, rng:NextNumber(0, 0.4))
-		part(planks, "PlatformPlank", Vector3.new(1.8, 0.5, 16 + rng:NextNumber(-0.2, 0.2)),
-			CFrame.new(x + 1, DECK_Y, (platformZ0 + platformZ1) / 2), color, Enum.Material.WoodPlanks)
-	end
-
-	-- vigas bajo los tablones
-	for _, x in ipairs({ -DOCK_HALF_W + 1, DOCK_HALF_W - 1 }) do
-		part(structure, "Stringer", Vector3.new(0.8, 0.8, DOCK_START_Z - DOCK_END_Z),
-			CFrame.new(x, DECK_Y - 0.6, (DOCK_START_Z + DOCK_END_Z) / 2), PALETTE.WoodDark, Enum.Material.Wood)
-	end
-	part(structure, "PlatformBeam", Vector3.new(28, 0.8, 0.8), CFrame.new(0, DECK_Y - 0.6, platformZ0 - 1), PALETTE.WoodDark, Enum.Material.Wood)
-	part(structure, "PlatformBeam", Vector3.new(28, 0.8, 0.8), CFrame.new(0, DECK_Y - 0.6, platformZ1 + 1), PALETTE.WoodDark, Enum.Material.Wood)
-
-	-- postes que se hunden en el agua, de alturas distintas
-	for pz = DOCK_START_Z - 4, DOCK_END_Z, -9 do
-		for _, x in ipairs({ -DOCK_HALF_W - 0.3, DOCK_HALF_W + 0.3 }) do
-			post(structure, "Post", 0.9, 8 + rng:NextNumber(0, 1.6), Vector3.new(x, -7, pz), PALETTE.WoodDark)
-		end
-	end
-	for _, p in ipairs({ Vector3.new(-14, 0, platformZ0), Vector3.new(14, 0, platformZ0), Vector3.new(-14, 0, platformZ1),
-		Vector3.new(14, 0, platformZ1), Vector3.new(0, 0, platformZ1) }) do
-		post(structure, "Post", 1, 9.5 + rng:NextNumber(0, 1.2), Vector3.new(p.X, -7, p.Z), PALETTE.WoodDark)
-	end
-
-	-- barandilla baja al fondo de la plataforma, con hueco en el centro
-	local rail = folder(dock, "Railing")
+	terrain.WaterReflectance = 0.35
+	-- orillas de arena en casillas
 	for _, side in ipairs({ -1, 1 }) do
-		for k = 0, 2 do
-			post(rail, "RailPost", 0.4, 2.6, Vector3.new(side * (5 + k * 4), DECK_Y + 0.25, platformZ1 + 0.6), PALETTE.WoodDark)
+		for z = r.MinZ + 5, r.MaxZ - 5, 10 do
+			local checker = (math.floor(z / 10) + (if side > 0 then 1 else 0)) % 2 + 1
+			studded(riverFolder, "Bank", Vector3.new(2, 10, 10), CFrame.new(side * (r.HalfWidth + 1), -5, z), SAND[checker])
 		end
-		part(rail, "Rail", Vector3.new(9, 0.35, 0.35), CFrame.new(side * 9, DECK_Y + 2.5, platformZ1 + 0.6), PALETTE.Wood, Enum.Material.Wood)
-		-- laterales de la plataforma
-		post(rail, "RailPost", 0.4, 2.6, Vector3.new(side * 14, DECK_Y + 0.25, platformZ0 - 4), PALETTE.WoodDark)
-		post(rail, "RailPost", 0.4, 2.6, Vector3.new(side * 14, DECK_Y + 0.25, platformZ1 + 4), PALETTE.WoodDark)
-		part(rail, "Rail", Vector3.new(0.35, 0.35, 8.6), CFrame.new(side * 14, DECK_Y + 2.5, (platformZ0 + platformZ1) / 2), PALETTE.Wood, Enum.Material.Wood)
 	end
-
-	-- props de la plataforma: banco, barril con cebos, cajas y faroles
-	local props = folder(dock, "Props")
-	local benchCF = CFrame.new(-9.5, DECK_Y, platformZ0 - 3.5)
-	part(props, "BenchSeat", Vector3.new(6, 0.4, 1.6), benchCF * CFrame.new(0, 1.6, 0), PALETTE.WoodLight, Enum.Material.WoodPlanks)
-	part(props, "BenchBack", Vector3.new(6, 1.4, 0.3), benchCF * CFrame.new(0, 2.6, 0.75) * CFrame.Angles(math.rad(-10), 0, 0), PALETTE.WoodLight, Enum.Material.WoodPlanks)
-	for _, lx in ipairs({ -2.4, 2.4 }) do
-		part(props, "BenchLeg", Vector3.new(0.4, 1.4, 1.4), benchCF * CFrame.new(lx, 0.9, 0), PALETTE.WoodDark, Enum.Material.Wood)
+	for _, z in ipairs({ r.MinZ - 1, r.MaxZ + 1 }) do
+		studded(riverFolder, "BankEnd", Vector3.new(r.HalfWidth * 2 + 4, 10, 2), CFrame.new(0, -5, z), SAND[1])
 	end
-	local barrel = post(props, "Barrel", 2.4, 3, Vector3.new(10, DECK_Y + 0.25, platformZ0 - 3), PALETTE.Wood, Enum.Material.Wood)
-	barrel.Name = "BaitBarrel"
-	for _, by in ipairs({ 0.5, 2.5 }) do
-		post(props, "Hoop", 2.55, 0.25, Vector3.new(10, DECK_Y + 0.25 + by, platformZ0 - 3), RGB(70, 70, 75), Enum.Material.Metal)
+	-- puente central con barandilla
+	local bridge = folder(riverFolder, "Bridge")
+	local bw = 10
+	for x = -r.HalfWidth - 4, r.HalfWidth + 4, 2 do
+		local color = PALETTE.Wood:Lerp(PALETTE.WoodDark, rng:NextNumber(0, 0.3))
+		part(bridge, "Plank", Vector3.new(1.8, 0.5, bw), CFrame.new(x, 0.25, 0), color, Enum.Material.WoodPlanks)
 	end
-	part(props, "Crate", Vector3.new(2.2, 2.2, 2.2), CFrame.new(11.5, DECK_Y + 1.35, platformZ0 - 6) * CFrame.Angles(0, math.rad(18), 0), PALETTE.WoodLight, Enum.Material.WoodPlanks)
-	part(props, "Crate", Vector3.new(1.6, 1.6, 1.6), CFrame.new(11.3, DECK_Y + 3.25, platformZ0 - 5.8) * CFrame.Angles(0, math.rad(-12), 0), PALETTE.Wood, Enum.Material.WoodPlanks)
-	lantern(props, Vector3.new(-13.4, DECK_Y + 0.25, platformZ1 + 1), 7)
-	lantern(props, Vector3.new(13.4, DECK_Y + 0.25, platformZ1 + 1), 6.4)
-	lantern(props, Vector3.new(DOCK_HALF_W + 0.2, DECK_Y + 0.25, -30), 6)
-
-	-- arco de entrada: el foco visual desde el spawn
-	local arch = folder(dock, "EntranceArch")
-	post(arch, "ArchPost", 1.3, 13, Vector3.new(-7.5, 0, DOCK_START_Z + 1), PALETTE.WoodDark)
-	post(arch, "ArchPost", 1.3, 12.4, Vector3.new(7.5, 0, DOCK_START_Z + 1), PALETTE.WoodDark)
-	part(arch, "ArchBeam", Vector3.new(18, 1, 1.2), CFrame.new(0, 12.2, DOCK_START_Z + 1) * CFrame.Angles(0, 0, math.rad(-1.5)), PALETTE.Wood, Enum.Material.Wood)
-	local board = sign(arch, "ArchSign", Vector3.new(15, 3.6, 0.5),
-		CFrame.new(0, 9.6, DOCK_START_Z + 1.4) * CFrame.Angles(0, math.rad(180), math.rad(2.5)), "🎣 CHARCA DEL NOOB", PALETTE.Brand, PALETTE.White)
-	board.Name = "ArchSign"
-	for _, rx in ipairs({ -5.5, 5.5 }) do
-		part(arch, "SignRope", Vector3.new(0.15, 1.6, 0.15), CFrame.new(rx, 11.5, DOCK_START_Z + 1.3), RGB(220, 200, 160), Enum.Material.Fabric)
+	for _, z in ipairs({ -bw / 2, bw / 2 }) do
+		part(bridge, "Rail", Vector3.new(r.HalfWidth * 2 + 10, 0.4, 0.4), CFrame.new(0, 3, z), PALETTE.Wood, Enum.Material.Wood)
+		for x = -r.HalfWidth - 4, r.HalfWidth + 4, 6 do
+			part(bridge, "RailPost", Vector3.new(0.5, 3, 0.5), CFrame.new(x, 1.5, z), PALETTE.WoodDark, Enum.Material.Wood)
+		end
 	end
-end
-
--- ===== Tienda de cañas =====
-
-local function buildShop(map: Instance)
-	local shop = folder(map, "Shop")
-	-- frente local = -Z, mirando hacia el camino del spawn
-	local o = CFrame.lookAt(Vector3.new(27, 0, 6), Vector3.new(0, 0, 26))
-	local function at(x: number, y: number, z: number): CFrame
-		return o * CFrame.new(x, y, z)
-	end
-
-	part(shop, "Foundation", Vector3.new(13, 0.8, 11), at(0, 0.4, 0), PALETTE.Rock, Enum.Material.Cobblestone)
-	part(shop, "Floor", Vector3.new(12, 0.4, 10), at(0, 1, 0), PALETTE.Wood, Enum.Material.WoodPlanks)
-	part(shop, "BackWall", Vector3.new(12, 9, 0.8), at(0, 5.6, 4.6), PALETTE.WoodLight, Enum.Material.WoodPlanks)
-	part(shop, "SideWall", Vector3.new(0.8, 9, 10), at(-5.6, 5.6, 0), PALETTE.WoodLight, Enum.Material.WoodPlanks)
-	part(shop, "SideWall", Vector3.new(0.8, 9, 10), at(5.6, 5.6, 0), PALETTE.WoodLight, Enum.Material.WoodPlanks)
-	part(shop, "CounterWall", Vector3.new(12, 3.2, 0.8), at(0, 2.8, -4.6), PALETTE.Wood, Enum.Material.WoodPlanks)
-	local counter = part(shop, "Counter", Vector3.new(12.8, 0.4, 2.2), at(0, 4.6, -4.9), PALETTE.WoodDark, Enum.Material.Wood)
-	for _, x in ipairs({ -5.6, 5.6 }) do
-		part(shop, "FrontPillar", Vector3.new(1, 5.6, 1), at(x, 7.6, -4.6), PALETTE.WoodDark, Enum.Material.Wood)
-	end
-	part(shop, "Header", Vector3.new(12, 1.4, 0.8), at(0, 9.6, -4.6), PALETTE.Wood, Enum.Material.WoodPlanks)
-
-	-- tejado inclinado con alero hacia delante
-	part(shop, "Roof", Vector3.new(14.5, 0.7, 13.5), at(0, 11.2, -0.6) * CFrame.Angles(math.rad(-13), 0, 0), PALETTE.Roof, Enum.Material.Slate)
-	part(shop, "RoofTrim", Vector3.new(14.6, 0.5, 0.5), at(0, 9.65, -7.2) * CFrame.Angles(math.rad(-13), 0, 0), PALETTE.WoodDark, Enum.Material.Wood)
-
-	-- toldo de rayas amarillo/blanco sobre el mostrador
-	for k = 0, 5 do
-		local color = if k % 2 == 0 then PALETTE.Brand else PALETTE.White
-		part(shop, "AwningStripe", Vector3.new(2, 0.2, 3.2), at(-5 + k * 2, 8.4, -6.6) * CFrame.Angles(math.rad(28), 0, 0), color, Enum.Material.Fabric)
-	end
-
-	-- cartel sobre el tejado
-	for _, x in ipairs({ -3.5, 3.5 }) do
-		part(shop, "SignPost", Vector3.new(0.4, 2.4, 0.4), at(x, 12.6, -3.5), PALETTE.WoodDark, Enum.Material.Wood)
-	end
-	sign(shop, "ShopSign", Vector3.new(10, 2.6, 0.4), at(0, 14.2, -3.6), "CAÑAS & CEBOS", PALETTE.Pink, PALETTE.White)
-
-	-- interior visible: estantería con cañas de colores
-	local rack = folder(shop, "RodRack")
-	part(rack, "Shelf", Vector3.new(9, 0.4, 1.2), at(0, 3.2, 3.6), PALETTE.WoodDark, Enum.Material.Wood)
-	for k, color in ipairs({ RGB(150, 105, 60), RGB(70, 170, 255), RGB(255, 205, 40), RGB(120, 60, 200) }) do
-		local x = -3.6 + (k - 1) * 2.4
-		local rod = part(rack, "DisplayRod", Vector3.new(6.5, 0.2, 0.2), at(x, 6.6, 3.9) * CFrame.Angles(0, 0, math.rad(84 - k * 2)), color, Enum.Material.SmoothPlastic)
-		rod.Shape = Enum.PartType.Cylinder
-	end
-
-	-- campana en el mostrador + prompt de la tienda
-	local bell = ball(shop, "Bell", 0.8, (at(3.8, 5.2, -5.2)).Position, PALETTE.Brand, Enum.Material.Metal)
-	bell.Reflectance = 0.2
-	new("ProximityPrompt", { Name = "ShopPrompt", ActionText = "Comprar", ObjectText = "Tienda de cañas",
-		HoldDuration = 0, MaxActivationDistance = 12, RequiresLineOfSight = false, Parent = counter })
-
-	-- exterior: barriles, cajas y cañas apoyadas en la pared
-	post(shop, "Barrel", 2.2, 2.8, at(7.6, 0, -3).Position, PALETTE.Wood)
-	part(shop, "Crate", Vector3.new(2, 2, 2), at(7.8, 1, 1) * CFrame.Angles(0, math.rad(15), 0), PALETTE.WoodLight, Enum.Material.WoodPlanks)
-	for k = 0, 2 do
-		local rod = part(shop, "LeaningRod", Vector3.new(7, 0.2, 0.2), at(-6.3, 3.4, -2 + k * 1.2) * CFrame.Angles(0, 0, math.rad(70 + k * 4)),
-			PALETTE.WoodDark, Enum.Material.Wood)
-		rod.Shape = Enum.PartType.Cylinder
-	end
-	lantern(shop, at(-7.2, 0, -5.5).Position, 7.5)
-end
-
--- ===== Naturaleza: árboles, juncos, nenúfares, rocas, boyas =====
-
-local function tree(parent: Instance, base: Vector3)
-	local m = folder(parent, "Tree")
-	local h = rng:NextNumber(9, 15)
-	local lean = CFrame.Angles(math.rad(rng:NextNumber(-6, 6)), 0, math.rad(rng:NextNumber(-6, 6)))
-	local trunk = part(m, "Trunk", Vector3.new(h, 1.6, 1.6), CFrame.new(base) * lean * CFrame.new(0, h / 2, 0) * CFrame.Angles(0, 0, math.rad(90)),
-		PALETTE.WoodDark, Enum.Material.Wood)
-	trunk.Shape = Enum.PartType.Cylinder
-	local top = (CFrame.new(base) * lean * CFrame.new(0, h, 0)).Position
-	for k = 1, 3 do
-		local d = rng:NextNumber(6, 9)
-		local offset = Vector3.new(rng:NextNumber(-2.2, 2.2), rng:NextNumber(-0.8, 2.2), rng:NextNumber(-2.2, 2.2))
-		ball(m, "Leaves", d, top + offset, PALETTE.Leaf[rng:NextInteger(1, 3)], Enum.Material.Grass)
-	end
-end
-
-local function reeds(parent: Instance, base: Vector3)
-	local m = folder(parent, "Reeds")
-	for _ = 1, rng:NextInteger(4, 7) do
-		local h = rng:NextNumber(3, 5.5)
-		local p = base + Vector3.new(rng:NextNumber(-1.6, 1.6), 0, rng:NextNumber(-1.6, 1.6))
-		local tilt = CFrame.Angles(math.rad(rng:NextNumber(-10, 10)), 0, math.rad(rng:NextNumber(-10, 10)))
-		part(m, "Stem", Vector3.new(0.18, h, 0.18), CFrame.new(p) * tilt * CFrame.new(0, h / 2 - 1, 0), RGB(110, 150, 70), Enum.Material.Grass, { CanCollide = false })
-		if rng:NextNumber() < 0.6 then
-			part(m, "Cattail", Vector3.new(0.4, 1, 0.4), CFrame.new(p) * tilt * CFrame.new(0, h - 0.8, 0), RGB(120, 75, 45), Enum.Material.Fabric, { CanCollide = false })
+	for _, x in ipairs({ -10, 10 }) do
+		for _, z in ipairs({ -bw / 2 + 1, bw / 2 - 1 }) do
+			post(bridge, "Pillar", 1.2, 10, Vector3.new(x, -10, z), PALETTE.WoodDark)
 		end
 	end
 end
 
-local function lilyPad(parent: Instance, center: Vector3)
-	local pad = disc(parent, "LilyPad", rng:NextNumber(2.4, 4), 0.15, center + Vector3.new(0, 0.05, 0), RGB(80, 160, 70), Enum.Material.Grass)
-	pad.CanCollide = false
-	if rng:NextNumber() < 0.35 then
-		ball(parent, "LilyFlower", 0.7, center + Vector3.new(0.4, 0.35, 0.2), PALETTE.Pink, Enum.Material.SmoothPlastic).CanCollide = false
-	end
-end
+-- ===== Parcelas =====
 
-local function buoy(parent: Instance, center: Vector3)
-	local m = folder(parent, "Buoy")
-	ball(m, "Bottom", 1.6, center, RGB(230, 60, 60), Enum.Material.SmoothPlastic)
-	ball(m, "Top", 1, center + Vector3.new(0, 0.75, 0), PALETTE.White, Enum.Material.SmoothPlastic)
-end
-
-local function rocks(parent: Instance, base: Vector3)
-	local m = folder(parent, "Rocks")
-	for _ = 1, rng:NextInteger(2, 3) do
-		local s = rng:NextNumber(1.5, 3.5)
-		part(m, "Rock", Vector3.new(s * rng:NextNumber(1, 1.5), s * 0.7, s), CFrame.new(base + Vector3.new(rng:NextNumber(-1.5, 1.5), s * 0.2, rng:NextNumber(-1.5, 1.5)))
-			* CFrame.Angles(rng:NextNumber(-0.3, 0.3), rng:NextNumber(0, math.pi), rng:NextNumber(-0.3, 0.3)), PALETTE.Rock, Enum.Material.Rock)
-	end
-end
-
--- ===== Parcelas de los jugadores =====
-
--- Color de acento de cada parcela (cartel y pedestales) para que se reconozcan de lejos.
+-- Color de acento de cada parcela (cartel y muelle) para reconocerla de lejos.
 local PLOT_ACCENTS = {
 	RGB(255, 205, 40), RGB(255, 90, 150), RGB(70, 170, 255), RGB(90, 210, 110),
 	RGB(185, 90, 255), RGB(255, 140, 0), RGB(40, 200, 200), RGB(240, 80, 80),
 }
 
-local PEDESTAL_X = { -13.5, -4.5, 4.5, 13.5 }
-local PEDESTAL_Z = { 2, 11 }
+local SPOT_X = { -15, -5, 5, 15 }
+local SPOT_Z = { -4, 10 }
 
-local function plotFence(parent: Instance, at: (number, number, number) -> CFrame, half: number)
+-- Valla de madera con cruces en X (como en la referencia).
+local function xFence(parent: Instance, a: Vector3, b: Vector3)
 	local fence = folder(parent, "Fence")
-	local function run(x0: number, z0: number, x1: number, z1: number)
-		local length = math.sqrt((x1 - x0) ^ 2 + (z1 - z0) ^ 2)
-		local steps = math.max(1, math.floor(length / 5 + 0.5))
-		for k = 0, steps do
-			local a = k / steps
-			local x, z = x0 + (x1 - x0) * a, z0 + (z1 - z0) * a
-			part(fence, "FencePost", Vector3.new(0.6, 3.2, 0.6), at(x, 2.6, z), PALETTE.WoodDark, Enum.Material.Wood)
-		end
-		local mid = at((x0 + x1) / 2, 0, (z0 + z1) / 2)
-		local yaw = math.atan2(x1 - x0, z1 - z0)
-		for _, y in ipairs({ 2.2, 3.4 }) do
-			part(fence, "FenceRail", Vector3.new(0.3, 0.35, length), mid * CFrame.new(0, y, 0) * CFrame.Angles(0, yaw, 0),
-				PALETTE.Wood, Enum.Material.Wood)
+	local length = (b - a).Magnitude
+	local dir = (b - a).Unit
+	local steps = math.max(1, math.floor(length / 5 + 0.5))
+	local yaw = math.atan2(dir.X, dir.Z)
+	local h = 3
+	for k = 0, steps do
+		local p = a + dir * (length * k / steps)
+		part(fence, "Post", Vector3.new(0.6, h + 0.4, 0.6), CFrame.new(p + Vector3.new(0, (h + 0.4) / 2, 0)), PALETTE.WoodDark, Enum.Material.Wood)
+		if k < steps then
+			local q = a + dir * (length * (k + 1) / steps)
+			local mid = (p + q) / 2
+			local seg = (q - p).Magnitude
+			local diag = math.sqrt(seg ^ 2 + (h - 0.6) ^ 2)
+			local angle = math.atan2(h - 0.6, seg)
+			local base = CFrame.new(mid + Vector3.new(0, h / 2 + 0.2, 0)) * CFrame.Angles(0, yaw, 0)
+			part(fence, "Cross", Vector3.new(0.3, 0.35, diag), base * CFrame.Angles(angle, 0, 0), RGB(200, 90, 40), Enum.Material.Wood)
+			part(fence, "Cross", Vector3.new(0.3, 0.35, diag), base * CFrame.Angles(-angle, 0, 0), RGB(200, 90, 40), Enum.Material.Wood)
 		end
 	end
-	-- frente con hueco de 10 studs para entrar desde el muelle
-	run(-half, -half, -5, -half)
-	run(5, -half, half, -half)
-	run(half, -half, half, half)
-	run(half, half, -half, half)
-	run(-half, half, -half, -half)
+	part(fence, "TopRail", Vector3.new(0.4, 0.35, length), CFrame.new((a + b) / 2 + Vector3.new(0, h + 0.2, 0)) * CFrame.Angles(0, yaw, 0),
+		RGB(200, 90, 40), Enum.Material.Wood)
+	part(fence, "BottomRail", Vector3.new(0.4, 0.35, length), CFrame.new((a + b) / 2 + Vector3.new(0, 0.6, 0)) * CFrame.Angles(0, yaw, 0),
+		RGB(200, 90, 40), Enum.Material.Wood)
 end
 
-local function plotPier(parent: Instance, at: (number, number, number) -> CFrame, startZ: number, endZ: number)
-	local pier = folder(parent, "Pier")
+local function buildDock(plot: Instance, at: (number, number, number) -> CFrame, accent: Color3)
+	local dock = folder(plot, "Dock")
+	local half = GameConfig.Plots.Size / 2
+	local startZ = -half
+	local endZ = -(GameConfig.Plots.CenterX - GameConfig.Plots.DockEndX)
 	local z = startZ
 	local i = 0
 	while z > endZ do
 		i += 1
-		local color = if i % 4 == 0 then PALETTE.WoodLight else PALETTE.Wood:Lerp(PALETTE.WoodDark, rng:NextNumber(0, 0.35))
-		part(pier, "Plank", Vector3.new(6.4 + rng:NextNumber(-0.2, 0.3), 0.5, 1.8),
-			at(rng:NextNumber(-0.1, 0.1), DECK_Y, z - 0.9) * CFrame.Angles(0, math.rad(rng:NextNumber(-1.5, 1.5)), 0), color, Enum.Material.WoodPlanks)
+		local color = if i % 4 == 0 then PALETTE.WoodLight else PALETTE.Wood:Lerp(PALETTE.WoodDark, rng:NextNumber(0, 0.3))
+		part(dock, "Plank", Vector3.new(7, 0.5, 1.8), at(rng:NextNumber(-0.08, 0.08), 0.25, z - 0.9)
+			* CFrame.Angles(0, math.rad(rng:NextNumber(-1, 1)), 0), color, Enum.Material.WoodPlanks)
 		z -= 2
 	end
-	for pz = startZ - 3, endZ, -8 do
-		for _, x in ipairs({ -3.4, 3.4 }) do
+	-- plataforma final para pescar (aquí está GameConfig.DockSpot)
+	part(dock, "FishingDeck", Vector3.new(12, 0.6, 7), at(0, 0.3, endZ - 3.5), PALETTE.Wood, Enum.Material.WoodPlanks)
+	for _, x in ipairs({ -5.5, 5.5 }) do
+		for _, pz in ipairs({ endZ - 0.5, endZ - 6.5 }) do
 			local base = at(x, 0, pz).Position
-			post(pier, "Post", 0.7, 8 + rng:NextNumber(0, 1.4), Vector3.new(base.X, -7, base.Z), PALETTE.WoodDark)
+			post(dock, "Post", 0.8, 9.5, Vector3.new(base.X, -9, base.Z), PALETTE.WoodDark)
 		end
+		part(dock, "Rail", Vector3.new(0.35, 0.35, 6.5), at(x, 2.6, endZ - 3.5), PALETTE.Wood, Enum.Material.Wood)
 	end
-	-- plataforma al final para pescar
-	part(pier, "EndDeck", Vector3.new(11, 0.5, 8), at(0, DECK_Y, endZ - 3), PALETTE.Wood, Enum.Material.WoodPlanks)
-	for _, x in ipairs({ -5, 5 }) do
-		local base = at(x, 0, endZ - 6.5).Position
-		post(pier, "Post", 0.8, 9.5, Vector3.new(base.X, -7, base.Z), PALETTE.WoodDark)
-	end
-	lantern(pier, at(5, DECK_Y + 0.25, endZ - 6).Position, 6)
-	post(pier, "Barrel", 1.8, 2.4, at(-4.2, DECK_Y + 0.25, endZ - 5.5).Position, PALETTE.Wood)
+	-- banderín con el color de la parcela: así se ve de quién es el muelle
+	local poleBase = at(5.5, 0.5, endZ - 6.5).Position
+	post(dock, "FlagPole", 0.3, 7, poleBase, PALETTE.WoodDark)
+	part(dock, "Flag", Vector3.new(0.15, 1.6, 2.4), CFrame.new(poleBase + Vector3.new(0, 6.1, 0)) * at(0, 0, 0).Rotation
+		* CFrame.new(0, 0, 1.2), accent, Enum.Material.Fabric)
+	lantern(dock, at(-5.5, 0.6, endZ - 6.5).Position, 5.5)
+	post(dock, "Bucket", 1.4, 1.2, at(-3.5, 0.6, endZ - 2).Position, RGB(80, 120, 200))
 end
 
 local function buildPlot(plots: Instance, index: number)
 	local plot = folder(plots, "Plot" .. index)
+	plot:SetAttribute("PlotIndex", index)
 	local o = GameConfig.PlotCFrame(index)
 	local function at(x: number, y: number, z: number): CFrame
 		return o * CFrame.new(x, y, z)
@@ -419,70 +302,79 @@ local function buildPlot(plots: Instance, index: number)
 	local half = GameConfig.Plots.Size / 2
 	local accent = PLOT_ACCENTS[(index - 1) % #PLOT_ACCENTS + 1]
 
-	-- suelo: borde de piedra + césped + camino de entrada
-	part(plot, "Base", Vector3.new(half * 2, 1, half * 2), at(0, 0.5, 0), PALETTE.Rock, Enum.Material.Cobblestone)
-	part(plot, "Lawn", Vector3.new(half * 2 - 3, 0.2, half * 2 - 3), at(0, 1.1, 0), RGB(110, 180, 80), Enum.Material.Grass)
-	part(plot, "Path", Vector3.new(6, 0.25, 16), at(0, 1.15, -half + 8), RGB(200, 180, 140), Enum.Material.Sandstone)
-	plotFence(plot, at, half - 0.5)
+	-- plataforma de césped en casillas
+	local tile = GameConfig.Plots.Size / 4
+	for ix = 0, 3 do
+		for iz = 0, 3 do
+			local x = -half + tile * (ix + 0.5)
+			local z = -half + tile * (iz + 0.5)
+			studded(plot, "PlotTile", Vector3.new(tile, 0.6, tile), at(x, 0.3, z), PLOT_GRASS[(ix + iz) % 2 + 1])
+		end
+	end
+	-- borde de color de la parcela
+	for _, side in ipairs({ -1, 1 }) do
+		studded(plot, "Border", Vector3.new(0.8, 0.7, half * 2), at(side * (half - 0.4), 0.35, 0), accent)
+	end
+	studded(plot, "Border", Vector3.new(half * 2, 0.7, 0.8), at(0, 0.35, half - 0.4), accent)
 
-	-- pedestales (2 filas de 4); el 1 es el de delante a la izquierda
-	local pedestals = folder(plot, "Pedestals")
+	-- valla en X con entrada hacia el río
+	local y = 0.6
+	local c = function(x: number, z: number): Vector3
+		return at(x, y, z).Position
+	end
+	xFence(plot, c(-half + 0.5, -half + 0.5), c(-6, -half + 0.5))
+	xFence(plot, c(6, -half + 0.5), c(half - 0.5, -half + 0.5))
+	xFence(plot, c(half - 0.5, -half + 0.5), c(half - 0.5, half - 0.5))
+	xFence(plot, c(half - 0.5, half - 0.5), c(-half + 0.5, half - 0.5))
+	xFence(plot, c(-half + 0.5, half - 0.5), c(-half + 0.5, -half + 0.5))
+
+	-- huecos para los memes, directamente sobre el césped (nada de estantes)
+	local spots = folder(plot, "Spots")
 	local slot = 0
-	for _, z in ipairs(PEDESTAL_Z) do
-		for _, x in ipairs(PEDESTAL_X) do
+	for _, z in ipairs(SPOT_Z) do
+		for _, x in ipairs(SPOT_X) do
 			slot += 1
-			part(plot, "PedestalBase", Vector3.new(5.6, 0.6, 5.6), at(x, 1.5, z), PALETTE.Rock, Enum.Material.Slate)
-			local pedestal = part(pedestals, "Pedestal" .. slot, Vector3.new(1.6, 4.4, 4.4),
-				at(x, 2.6, z) * CFrame.Angles(0, 0, math.rad(90)), RGB(225, 220, 210), Enum.Material.Marble)
-			pedestal.Shape = Enum.PartType.Cylinder -- cilindro vertical: su altura es Size.X
-			disc(plot, "PedestalRim", 4.8, 0.25, at(x, 3.45, z).Position, accent, Enum.Material.SmoothPlastic)
-			new("ProximityPrompt", { Name = "PedestalPrompt", ActionText = "Colocar meme", ObjectText = "Pedestal " .. slot,
-				HoldDuration = 0.2, MaxActivationDistance = 9, RequiresLineOfSight = false, Parent = pedestal })
+			local spot = part(spots, "Spot" .. slot, Vector3.new(7, 0.1, 7), at(x, 0.65, z), RGB(70, 160, 55), Enum.Material.SmoothPlastic,
+				{ Transparency = 0.5, CanCollide = false })
+			spot:SetAttribute("Occupied", false)
+			new("ProximityPrompt", { Name = "PickupPrompt", ActionText = "Recoger", ObjectText = "Hueco " .. slot,
+				HoldDuration = 0.3, MaxActivationDistance = 9, RequiresLineOfSight = false, Parent = spot })
 		end
 	end
 	folder(plot, "Displays")
 
 	-- cartel del dueño al fondo
-	for _, x in ipairs({ -6.5, 6.5 }) do
-		part(plot, "SignPost", Vector3.new(0.7, 8, 0.7), at(x, 5, half - 2), PALETTE.WoodDark, Enum.Material.Wood)
+	for _, x in ipairs({ -7, 7 }) do
+		part(plot, "SignPost", Vector3.new(0.8, 9, 0.8), at(x, 5, half - 3), PALETTE.WoodDark, Enum.Material.Wood)
 	end
-	local ownerSign = sign(plot, "OwnerSign", Vector3.new(15, 3.6, 0.5), at(0, 7.2, half - 2.2), "Parcela libre", accent, PALETTE.White)
-	ownerSign.Name = "OwnerSign"
-	local label = ownerSign:FindFirstChildWhichIsA("SurfaceGui") and ownerSign:FindFirstChildWhichIsA("SurfaceGui"):FindFirstChildWhichIsA("TextLabel")
+	local ownerSign = sign(plot, "OwnerSign", Vector3.new(16, 3.8, 0.6), at(0, 7.4, half - 3.2), "Parcela libre", accent, PALETTE.White)
+	local gui = ownerSign:FindFirstChildWhichIsA("SurfaceGui")
+	local label = gui and gui:FindFirstChildWhichIsA("TextLabel")
 	if label then
 		label.Name = "Label"
 	end
-	part(plot, "SignRoof", Vector3.new(16.5, 0.5, 2.2), at(0, 9.3, half - 2.2) * CFrame.Angles(math.rad(-12), 0, 0), PALETTE.Roof, Enum.Material.Slate)
+	part(plot, "SignRoof", Vector3.new(17.5, 0.5, 2.4), at(0, 9.6, half - 3.2) * CFrame.Angles(math.rad(-10), 0, 0), PALETTE.Roof, Enum.Material.Slate)
 
-	-- cobrador: se pisa para recoger lo que han generado los memes
-	local collector = part(plot, "Collector", Vector3.new(6, 0.5, 6), at(-half + 6, 1.35, -half + 6), PALETTE.Brand, Enum.Material.Neon,
-		{ CanCollide = false })
-	part(plot, "CollectorFrame", Vector3.new(7, 0.4, 7), at(-half + 6, 1.15, -half + 6), PALETTE.WoodDark, Enum.Material.Wood)
-	local bb = new("BillboardGui", { Name = "Bank", Size = UDim2.fromScale(8, 3.2), StudsOffsetWorldSpace = Vector3.new(0, 4, 0),
+	-- círculo cobrador (se pisa para cobrar)
+	local collector = disc(plot, "Collector", 7, 0.4, at(-half + 6, 0.8, -half + 6).Position, RGB(90, 255, 110), Enum.Material.Neon)
+	collector.Transparency = 0.25
+	collector.CanCollide = false
+	disc(plot, "CollectorRing", 8, 0.3, at(-half + 6, 0.65, -half + 6).Position, RGB(40, 140, 50), Enum.Material.SmoothPlastic)
+	local bb = new("BillboardGui", { Name = "Bank", Size = UDim2.fromScale(9, 3.4), StudsOffsetWorldSpace = Vector3.new(0, 4, 0),
 		MaxDistance = 120, LightInfluence = 0, Parent = collector })
 	local bankLabel = new("TextLabel", { Name = "BankLabel", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "Cobrador",
-		Font = Enum.Font.LuckiestGuy, TextScaled = true, TextColor3 = PALETTE.Brand, Parent = bb })
-	new("UIStroke", { Thickness = 3, Color = RGB(40, 25, 15), Parent = bankLabel })
+		Font = Enum.Font.LuckiestGuy, TextScaled = true, TextColor3 = RGB(90, 255, 110), Parent = bb })
+	new("UIStroke", { Thickness = 3, Color = RGB(20, 40, 20), Parent = bankLabel })
 
-	-- punto de aparición (mirando hacia la charca)
+	-- aparición: en la entrada, mirando al río
 	new("Part", { Name = "Spawn", Size = Vector3.new(4, 1, 4), CFrame = at(0, 1.5, -half + 6), Transparency = 1,
 		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, Parent = plot })
 
-	-- decoración: faroles en la entrada y parterres en las esquinas del fondo
-	lantern(plot, at(-6.5, 1, -half + 1).Position, 6.5)
-	lantern(plot, at(6.5, 1, -half + 1).Position, 6.5)
-	for _, x in ipairs({ -half + 3.5, half - 3.5 }) do
-		part(plot, "FlowerBed", Vector3.new(4.5, 0.8, 4.5), at(x, 1.6, half - 3.5), PALETTE.WoodDark, Enum.Material.Wood)
-		for k = 1, 4 do
-			ball(plot, "Flower", 0.9, at(x + rng:NextNumber(-1.4, 1.4), 2.3, half - 3.5 + rng:NextNumber(-1.4, 1.4)).Position,
-				if k % 2 == 0 then PALETTE.Pink else accent, Enum.Material.SmoothPlastic)
-		end
-	end
+	-- faroles en la entrada
+	lantern(plot, at(-7, 0.6, -half + 1).Position, 6.5)
+	lantern(plot, at(7, 0.6, -half + 1).Position, 6.5)
 
-	-- muelle privado hasta el agua
-	local pierEnd = -(GameConfig.Plots.Radius - GameConfig.Plots.PierEndRadius)
-	plotPier(plot, at, -half, pierEnd)
-	plot:SetAttribute("PlotIndex", index)
+	buildDock(plot, at, accent)
 end
 
 local function buildPlots(map: Instance)
@@ -492,119 +384,103 @@ local function buildPlots(map: Instance)
 	end
 end
 
--- Poste indicador en la entrada (donde antes estaba el acuario).
-local function buildSignpost(map: Instance)
-	local hub = folder(map, "Signpost")
-	local base = Vector3.new(-24, 0, 6)
-	post(hub, "Pole", 1, 10, base, PALETTE.WoodDark)
-	sign(hub, "ArrowPlots", Vector3.new(9, 2, 0.4), CFrame.new(base + Vector3.new(0, 8, 0)) * CFrame.Angles(0, math.rad(200), math.rad(-4)),
-		"🏠 PARCELAS ⟶", PALETTE.Pink, PALETTE.White)
-	sign(hub, "ArrowDock", Vector3.new(9, 2, 0.4), CFrame.new(base + Vector3.new(0, 5.6, 0)) * CFrame.Angles(0, math.rad(150), math.rad(3)),
-		"🎣 MUELLE ⟶", PALETTE.Brand, PALETTE.White)
-	rocks(hub, base + Vector3.new(1.5, 0, 1))
-end
+-- ===== Entrada: spawn, arco y tienda =====
 
--- ¿Está este punto libre de parcelas, muelles y de la zona de entrada?
-local function isFree(p: Vector3, margin: number): boolean
-	local c = GameConfig.Pond.Center
-	if math.abs(p.X) < 45 and p.Z > -25 and p.Z < 60 then
-		return false -- entrada: spawn, camino, tienda, poste
-	end
-	if math.abs(p.X) < 18 and p.Z < -4 and p.Z > c.Z + 20 then
-		return false -- muelle público
-	end
-	for index = 1, GameConfig.Plots.Count do
-		local cf = GameConfig.PlotCFrame(index)
-		local localP = cf:PointToObjectSpace(p)
-		local half = GameConfig.Plots.Size / 2 + margin
-		local pierEnd = -(GameConfig.Plots.Radius - GameConfig.Plots.PierEndRadius) - 8
-		if math.abs(localP.X) < half and localP.Z < half and localP.Z > -half then
-			return false
-		end
-		if math.abs(localP.X) < 7 + margin and localP.Z <= -half and localP.Z > pierEnd then
-			return false
-		end
-	end
-	return true
-end
-
-local function buildNature(map: Instance)
-	local nature = folder(map, "Nature")
-	local c = GameConfig.Pond.Center
-	-- árboles en el anillo exterior, sin pisar parcelas ni muelles
-	local placed, tries = 0, 0
-	while placed < 30 and tries < 400 do
-		tries += 1
-		local angle = rng:NextNumber(0, math.pi * 2)
-		local radius = rng:NextNumber(100, 210)
-		local p = c + Vector3.new(math.sin(angle) * radius, 0, math.cos(angle) * radius)
-		if isFree(p, 6) then
-			tree(nature, p)
-			placed += 1
-		end
-	end
-	-- juncos y rocas en la orilla
-	for k = 1, 24 do
-		local angle = (k / 24) * math.pi * 2 + rng:NextNumber(-0.1, 0.1)
-		local radius = rng:NextNumber(79, 86)
-		local p = c + Vector3.new(math.sin(angle) * radius, 0, math.cos(angle) * radius)
-		if isFree(p, 2) then
-			if k % 3 == 0 then
-				rocks(nature, p)
-			else
-				reeds(nature, p)
-			end
-		end
-	end
-	-- nenúfares en grupos
-	for _, group in ipairs({ Vector3.new(-40, 0, 30), Vector3.new(38, 0, 20), Vector3.new(-20, 0, -45), Vector3.new(45, 0, -35) }) do
-		for _ = 1, rng:NextInteger(3, 5) do
-			lilyPad(nature, c + group + Vector3.new(rng:NextNumber(-7, 7), 0, rng:NextNumber(-7, 7)))
-		end
-	end
-	for _, p in ipairs({ Vector3.new(-22, 0, -48), Vector3.new(22, 0, -52), Vector3.new(-30, 0, -80), Vector3.new(32, 0, -85), Vector3.new(0, 0, -98) }) do
-		buoy(nature, p + Vector3.new(0, 0.3, 0))
-	end
-end
-
--- ===== Spawn y camino =====
-
-local function buildSpawn(map: Instance)
-	local spawnArea = folder(map, "Spawn")
+local function buildHub(map: Instance)
+	local hub = folder(map, "Hub")
+	local r = GameConfig.River
+	local spawnZ = r.MaxZ + 30
 	local spawnLoc = new("SpawnLocation", {
-		Name = "Spawn", Size = Vector3.new(1, 10, 10), Shape = Enum.PartType.Cylinder,
-		CFrame = CFrame.new(0, 0.5, 30) * CFrame.Angles(0, 0, math.rad(90)),
-		Color = PALETTE.Brand, Material = Enum.Material.SmoothPlastic, Anchored = true, Neutral = true,
-		Duration = 0, TopSurface = Enum.SurfaceType.Smooth, BottomSurface = Enum.SurfaceType.Smooth, Parent = spawnArea,
+		Name = "Spawn", Size = Vector3.new(12, 1, 12), CFrame = CFrame.new(0, 0.5, spawnZ),
+		Color = PALETTE.Brand, Material = Enum.Material.Plastic, TopSurface = Enum.SurfaceType.Studs,
+		Anchored = true, Neutral = true, Duration = 0, Parent = hub,
 	})
 	local decal = spawnLoc:FindFirstChildOfClass("Decal")
 	if decal then
 		decal:Destroy()
 	end
-	-- camino de piedras irregulares hasta el muelle
-	for z = 23, -3, -3.2 do
-		local s = rng:NextNumber(2.6, 3.6)
-		part(spawnArea, "Stepstone", Vector3.new(s * 1.3, 0.4, s), CFrame.new(rng:NextNumber(-1.2, 1.2), 0.1, z)
-			* CFrame.Angles(0, rng:NextNumber(0, math.pi), 0), RGB(170, 165, 155), Enum.Material.Slate)
+
+	-- arco de entrada
+	for _, x in ipairs({ -14, 14 }) do
+		studded(hub, "ArchPillar", Vector3.new(3, 14, 3), CFrame.new(x, 7, r.MaxZ + 12), DIRT[1])
+	end
+	studded(hub, "ArchBeam", Vector3.new(32, 2, 3.4), CFrame.new(0, 15, r.MaxZ + 12), DIRT[2])
+	sign(hub, "ArchSign", Vector3.new(24, 4.5, 0.6), CFrame.new(0, 11.5, r.MaxZ + 10.4) * CFrame.Angles(0, math.rad(180), 0),
+		"🎣 PESCA DE MEMES", PALETTE.Brand, PALETTE.White)
+
+	-- tienda con toldo a rayas (como la "tienda" de la referencia)
+	local shop = folder(hub, "Shop")
+	local o = CFrame.lookAt(Vector3.new(38, 0, spawnZ - 2), Vector3.new(0, 0, spawnZ - 2))
+	local function at(x: number, yy: number, z: number): CFrame
+		return o * CFrame.new(x, yy, z)
+	end
+	studded(shop, "Floor", Vector3.new(14, 0.6, 10), at(0, 0.3, 0), SAND[1])
+	local counter = part(shop, "Counter", Vector3.new(12, 3.4, 2.4), at(0, 2.3, -2.5), PALETTE.WoodLight, Enum.Material.WoodPlanks)
+	part(shop, "CounterTop", Vector3.new(12.6, 0.4, 2.8), at(0, 4.1, -2.5), PALETTE.WoodDark, Enum.Material.Wood)
+	for _, x in ipairs({ -6, 6 }) do
+		for _, z in ipairs({ -3.5, 4 }) do
+			part(shop, "Pole", Vector3.new(0.6, 9, 0.6), at(x, 4.8, z), RGB(230, 230, 235), Enum.Material.Metal)
+		end
+	end
+	for k = 0, 6 do
+		local color = if k % 2 == 0 then PALETTE.Brand else PALETTE.White
+		part(shop, "Awning", Vector3.new(2, 0.3, 9.5), at(-6 + k * 2, 9.4, 0.2) * CFrame.Angles(math.rad(-8), 0, 0), color, Enum.Material.Fabric)
+	end
+	sign(shop, "ShopSign", Vector3.new(12, 2.4, 0.4), at(0, 7.4, -3.8), "🛒 TIENDA", RGB(60, 200, 80), PALETTE.White)
+	for k, color in ipairs({ RGB(150, 105, 60), RGB(70, 170, 255), RGB(255, 205, 40), RGB(120, 60, 200) }) do
+		local rod = part(shop, "DisplayRod", Vector3.new(6, 0.2, 0.2), at(-4.5 + (k - 1) * 3, 4.5, 3.5) * CFrame.Angles(0, 0, math.rad(80)),
+			color, Enum.Material.SmoothPlastic)
+		rod.Shape = Enum.PartType.Cylinder
+	end
+	new("ProximityPrompt", { Name = "ShopPrompt", ActionText = "Comprar", ObjectText = "Tienda",
+		HoldDuration = 0, MaxActivationDistance = 12, RequiresLineOfSight = false, Parent = counter })
+	post(shop, "Barrel", 2.2, 2.8, at(8.5, 0, -2).Position, PALETTE.Wood)
+	part(shop, "Crate", Vector3.new(2, 2, 2), at(8.5, 1, 1.5) * CFrame.Angles(0, math.rad(15), 0), PALETTE.WoodLight, Enum.Material.WoodPlanks)
+end
+
+-- ===== Detalles: nenúfares, boyas, arbustos =====
+
+local function buildNature(map: Instance)
+	local nature = folder(map, "Nature")
+	local r = GameConfig.River
+	-- nenúfares y boyas a lo largo del río, lejos de los muelles
+	for z = r.MinZ + 12, r.MaxZ - 12, 28 do
+		local x = rng:NextNumber(-r.HalfWidth + 3, r.HalfWidth - 3)
+		local pad = disc(nature, "LilyPad", rng:NextNumber(2.4, 3.6), 0.15, Vector3.new(x, r.SurfaceY + 0.05, z), RGB(80, 160, 70), Enum.Material.Grass)
+		pad.CanCollide = false
+		if rng:NextNumber() < 0.4 then
+			ball(nature, "LilyFlower", 0.7, Vector3.new(x + 0.4, r.SurfaceY + 0.35, z + 0.2), PALETTE.Pink).CanCollide = false
+		end
+	end
+	for z = r.MinZ + 30, r.MaxZ - 30, 64 do
+		ball(nature, "Buoy", 1.6, Vector3.new(0, r.SurfaceY + 0.3, z), RGB(230, 60, 60))
+		ball(nature, "BuoyTop", 1, Vector3.new(0, r.SurfaceY + 1.05, z), PALETTE.White)
+	end
+	-- arbustos de bloques junto a las paredes laterales
+	for z = MAP.MinZ + 15, MAP.MaxZ - 15, 40 do
+		for _, side in ipairs({ -1, 1 }) do
+			local x = side * (MAP.MaxX - 4)
+			studded(nature, "Bush", Vector3.new(5, 4, 6), CFrame.new(x, 2, z), PALETTE.Leaf[rng:NextInteger(1, 3)])
+			studded(nature, "BushTop", Vector3.new(3.5, 2, 4), CFrame.new(x, 4.8, z + rng:NextNumber(-1, 1)), PALETTE.Leaf[rng:NextInteger(1, 3)])
+		end
 	end
 end
 
 local function setupLighting()
-	Lighting.ClockTime = 15.2
-	Lighting.Brightness = 2.4
-	Lighting.Ambient = RGB(110, 100, 95)
-	Lighting.OutdoorAmbient = RGB(150, 140, 130)
-	Lighting.EnvironmentDiffuseScale = 0.6
-	Lighting.EnvironmentSpecularScale = 0.6
+	Lighting.ClockTime = 14
+	Lighting.Brightness = 3
+	Lighting.Ambient = RGB(120, 120, 120)
+	Lighting.OutdoorAmbient = RGB(160, 160, 160)
+	Lighting.EnvironmentDiffuseScale = 0.5
+	Lighting.EnvironmentSpecularScale = 0.4
 	Lighting.GlobalShadows = true
 	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or new("Atmosphere", { Parent = Lighting })
-	atmosphere.Density = 0.28
-	atmosphere.Haze = 1.2
-	atmosphere.Color = RGB(200, 225, 240)
-	atmosphere.Decay = RGB(120, 160, 200)
+	atmosphere.Density = 0.2
+	atmosphere.Haze = 0.5
+	atmosphere.Color = RGB(200, 225, 245)
+	atmosphere.Decay = RGB(140, 180, 220)
 	if not Lighting:FindFirstChild("PescaColor") then
-		new("ColorCorrectionEffect", { Name = "PescaColor", Saturation = 0.15, Contrast = 0.05, TintColor = RGB(255, 248, 240), Parent = Lighting })
-		new("BloomEffect", { Name = "PescaBloom", Intensity = 0.4, Size = 24, Threshold = 1.6, Parent = Lighting })
+		new("ColorCorrectionEffect", { Name = "PescaColor", Saturation = 0.2, Contrast = 0.05, Parent = Lighting })
 	end
 end
 
@@ -618,12 +494,11 @@ function WorldBuilder.Build()
 		baseplate:Destroy()
 	end
 	local map = new("Folder", { Name = "Map", Parent = Workspace })
-	buildTerrain()
-	buildSpawn(map)
-	buildDock(map)
-	buildShop(map)
-	buildSignpost(map)
+	buildGround(map)
+	buildWalls(map)
+	buildRiver(map)
 	buildPlots(map)
+	buildHub(map)
 	buildNature(map)
 	setupLighting()
 end

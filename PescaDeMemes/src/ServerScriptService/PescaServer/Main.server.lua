@@ -13,7 +13,7 @@ Remotes.Setup()
 
 local Systems = script.Parent:WaitForChild("Systems")
 
--- 1) Mundo primero, para que los jugadores aparezcan en el muelle
+-- 1) Mundo primero, para que los jugadores aparezcan en su parcela
 local ok, err = pcall(function()
 	require(Systems.WorldBuilder).Build()
 end)
@@ -21,8 +21,8 @@ if not ok then
 	warn("[PescaDeMemes] Error construyendo el mapa: " .. tostring(err))
 end
 
--- 2) Sistemas (el orden importa: datos → pesca → parcelas → economía)
-local order = { "PlayerData", "FishingService", "PlotService", "EconomyService" }
+-- 2) Sistemas (el orden importa: datos → equipo → pesca → parcelas → economía)
+local order = { "PlayerData", "GearService", "FishingService", "PlotService", "EconomyService" }
 for _, name in ipairs(order) do
 	local okInit, errInit = pcall(function()
 		require(Systems[name]).Init()

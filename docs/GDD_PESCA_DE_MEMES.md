@@ -4,10 +4,10 @@
 PROJECT: Pesca de Memes (nombre provisional)
 STATUS: Prototipo
 CURRENT_PHASE: FASE 2 — PROTOTIPO (P0)
-GAME_VERSION: P0 0.1 (carpeta PescaDeMemes/)
+GAME_VERSION: P0 0.3 (carpeta PescaDeMemes/)
 CORE_LOOP_STATUS: Implementado (pesca + peso/capacidad + tirones + acuario + tienda); falta probar con jugadores
-MAP_STATUS: Charca del Noob + 8 PARCELAS alrededor (una por jugador, con muelle privado) por script
-SYSTEMS_STATUS: PlayerData (schema v2), FishingService, PlotService, EconomyService
+MAP_STATUS: Mapa "en fila" estilo steal: río central, 4 parcelas por lado con muelle propio, casillas con studs
+SYSTEMS_STATUS: PlayerData (schema v3), GearService, FishingService, PlotService, EconomyService
 UI_STATUS: HUD, minijuego, tarjeta de captura, mochila, acuario, tienda, bestiario
 DATA_STATUS: Schema v1 con session lock y migraciones
 SECURITY_STATUS: Servidor decide capturas/valores; riesgo conocido: resultado de la pelea lo informa el cliente
@@ -134,6 +134,14 @@ Inspirado en el principio de Steal a Egg ("tu base es tuya y se ve"), con aplica
 - Los memes expuestos se ven para todos y generan MemeCoins que se acumulan en el **cobrador** (se cobra pisándolo).
 - Sustituye al acuario (migración de datos v1 → v2 automática).
 - Preparado para el futuro "robo": los pedestales ya tienen prompt; hoy el cliente oculta los de otras parcelas y el servidor rechaza usarlos.
+
+## 5c. Cambios v0.3 (referencia: captura estilo Steal a Brainrot + Fish an Egg)
+- Mapa en fila con río; estilo casillas con studs, paredes de tierra, valla en X; GUI como la referencia.
+- Memes expuestos como **figuras de bloques** sobre el césped (sin estantes), con "+🪙X/min".
+- Caña = **herramienta** (slot 1). Solo se pesca desde **tu muelle**.
+- **Mochila-acuario** con capacidad en kg (tamaño = peso). Se descarga sola al entrar en tu parcela. Tiers 25 → 2.500 kg.
+- **Ruleta** de posibles memes al lanzar.
+- Perder: el sedal sube rápido. Fallar un TIRÓN con sobrecarga **rompe la caña** (reparación en tienda; Palo irrompible).
 
 ## 6. Pescadores Furtivos (el toque social)
 Para tener tensión social **sin** convertirlo en un clon de "steal":

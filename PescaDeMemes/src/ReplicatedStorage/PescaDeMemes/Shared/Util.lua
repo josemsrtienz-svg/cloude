@@ -16,6 +16,22 @@ function Util.formatNumber(n: number?): string
 	return (value < 0 and "-" or "") .. formatted
 end
 
+-- Números cortos estilo "20.8B", "7.1M", "79K".
+function Util.formatShort(n: number?): string
+	local value = tonumber(n) or 0
+	local abs = math.abs(value)
+	local suffixes = { { 1e12, "T" }, { 1e9, "B" }, { 1e6, "M" }, { 1e3, "K" } }
+	for _, entry in ipairs(suffixes) do
+		if abs >= entry[1] then
+			local short = value / entry[1]
+			local text = if math.abs(short) >= 100 then string.format("%d", math.floor(short)) else string.format("%.1f", short)
+			text = text:gsub("%.0$", "")
+			return text .. entry[2]
+		end
+	end
+	return tostring(math.floor(value))
+end
+
 function Util.formatTime(seconds: number): string
 	local s = math.max(0, math.floor(seconds))
 	return string.format("%d:%02d", s // 60, s % 60)

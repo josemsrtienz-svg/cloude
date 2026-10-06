@@ -12,6 +12,9 @@
 	  Tug(inGreen)                → resuelve un tirón fuerte (solo si hay sobrecarga).
 	  FinishFight(success)        → valida tiempo mínimo y tirones; crea la captura con id único.
 	  Release()                   → soltar / cancelar.
+	  ResolvePending(action)      → captura ganada que no cabe en el acuario: "sell" o soltar.
+	Requisitos para lanzar: caña en la mano, estar al final de TU muelle, caña sin romper y sitio en el acuario.
+	Fallar un TIRÓN con sobrecarga ROMPE la caña (salvo la de palo).
 	El cliente nunca envía qué meme, cuánto pesa ni cuánto vale.
 ]]
 
@@ -29,6 +32,7 @@ local Util = require(Root.Shared.Util)
 local Inventory = require(Root.Shared.Inventory)
 
 local PlayerData = require(script.Parent.PlayerData)
+local GearService = require(script.Parent.GearService)
 
 local F = GameConfig.Fishing
 local FishingService = {}
@@ -50,6 +54,21 @@ type Session = {
 }
 
 local sessions: { [Player]: Session } = {}
+-- captura ganada que no cabía en el acuario: el jugador decide venderla o soltarla
+local pending: { [Player]: any } = {}
+
+-- Una captura pendiente que el jugador no resolvió (lanzó otra vez, reapareció o se fue) se VENDE sola:
+-- así nunca se pierde un dorado o un mítico.
+local function autoSellPending(player: Player)
+	local catch = pending[player]
+	pending[player] = nil
+	local data = catch and PlayerData.Get(player)
+	if catch and data then
+		data.MemeCoin += catch.Value
+		PlayerData.Push(player)
+		PlayerData.Notify(player, ("💰 No cabía en tu acuario: se vendió solo por %d MemeCoins"):format(catch.Value), "Info")
+	end
+end
 local lastCast: { [Player]: number } = {}
 local rng = Random.new()
 
@@ -89,15 +108,27 @@ local function rollWeight(meme: any): number
 	return math.floor(w * 10 + 0.5) / 10
 end
 
-local function nearPond(player: Player): boolean
+-- Solo se pesca desde el final de TU muelle, con la caña en la mano.
+local function onOwnDock(player: Player): (boolean, string?)
 	local character = player.Character
 	local hrp = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if not hrp or not humanoid or humanoid.Health <= 0 then
-		return false
+	if not character or not hrp or not humanoid or humanoid.Health <= 0 then
+		return false, "Sin personaje"
 	end
-	local offset = hrp.Position - GameConfig.Pond.Center
-	return Vector2.new(offset.X, offset.Z).Magnitude <= GameConfig.Pond.FishingRadius and math.abs(offset.Y) < 40
+	if not character:FindFirstChild(GearService.ToolName) then
+		return false, "🎣 Saca la caña (tecla 1) para pescar"
+	end
+	local index = player:GetAttribute("PlotIndex")
+	if type(index) ~= "number" or index < 1 then
+		return false, "No tienes parcela (ni muelle) en este servidor"
+	end
+	local spot = GameConfig.DockSpot(index)
+	local offset = hrp.Position - spot
+	if Vector2.new(offset.X, offset.Z).Magnitude > GameConfig.Plots.FishingRange or math.abs(offset.Y) > 15 then
+		return false, "🚶 Ve al final de TU muelle para pescar"
+	end
+	return true, nil
 end
 
 local function addXP(data: any, amount: number): boolean
@@ -110,64 +141,6 @@ local function addXP(data: any, amount: number): boolean
 	end
 	return leveled
 end
-
--- ===== Caña visible en la mano (la ven todos los jugadores) =====
-local function buildRod(character: Model, rod: any)
-	local old = character:FindFirstChild("FishingRod")
-	if old then
-		old:Destroy()
-	end
-	local hand: BasePart? = (character:FindFirstChild("RightHand") or character:FindFirstChild("Right Arm")) :: any
-	if not hand then
-		return
-	end
-	local gripOffset = if hand.Name == "RightHand" then CFrame.new(0, -0.15, 0) else CFrame.new(0, -0.9, 0)
-	-- la caña apunta hacia delante y hacia arriba; el eje X de los cilindros sigue la caña
-	local dir = Vector3.new(0, math.sin(math.rad(40)), -math.cos(math.rad(40)))
-	local base = hand.CFrame * gripOffset * CFrame.lookAt(Vector3.zero, dir) * CFrame.Angles(0, math.pi / 2, 0)
-
-	local model = Instance.new("Model")
-	model.Name = "FishingRod"
-	local function part(name: string, size: Vector3, offset: number, color: Color3, material: Enum.Material): BasePart
-		local p = Instance.new("Part")
-		p.Name = name
-		p.Shape = Enum.PartType.Cylinder
-		p.Size = size
-		p.Color = color
-		p.Material = material
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
-		p.Massless = true
-		p.CastShadow = false
-		p.CFrame = base * CFrame.new(offset, 0, 0)
-		p.Parent = model
-		local weld = Instance.new("WeldConstraint")
-		weld.Part0 = hand
-		weld.Part1 = p
-		weld.Parent = p
-		return p
-	end
-	local length = 7
-	part("Grip", Vector3.new(1.6, 0.32, 0.32), 0, Color3.fromRGB(40, 32, 30), Enum.Material.Fabric)
-	local reel = part("Reel", Vector3.new(0.3, 0.6, 0.6), 0.35, Color3.fromRGB(200, 200, 210), Enum.Material.Metal)
-	reel.CFrame = reel.CFrame * CFrame.new(0, -0.35, 0)
-	local shaft = part("Shaft", Vector3.new(length, 0.16, 0.16), 0.8 + length / 2, rod.Color, Enum.Material.SmoothPlastic)
-	local tip = Instance.new("Attachment")
-	tip.Name = "RodTip"
-	tip.Position = Vector3.new(length / 2, 0, 0)
-	tip.Parent = shaft
-	model.Parent = character
-end
-
-local function refreshRod(player: Player)
-	local data = PlayerData.Get(player)
-	local character = player.Character
-	if data and character then
-		buildRod(character, Rods.Get(data.EquippedRod) or Rods.List[1])
-	end
-end
-FishingService.RefreshRod = refreshRod
 
 -- ===== Remotes =====
 
@@ -187,16 +160,17 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 	if type(power) ~= "number" or power ~= power then
 		return fail("Lanzamiento inválido")
 	end
-	if not nearPond(player) then
-		return fail("Acércate al agua para pescar")
+	local onDock, dockErr = onOwnDock(player)
+	if not onDock then
+		return fail(dockErr or "No puedes pescar aquí")
 	end
-	local carrying = player:GetAttribute("Carrying")
-	if type(carrying) == "string" and carrying ~= "" then
-		return fail("🏠 Primero lleva el meme a tu parcela (o guárdalo en la mochila)")
+	if data.BrokenRods[data.EquippedRod] then
+		return fail("💥 Tu caña está rota: repárala en la tienda o equipa otra")
 	end
-	if Inventory.BackpackCount(data) >= GameConfig.MaxBackpack then
-		return fail("🎒 Mochila llena: vende o pon memes en tu parcela")
+	if Inventory.Free(data) < 1 then
+		return fail("🐠 Tu acuario está lleno: vuelve a tu parcela para descargarlo")
 	end
+	autoSellPending(player) -- una captura que no cabía y no se resolvió, se vende sola
 	lastCast[player] = now
 	power = math.clamp(power, 0, 1)
 
@@ -320,6 +294,16 @@ local function onTug(player: Player, inGreen: any): any
 		return { ok = true, Survived = true, Remaining = session.TugsRequired - session.TugsDone }
 	end
 	sessions[player] = nil
+	-- fallar un TIRÓN con sobrecarga rompe la caña (salvo la de palo, que es irrompible)
+	local data = PlayerData.Get(player)
+	local rod = data and Rods.Get(data.EquippedRod)
+	if data and rod and rod.RepairCost > 0 then
+		data.BrokenRods[rod.Id] = true
+		data.EquippedRod = "Palo"
+		PlayerData.Push(player)
+		GearService.Refresh(player)
+		return { ok = true, Survived = false, Broke = true, RodName = rod.Name }
+	end
 	return { ok = true, Survived = false }
 end
 
@@ -354,12 +338,19 @@ local function onFinish(player: Player, success: any): any
 		Id = HttpService:GenerateGUID(false),
 		MemeId = meme.Id,
 		Weight = session.Weight,
+		Size = Inventory.SizeOf(session.Weight),
 		Golden = session.Golden,
 		Impossible = session.Ratio > 1,
 		Value = FishMath.Value(meme, session.Weight, session.Golden),
 		Time = os.time(),
 	}
-	data.Catches[catch.Id] = catch
+	-- si no cabe en la mochila-acuario, queda pendiente: venderla ya o soltarla
+	local fits = catch.Size <= Inventory.Free(data)
+	if fits then
+		data.Catches[catch.Id] = catch
+	else
+		pending[player] = catch
+	end
 
 	local entry = data.Discovered[meme.Id]
 	local firstTime = entry == nil
@@ -396,7 +387,7 @@ local function onFinish(player: Player, success: any): any
 		task.spawn(PlayerData.SaveNow, player)
 	end
 
-	return { ok = true, Catch = Util.deepCopy(catch), FirstTime = firstTime, LevelUp = leveled, XP = xp }
+	return { ok = true, Catch = Util.deepCopy(catch), FirstTime = firstTime, LevelUp = leveled, XP = xp, NoSpace = not fits }
 end
 
 -- Una sesión abandonada (sin Release ni Finish) caduca igual que en onCast.
@@ -414,6 +405,25 @@ local function onRelease(player: Player): any
 	return { ok = true }
 end
 
+-- Captura que no cabía: "sell" la vende al momento, cualquier otra cosa la suelta al agua.
+local function onResolvePending(player: Player, action: any): any
+	local catch = pending[player]
+	pending[player] = nil
+	if not catch then
+		return fail("No hay nada pendiente")
+	end
+	if action ~= "sell" then
+		return { ok = true, Released = true }
+	end
+	local data = PlayerData.Get(player)
+	if not data then
+		return fail("Cargando datos…")
+	end
+	data.MemeCoin += catch.Value
+	PlayerData.Push(player)
+	return { ok = true, Earned = catch.Value }
+end
+
 function FishingService.Init()
 	Remotes.Get("Cast").OnServerInvoke = onCast
 	Remotes.Get("Hook").OnServerInvoke = onHook
@@ -421,36 +431,21 @@ function FishingService.Init()
 	Remotes.Get("Tug").OnServerInvoke = onTug
 	Remotes.Get("FinishFight").OnServerInvoke = onFinish
 	Remotes.Get("Release").OnServerInvoke = onRelease
+	Remotes.Get("ResolvePending").OnServerInvoke = onResolvePending
 
-	local function onCharacter(player: Player, character: Model)
-		sessions[player] = nil
-		character:WaitForChild("Humanoid")
-		task.wait(0.2) -- deja que el avatar termine de montarse
-		if player.Character == character and PlayerData.IsLoaded(player) then
-			refreshRod(player)
-		end
-	end
 	local function onPlayer(player: Player)
-		if player.Character then
-			task.spawn(onCharacter, player, player.Character)
-		end
-		player.CharacterAdded:Connect(function(character)
-			onCharacter(player, character)
+		player.CharacterAdded:Connect(function()
+			sessions[player] = nil
+			autoSellPending(player)
 		end)
 	end
-	-- si los datos tardan en cargar, la caña aparece en cuanto llegan
-	PlayerData.Loaded:Connect(function(player)
-		local character = player.Character
-		if character and not character:FindFirstChild("FishingRod") then
-			refreshRod(player)
-		end
-	end)
 	Players.PlayerAdded:Connect(onPlayer)
 	for _, player in ipairs(Players:GetPlayers()) do
 		onPlayer(player)
 	end
 	Players.PlayerRemoving:Connect(function(player)
 		sessions[player] = nil
+		autoSellPending(player) -- PlayerData guarda en un task.defer, así que esto entra en el guardado final
 		lastCast[player] = nil
 	end)
 end

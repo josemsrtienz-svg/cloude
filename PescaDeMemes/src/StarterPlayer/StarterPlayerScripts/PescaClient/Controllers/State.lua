@@ -33,9 +33,9 @@ function State.Init()
 	end)
 end
 
--- Capturas de la mochila (no puestas en la parcela), de más a menos valiosas.
-function State.Backpack(): { any }
-	return if State.Data then Inventory.Backpack(State.Data) else {}
+-- Capturas de la mochila-acuario (no puestas en la parcela), de más a menos valiosas.
+function State.Aquarium(): { any }
+	return if State.Data then Inventory.Aquarium(State.Data) else {}
 end
 
 -- Llama a una RemoteFunction y devuelve su resultado; si falla, devuelve { ok = false }.

@@ -10,7 +10,7 @@
 local GameConfig = {}
 
 GameConfig.GameName = "PESCA DE MEMES"
-GameConfig.Version = "P0 0.1"
+GameConfig.Version = "P0 0.3"
 
 -- ===== Moneda =====
 GameConfig.CurrencyName = "MemeCoin"
@@ -21,47 +21,62 @@ function GameConfig.XPForLevel(level: number): number
 	return 60 + (level - 1) * 40
 end
 
--- ===== Mochila y parcela =====
-GameConfig.MaxBackpack = 30 -- capturas que no están en un pedestal de tu parcela
-GameConfig.PlotSlots = 8 -- pedestales por parcela
+-- ===== Caña (herramienta del slot 1) =====
+GameConfig.RodToolName = "Caña"
+
+-- ===== Parcela y mochila-acuario =====
+GameConfig.PlotSlots = 8 -- huecos en el césped de la parcela
 GameConfig.PlotIncomeRate = 0.08 -- fracción del valor de cada meme expuesto, por minuto
 GameConfig.OfflineIncomeMultiplier = 0.5 -- la parcela rinde la mitad mientras no estás
 GameConfig.OfflineCapHours = 8
+GameConfig.DepositCheckInterval = 0.5 -- cada cuánto se mira si estás dentro de tu parcela
 
--- ===== Parcelas (una por jugador) alrededor de la charca. Debe coincidir con WorldBuilder =====
+-- ===== Mapa: río en el centro, 4 parcelas a cada lado (estilo "en fila"). Debe coincidir con WorldBuilder =====
+GameConfig.River = {
+	HalfWidth = 20, -- el agua va de x = -20 a x = 20 (coincide con las casillas de 10 del suelo)
+	MinZ = -140,
+	MaxZ = 140,
+	SurfaceY = -1,
+}
+
 -- Pon el máximo de jugadores del servidor en 8 (Game Settings → Places) para que nadie se quede sin parcela.
 GameConfig.Plots = {
 	Count = 8,
-	Radius = 135, -- distancia del centro de la charca al centro de cada parcela
-	Size = 40,
-	-- ángulo (grados) de cada parcela alrededor de la charca; 0 = hacia el spawn
-	Angles = { 40, -40, 75, -75, 110, -110, 145, -145 },
-	PierEndRadius = 68, -- el muelle privado llega hasta aquí (dentro del agua)
+	Size = 44,
+	CenterX = 58, -- distancia del centro del río al centro de cada parcela
+	Z = { 96, 32, -32, -96 }, -- filas (las parcelas impares a la derecha, las pares a la izquierda)
+	DockEndX = 12, -- el pasillo del muelle privado llega hasta |x| = 12; luego la plataforma de pesca (7 studs)
+	FishingRange = 12, -- distancia máxima al final de TU muelle para poder pescar
 	GoHomeCooldown = 3,
 }
 
--- CFrame del centro de la parcela i, mirando hacia la charca (el frente local es -Z).
+-- CFrame del centro de la parcela i, mirando hacia el río (el frente local es -Z).
 function GameConfig.PlotCFrame(index: number): CFrame
 	local plots = GameConfig.Plots
-	local center = GameConfig.Pond.Center
-	local angle = math.rad(plots.Angles[index])
-	local pos = center + Vector3.new(math.sin(angle) * plots.Radius, 0, math.cos(angle) * plots.Radius)
-	return CFrame.lookAt(pos, Vector3.new(center.X, 0, center.Z))
+	local side = if index % 2 == 1 then 1 else -1
+	local z = plots.Z[math.floor((index - 1) / 2) + 1]
+	local pos = Vector3.new(side * plots.CenterX, 0, z)
+	return CFrame.lookAt(pos, Vector3.new(0, 0, z))
 end
 
--- ===== Charca (zona 1). Debe coincidir con WorldBuilder =====
-GameConfig.Pond = {
-	Center = Vector3.new(0, 0, -100),
-	WaterRadius = 78, -- radio del agua (para colocar el corcho)
-	FishingRadius = 100, -- distancia máxima del jugador al centro para poder pescar
-	SurfaceY = 0,
-}
+-- Punto del final del muelle privado de la parcela i (desde donde se pesca).
+function GameConfig.DockSpot(index: number): Vector3
+	local plots = GameConfig.Plots
+	local cf = GameConfig.PlotCFrame(index)
+	return (cf * CFrame.new(0, 0, -(plots.CenterX - plots.DockEndX) - 3.5)).Position
+end
+
+function GameConfig.InRiver(pos: Vector3, margin: number?): boolean
+	local r = GameConfig.River
+	local m = margin or 0
+	return math.abs(pos.X) <= r.HalfWidth - m and pos.Z >= r.MinZ + m and pos.Z <= r.MaxZ - m
+end
 
 -- ===== Pesca =====
 GameConfig.Fishing = {
 	CastCooldown = 0.8,
-	CastMinDistance = 10, -- studs
-	CastMaxDistance = 42,
+	CastMinDistance = 6, -- studs
+	CastMaxDistance = 26,
 	PerfectPower = { Min = 0.82, Max = 0.95 }, -- zona "PERFECTO" de la barra de fuerza
 	BiteDelay = { Min = 2, Max = 7 },
 	HookWindow = 0.6, -- segundos que ve el jugador para tocar tras el "!"
@@ -85,16 +100,19 @@ GameConfig.Fishing = {
 }
 
 -- ===== Datos iniciales del jugador (Version = versión del schema) =====
-GameConfig.DataVersion = 2
+GameConfig.DataVersion = 3
 GameConfig.StartingData = {
 	Version = GameConfig.DataVersion,
 	MemeCoin = 50,
 	Level = 1,
 	XP = 0,
-	-- [catchId] = { Id, MemeId, Weight, Golden, Impossible, Value, Time }
+	-- [catchId] = { Id, MemeId, Weight, Size, Golden, Impossible, Value, Time }
+	-- Una captura está en la PARCELA si su id está en Plot; si no, va en la mochila-acuario.
 	Catches = {},
-	-- pedestales de la parcela: catchId o ""
+	-- huecos de la parcela: catchId o ""
 	Plot = { "", "", "", "", "", "", "", "" },
+	AquariumTier = 1, -- mochila-acuario equipada (Config/Gear)
+	BrokenRods = {}, -- [rodId] = true si está rota (se repara en la tienda)
 	PlotBank = 0, -- monedas acumuladas en el cobrador de la parcela
 	Rods = { Palo = true },
 	EquippedRod = "Palo",

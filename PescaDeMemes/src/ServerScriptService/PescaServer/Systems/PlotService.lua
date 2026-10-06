@@ -2,14 +2,15 @@
 	PescaDeMemes • PlotService (ModuleScript, servidor)
 	ServerScriptService > PescaServer > Systems > PlotService
 
-	Parcelas: una por jugador, alrededor de la charca (las construye WorldBuilder).
-	  · Al entrar se te asigna una parcela libre y apareces en ella.
-	  · CarryCatch(id): llevas un meme de la mochila flotando sobre tu cabeza (no puedes pescar mientras).
-	  · Pedestal (ProximityPrompt): si llevas un meme y está vacío → lo colocas.
-	                                si está ocupado y no llevas nada → lo recoges y lo llevas.
-	  · Los memes expuestos generan MemeCoins que se acumulan en el COBRADOR; se cobran pisándolo.
+	Parcelas: una por jugador, en fila a los lados del río (las construye WorldBuilder).
+	  · Al entrar se te asigna una parcela libre y apareces en ella (con su muelle privado delante).
+	  · DESCARGA AUTOMÁTICA: al entrar en tu parcela, los memes de tu mochila-acuario se colocan solos
+	    en los huecos libres del césped (los más valiosos primero).
+	  · Cada meme expuesto es una figura de bloques (MemeModels) con su "+🪙X/min" encima.
+	  · "Recoger" (ProximityPrompt del hueco) lo devuelve a la mochila-acuario si cabe.
+	  · Los ingresos se acumulan en el CÍRCULO COBRADOR; se cobran pisándolo.
 	  · GoHome(): teletransporte a tu parcela.
-	Todo se valida aquí (dueño, captura, hueco, mochila). Los prompts de otras parcelas el cliente los oculta.
+	Todo se valida aquí (dueño, captura, hueco, capacidad). El cliente oculta los prompts que no son tuyos.
 ]]
 
 local Players = game:GetService("Players")
@@ -22,6 +23,7 @@ local Memes = require(Root.Config.Memes)
 local Remotes = require(Root.Shared.Remotes)
 local FishMath = require(Root.Shared.FishMath)
 local Inventory = require(Root.Shared.Inventory)
+local MemeModels = require(Root.Shared.MemeModels)
 local Util = require(Root.Shared.Util)
 
 local PlayerData = require(script.Parent.PlayerData)
@@ -30,43 +32,27 @@ local FishingService = require(script.Parent.FishingService)
 local PlotService = {}
 
 local INCOME_TICK = 5
+local SIZE_SCALE = { S = 0.8, M = 0.95, L = 1.1, XL = 1.25, GIGANTE = 1.45 }
 
 local owners: { [number]: Player } = {}
 local plotOf: { [Player]: number } = {}
 local bankRemainder: { [Player]: number } = {}
 local lastCollect: { [Player]: number } = {}
 local lastHome: { [Player]: number } = {}
-local lastRequest: { [Player]: number } = {}
+local wasInside: { [Player]: boolean } = {}
 
 local function fail(err: string): any
 	return { ok = false, err = err }
-end
-
-local function rateLimited(player: Player): boolean
-	local now = os.clock()
-	if lastRequest[player] and now - lastRequest[player] < 0.3 then
-		return true
-	end
-	lastRequest[player] = now
-	return false
-end
-
--- El atributo "Carrying" es la ÚNICA fuente de verdad de lo que lleva el jugador
--- (también lo leen FishingService y EconomyService).
-local function getCarrying(player: Player): string?
-	local id = player:GetAttribute("Carrying")
-	return if type(id) == "string" and id ~= "" then id else nil
-end
-PlotService.GetCarrying = getCarrying
-
-local function incomeText(catch: any): string
-	return "🪙 " .. Inventory.FormatIncome(Inventory.CatchIncome(catch, GameConfig.PlotIncomeRate))
 end
 
 local function plotFolder(index: number): Instance?
 	local map = Workspace:FindFirstChild("Map")
 	local plots = map and map:FindFirstChild("Plots")
 	return plots and plots:FindFirstChild("Plot" .. index)
+end
+
+local function incomeText(catch: any): string
+	return "+🪙" .. Inventory.FormatIncome(Inventory.CatchIncome(catch, GameConfig.PlotIncomeRate))
 end
 
 local function setSign(index: number, text: string)
@@ -78,163 +64,76 @@ local function setSign(index: number, text: string)
 	end
 end
 
--- El saldo del cobrador también va en un atributo del jugador para que su UI lo vea sin reenviar todos los datos.
 local function setBankLabel(index: number, amount: number?)
 	local plot = plotFolder(index)
 	local collector = plot and plot:FindFirstChild("Collector")
 	local label = collector and collector:FindFirstChild("BankLabel", true) :: TextLabel?
 	if label then
-		label.Text = if amount then ("🪙 %s\nPisa para cobrar"):format(Util.formatNumber(amount)) else "Cobrador"
+		label.Text = if amount then ("🪙 %s\nPisa para cobrar"):format(Util.formatShort(amount)) else "Cobrador"
 	end
 end
 
--- ===== Meme sobre la cabeza =====
+-- ===== Memes expuestos en el césped =====
 
-local function clearCarryVisual(player: Player)
-	local character = player.Character
-	local old = character and character:FindFirstChild("CarriedMeme")
-	if old then
-		old:Destroy()
-	end
-end
-
-local function buildCarryVisual(player: Player, catch: any)
-	clearCarryVisual(player)
-	local character = player.Character
-	local head = character and character:FindFirstChild("Head") :: BasePart?
-	local meme = Memes.Get(catch.MemeId)
-	if not head or not meme then
-		return
-	end
-	local rarity = Memes.Rarities[meme.Rarity]
-	local orb = Instance.new("Part")
-	orb.Name = "CarriedMeme"
-	orb.Shape = Enum.PartType.Ball
-	orb.Size = Vector3.one * 2.2
-	orb.Color = if catch.Golden then Color3.fromRGB(255, 200, 50) else rarity.Color
-	orb.Material = Enum.Material.Neon
-	orb.Transparency = 0.45
-	orb.CanCollide = false
-	orb.CanQuery = false
-	orb.CanTouch = false
-	orb.Massless = true
-	orb.CFrame = head.CFrame * CFrame.new(0, 3.2, 0)
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = head
-	weld.Part1 = orb
-	weld.Parent = orb
-	local bb = Instance.new("BillboardGui")
-	bb.Size = UDim2.fromOffset(160, 110)
-	bb.StudsOffset = Vector3.new(0, 0.6, 0)
-	bb.AlwaysOnTop = true
-	bb.MaxDistance = 150
-	bb.Parent = orb
-	local emoji = Instance.new("TextLabel")
-	emoji.BackgroundTransparency = 1
-	emoji.Size = UDim2.new(1, 0, 0.7, 0)
-	emoji.Text = meme.Emoji
-	emoji.TextScaled = true
-	emoji.Parent = bb
-	local name = Instance.new("TextLabel")
-	name.BackgroundTransparency = 1
-	name.Position = UDim2.fromScale(0, 0.7)
-	name.Size = UDim2.new(1, 0, 0.3, 0)
-	name.Font = Enum.Font.FredokaOne
-	name.TextScaled = true
-	name.TextColor3 = orb.Color
-	name.TextStrokeTransparency = 0
-	name.Text = meme.Name .. " · " .. FishMath.FormatWeight(catch.Weight)
-	name.Parent = bb
-	orb.Parent = character
-end
-
-local function setCarry(player: Player, catchId: string?)
-	player:SetAttribute("Carrying", catchId or "")
-	local data = PlayerData.Get(player)
-	local catch = catchId and data and data.Catches[catchId]
-	if catch then
-		buildCarryVisual(player, catch)
-	else
-		clearCarryVisual(player)
-	end
-end
-
--- ===== Pedestales =====
-
-local function clearDisplays(index: number)
-	local plot = plotFolder(index)
-	local displays = plot and plot:FindFirstChild("Displays")
-	if displays then
-		displays:ClearAllChildren()
-	end
-end
-
-local function buildDisplay(parent: Instance, pedestal: BasePart, catch: any)
+local function buildDisplay(parent: Instance, spot: BasePart, catch: any)
 	local meme = Memes.Get(catch.MemeId)
 	if not meme then
 		return
 	end
 	local rarity = Memes.Rarities[meme.Rarity]
-	local color = if catch.Golden then Color3.fromRGB(255, 200, 50) else rarity.Color
-	-- el pedestal es un cilindro girado: su altura es Size.X
-	local top = CFrame.new(pedestal.Position + Vector3.new(0, pedestal.Size.X / 2, 0))
+	local sizeName = FishMath.SizeName(FishMath.Fraction(meme, catch.Weight))
+	local scale = SIZE_SCALE[sizeName] or 1
+	local model = MemeModels.Build(meme.Id, scale, catch.Golden)
+	-- mirando hacia el río (el frente de la parcela), de pie sobre el césped
+	model:PivotTo(spot.CFrame * CFrame.new(0, spot.Size.Y / 2, 0))
+	model.Parent = parent
 
-	local holder = Instance.new("Model")
-	holder.Name = "Display"
-	local glow = Instance.new("Part")
-	glow.Name = "Glow"
-	glow.Shape = Enum.PartType.Cylinder
-	glow.Size = Vector3.new(0.3, 4.4, 4.4)
-	glow.CFrame = top * CFrame.new(0, 0.2, 0) * CFrame.Angles(0, 0, math.rad(90))
-	glow.Color = color
-	glow.Material = Enum.Material.Neon
-	glow.Transparency = 0.3
-	glow.Anchored = true
-	glow.CanCollide = false
-	glow.CanQuery = false
-	glow.Parent = holder
-	local light = Instance.new("PointLight")
-	light.Color = color
-	light.Range = 10
-	light.Brightness = 0.8
-	light.Parent = glow
+	-- aro de rareza en el suelo
+	local ring = Instance.new("Part")
+	ring.Name = "RarityRing"
+	ring.Shape = Enum.PartType.Cylinder
+	ring.Size = Vector3.new(0.15, 6.5, 6.5)
+	ring.CFrame = spot.CFrame * CFrame.new(0, spot.Size.Y / 2 + 0.05, 0) * CFrame.Angles(0, 0, math.rad(90))
+	ring.Color = if catch.Golden then Color3.fromRGB(255, 200, 50) else rarity.Color
+	ring.Material = Enum.Material.Neon
+	ring.Transparency = 0.55
+	ring.Anchored = true
+	ring.CanCollide = false
+	ring.CanQuery = false
+	ring.CanTouch = false
+	ring.Parent = parent
 
+	-- etiquetas flotando: nombre + ingresos (estilo "+$79K")
+	local anchor = model.PrimaryPart :: BasePart
 	local bb = Instance.new("BillboardGui")
-	bb.Size = UDim2.fromScale(6, 7)
-	bb.StudsOffsetWorldSpace = Vector3.new(0, 3.6, 0)
-	bb.MaxDistance = 160
+	bb.Name = "Info"
+	bb.Size = UDim2.fromOffset(220, 70)
+	bb.StudsOffsetWorldSpace = Vector3.new(0, MemeModels.Height(meme.Id, scale) + 1.2, 0)
+	bb.MaxDistance = 140
 	bb.LightInfluence = 0
-	bb.Parent = glow
-	local emoji = Instance.new("TextLabel")
-	emoji.BackgroundTransparency = 1
-	emoji.Size = UDim2.fromScale(1, 0.62)
-	emoji.Text = meme.Emoji
-	emoji.TextScaled = true
-	emoji.Parent = bb
+	bb.Parent = anchor
 	local name = Instance.new("TextLabel")
 	name.BackgroundTransparency = 1
-	name.Position = UDim2.fromScale(0, 0.62)
-	name.Size = UDim2.fromScale(1, 0.2)
+	name.Size = UDim2.fromScale(1, 0.45)
 	name.Font = Enum.Font.FredokaOne
 	name.TextScaled = true
-	name.TextColor3 = color
+	name.TextColor3 = ring.Color
 	name.TextStrokeTransparency = 0
-	name.Text = (if catch.Golden then "✨ " else "") .. meme.Name
+	name.Text = (if catch.Golden then "✨ " else "") .. meme.Name .. " · " .. FishMath.FormatWeight(catch.Weight)
 	name.Parent = bb
 	local income = Instance.new("TextLabel")
 	income.BackgroundTransparency = 1
-	income.Position = UDim2.fromScale(0, 0.82)
-	income.Size = UDim2.fromScale(1, 0.18)
-	income.Font = Enum.Font.FredokaOne
+	income.Position = UDim2.fromScale(0, 0.45)
+	income.Size = UDim2.fromScale(1, 0.55)
+	income.Font = Enum.Font.LuckiestGuy
 	income.TextScaled = true
-	income.TextColor3 = Color3.fromRGB(255, 220, 90)
+	income.TextColor3 = Color3.fromRGB(90, 255, 90)
 	income.TextStrokeTransparency = 0
 	income.Text = incomeText(catch)
 	income.Parent = bb
-	holder.Parent = parent
 end
 
--- Sincroniza los memes expuestos con los datos: solo reconstruye los pedestales que cambiaron.
+-- Sincroniza los memes expuestos con los datos: solo reconstruye los huecos que cambiaron.
 function PlotService.Refresh(player: Player)
 	local index = plotOf[player]
 	local data = PlayerData.Get(player)
@@ -242,14 +141,13 @@ function PlotService.Refresh(player: Player)
 	if not index or not data or not plot then
 		return
 	end
-	local pedestals = plot:FindFirstChild("Pedestals")
+	local spots = plot:FindFirstChild("Spots")
 	local displays = plot:FindFirstChild("Displays")
-	if not pedestals or not displays then
+	if not spots or not displays then
 		return
 	end
 	for slot = 1, GameConfig.PlotSlots do
-		local pedestal = pedestals:FindFirstChild("Pedestal" .. slot) :: BasePart?
-		local prompt = pedestal and pedestal:FindFirstChildOfClass("ProximityPrompt")
+		local spot = spots:FindFirstChild("Spot" .. slot) :: BasePart?
 		local id = data.Plot[slot]
 		local catch = id ~= "" and data.Catches[id]
 		local wanted = if catch then id else ""
@@ -263,31 +161,74 @@ function PlotService.Refresh(player: Player)
 		if slotFolder:GetAttribute("CatchId") ~= wanted then
 			slotFolder:ClearAllChildren()
 			slotFolder:SetAttribute("CatchId", wanted)
-			if catch and pedestal then
-				buildDisplay(slotFolder, pedestal, catch)
+			if catch and spot then
+				buildDisplay(slotFolder, spot, catch)
 			end
 		end
-		if prompt then
-			prompt.ActionText = if catch then "Recoger" else "Colocar meme"
+		if spot then
+			-- el cliente solo muestra "Recoger" en los huecos ocupados de SU parcela
+			spot:SetAttribute("Occupied", catch ~= nil and catch ~= false)
 		end
 	end
 end
 
-local function resetPrompts(index: number)
+local function clearDisplays(index: number)
 	local plot = plotFolder(index)
-	local pedestals = plot and plot:FindFirstChild("Pedestals")
-	if not pedestals then
+	local displays = plot and plot:FindFirstChild("Displays")
+	if displays then
+		displays:ClearAllChildren()
+	end
+	local spots = plot and plot:FindFirstChild("Spots")
+	if spots then
+		for _, spot in ipairs(spots:GetChildren()) do
+			spot:SetAttribute("Occupied", false)
+		end
+	end
+end
+
+-- ===== Descarga automática y Recoger =====
+
+local function deposit(player: Player)
+	local index = plotOf[player]
+	local data = PlayerData.Get(player)
+	if not index or not data then
 		return
 	end
-	for _, pedestal in ipairs(pedestals:GetChildren()) do
-		local prompt = pedestal:FindFirstChildOfClass("ProximityPrompt")
-		if prompt then
-			prompt.ActionText = "Colocar meme"
+	local aquarium = Inventory.Aquarium(data) -- ya viene ordenado por valor
+	if #aquarium == 0 then
+		return
+	end
+	local placed = 0
+	for _, catch in ipairs(aquarium) do
+		local slot = table.find(data.Plot, "")
+		if not slot then
+			break
 		end
+		data.Plot[slot] = catch.Id
+		placed += 1
+	end
+	if placed > 0 then
+		PlayerData.Push(player)
+		PlotService.Refresh(player)
+		PlayerData.Notify(player, ("🏠 %d meme%s colocado%s en tu parcela"):format(placed, if placed == 1 then "" else "s",
+			if placed == 1 then "" else "s"), "Success")
+	else
+		PlayerData.Notify(player, "🏠 Tu parcela está llena: pulsa \"Recoger\" en un meme para hacer sitio (y véndelo desde el Acuario)", "Warning")
 	end
 end
 
-local function onPedestal(player: Player, index: number, slot: number)
+local function insidePlot(player: Player, index: number): boolean
+	local character = player.Character
+	local hrp = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not hrp then
+		return false
+	end
+	local localPos = GameConfig.PlotCFrame(index):PointToObjectSpace(hrp.Position)
+	local half = GameConfig.Plots.Size / 2
+	return math.abs(localPos.X) <= half and math.abs(localPos.Z) <= half and localPos.Y < 20
+end
+
+local function onPickup(player: Player, index: number, slot: number)
 	if plotOf[player] ~= index then
 		PlayerData.Notify(player, "🚫 Esta no es tu parcela", "Error")
 		return
@@ -296,41 +237,26 @@ local function onPedestal(player: Player, index: number, slot: number)
 	if not data then
 		return
 	end
-	local current = data.Plot[slot]
-	local carried = getCarrying(player)
-	if carried then
-		if current ~= "" then
-			PlayerData.Notify(player, "Este pedestal está ocupado: elige uno vacío", "Warning")
-			return
-		end
-		local catch = data.Catches[carried]
-		if not catch or Inventory.InPlot(data, carried) then
-			setCarry(player, nil)
-			return
-		end
-		data.Plot[slot] = carried
-		setCarry(player, nil)
-		PlayerData.Push(player)
-		PlotService.Refresh(player)
-		local meme = Memes.Get(catch.MemeId)
-		PlayerData.Notify(player, ("🏠 %s colocado: genera %s"):format(meme and meme.Name or "Meme", incomeText(catch)), "Success")
-	elseif current ~= "" then
-		if FishingService.IsFishing(player) then
-			PlayerData.Notify(player, "Termina de pescar primero", "Warning")
-			return
-		end
-		if Inventory.BackpackCount(data) >= GameConfig.MaxBackpack then
-			PlayerData.Notify(player, "🎒 Mochila llena: vende algo antes de recogerlo", "Error")
-			return
-		end
-		data.Plot[slot] = ""
-		PlayerData.Push(player)
-		PlotService.Refresh(player)
-		setCarry(player, current)
-		PlayerData.Notify(player, "Lo llevas encima: colócalo en otro pedestal o guárdalo en la mochila", "Info")
-	else
-		PlayerData.Notify(player, "🎣 Pesca un meme y tráelo aquí para colocarlo", "Info")
+	local id = data.Plot[slot]
+	local catch = id ~= "" and data.Catches[id]
+	if not catch then
+		return
 	end
+	if FishingService.IsFishing(player) then
+		PlayerData.Notify(player, "Termina de pescar primero", "Warning")
+		return
+	end
+	if catch.Size > Inventory.Free(data) then
+		PlayerData.Notify(player, "🐠 No cabe en tu acuario: vende algo o compra una mochila más grande", "Error")
+		return
+	end
+	data.Plot[slot] = ""
+	PlayerData.Push(player)
+	PlotService.Refresh(player)
+	local meme = Memes.Get(catch.MemeId)
+	-- la descarga solo ocurre al ENTRAR en la parcela, así que no se vuelve a colocar sola mientras sigas dentro
+	PlayerData.Notify(player, ("🐠 %s vuelve a tu acuario (véndelo o cámbialo; al volver a entrar se colocan los mejores)"):format(
+		meme and meme.Name or "Meme"), "Info")
 end
 
 -- ===== Cobrador =====
@@ -352,7 +278,7 @@ local function collect(player: Player)
 	player:SetAttribute("PlotBank", 0)
 	PlayerData.Push(player)
 	setBankLabel(index, 0)
-	PlayerData.Notify(player, ("💰 ¡Cobrado! +%s MemeCoins"):format(Util.formatNumber(amount)), "Success")
+	PlayerData.Notify(player, ("💰 ¡Cobrado! +%s MemeCoins"):format(Util.formatShort(amount)), "Success")
 end
 
 -- ===== Asignación =====
@@ -377,7 +303,7 @@ local function assign(player: Player)
 			owners[index] = player
 			plotOf[player] = index
 			player:SetAttribute("PlotIndex", index)
-			setSign(index, "🏠 Parcela de " .. player.DisplayName)
+			setSign(index, player.DisplayName)
 			-- si los datos ya estaban cargados (p. ej. en Studio sin DataStore), pintamos la parcela ya
 			local data = PlayerData.Get(player)
 			if data then
@@ -388,24 +314,22 @@ local function assign(player: Player)
 		end
 	end
 	player:SetAttribute("PlotIndex", 0)
-	PlayerData.Notify(player, "⚠️ No quedan parcelas libres en este servidor: tus memes expuestos no generan hasta que tengas una. Cambia de servidor.", "Error")
+	PlayerData.Notify(player, "⚠️ No quedan parcelas libres en este servidor: no puedes pescar ni exponer memes. Cambia de servidor.", "Error")
 end
 
 local function release(player: Player)
-	setCarry(player, nil)
 	local index = plotOf[player]
 	if index then
 		owners[index] = nil
 		clearDisplays(index)
-		resetPrompts(index)
 		setSign(index, "Parcela libre")
 		setBankLabel(index, nil)
 	end
 	plotOf[player] = nil
 	bankRemainder[player] = nil
-	lastRequest[player] = nil
 	lastCollect[player] = nil
 	lastHome[player] = nil
+	wasInside[player] = nil
 end
 
 local function grantOffline(player: Player, data: any)
@@ -415,47 +339,10 @@ local function grantOffline(player: Player, data: any)
 		local earned = math.floor(Inventory.PlotIncomePerMinute(data, GameConfig.PlotIncomeRate) * GameConfig.OfflineIncomeMultiplier * elapsed / 60)
 		if earned > 0 then
 			data.PlotBank += earned
-			PlayerData.Notify(player, ("🏠 Tu parcela ganó %s 🪙 mientras no estabas: ¡ve a cobrarlo!"):format(Util.formatNumber(earned)), "Success")
+			PlayerData.Notify(player, ("🏠 Tu parcela ganó %s 🪙 mientras no estabas: ¡pisa el cobrador!"):format(Util.formatShort(earned)), "Success")
 		end
 	end
 	data.LastSeen = now
-end
-
--- ===== Remotes =====
-
-local function onCarry(player: Player, catchId: any): any
-	if rateLimited(player) then
-		return fail("Más despacio")
-	end
-	local data = PlayerData.Get(player)
-	if not data then
-		return fail("Cargando datos…")
-	end
-	if not plotOf[player] then
-		return fail("No tienes parcela en este servidor")
-	end
-	if type(catchId) ~= "string" or not data.Catches[catchId] then
-		return fail("No tienes esa captura")
-	end
-	if Inventory.InPlot(data, catchId) then
-		return fail("Ya está en tu parcela")
-	end
-	if FishingService.IsFishing(player) then
-		return fail("Termina de pescar primero")
-	end
-	setCarry(player, catchId)
-	return { ok = true }
-end
-
-local function onDrop(player: Player): any
-	if rateLimited(player) then
-		return fail("Más despacio")
-	end
-	if not getCarrying(player) then
-		return fail("No llevas nada")
-	end
-	setCarry(player, nil)
-	return { ok = true }
 end
 
 local function onGoHome(player: Player): any
@@ -480,21 +367,19 @@ local function onGoHome(player: Player): any
 end
 
 function PlotService.Init()
-	Remotes.Get("CarryCatch").OnServerInvoke = onCarry
-	Remotes.Get("DropCarry").OnServerInvoke = onDrop
 	Remotes.Get("GoHome").OnServerInvoke = onGoHome
 
-	-- prompts de pedestales y cobradores de todas las parcelas
+	-- prompts "Recoger" y cobradores de todas las parcelas
 	for index = 1, GameConfig.Plots.Count do
 		local plot = plotFolder(index)
 		if plot then
-			local pedestals = plot:FindFirstChild("Pedestals")
+			local spots = plot:FindFirstChild("Spots")
 			for slot = 1, GameConfig.PlotSlots do
-				local pedestal = pedestals and pedestals:FindFirstChild("Pedestal" .. slot)
-				local prompt = pedestal and pedestal:FindFirstChildOfClass("ProximityPrompt")
+				local spot = spots and spots:FindFirstChild("Spot" .. slot)
+				local prompt = spot and spot:FindFirstChildOfClass("ProximityPrompt")
 				if prompt then
 					prompt.Triggered:Connect(function(player)
-						onPedestal(player, index, slot)
+						onPickup(player, index, slot)
 					end)
 				end
 			end
@@ -513,7 +398,6 @@ function PlotService.Init()
 	local function onPlayer(player: Player)
 		assign(player)
 		player.CharacterAdded:Connect(function(character)
-			player:SetAttribute("Carrying", "") -- al morir, lo que llevabas vuelve a la mochila
 			spawnAtPlot(player, character)
 		end)
 		if player.Character then
@@ -541,6 +425,25 @@ function PlotService.Init()
 		if index then
 			PlotService.Refresh(player)
 			setBankLabel(index, data.PlotBank)
+		end
+	end)
+
+	-- descarga automática al ENTRAR en tu parcela (no mientras sigues dentro: así "Recoger" funciona)
+	task.spawn(function()
+		while true do
+			task.wait(GameConfig.DepositCheckInterval)
+			for player, index in pairs(plotOf) do
+				local inside = insidePlot(player, index)
+				local entered = inside and not wasInside[player]
+				wasInside[player] = inside
+				local data = entered and PlayerData.Get(player)
+				if data then
+					local ok, err = pcall(deposit, player)
+					if not ok then
+						warn("[PescaDeMemes] Error descargando el acuario de " .. player.Name .. ": " .. tostring(err))
+					end
+				end
+			end
 		end
 	end)
 
