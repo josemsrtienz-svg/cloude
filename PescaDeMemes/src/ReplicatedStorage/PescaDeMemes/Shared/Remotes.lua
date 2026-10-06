@@ -17,6 +17,7 @@ Remotes.Definitions = {
 	DataChanged = "RemoteEvent", -- servidor → cliente (datos completos)
 	Notify = "RemoteEvent", -- servidor → cliente (texto, tipo)
 	Announce = "RemoteEvent", -- servidor → todos (capturas épicas)
+	LevelUp = "RemoteEvent", -- servidor → cliente { Level, Coins, Boosts, Unlocked } (cofre de nivel)
 	-- Pesca
 	Cast = "RemoteFunction", -- (power, useReinforced) → inmersión: memes, profundidad, anzuelos
 	Grab = "RemoteFunction", -- (index) el anzuelo toca un meme → enganchado o PELEA

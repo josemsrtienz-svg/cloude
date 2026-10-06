@@ -31,6 +31,7 @@ local Remotes = require(Root.Shared.Remotes)
 local FishMath = require(Root.Shared.FishMath)
 local Util = require(Root.Shared.Util)
 local Inventory = require(Root.Shared.Inventory)
+local Boosts = require(Root.Config.Boosts)
 
 local PlayerData = require(script.Parent.PlayerData)
 local GearService = require(script.Parent.GearService)
@@ -185,6 +186,31 @@ local function addXP(data: any, amount: number): boolean
 	return leveled
 end
 
+-- Cofre de cada nivel subido: MemeCoins y, a veces, un boost. Avisa al cliente para la animación del cofre.
+local function grantLevelRewards(player: Player, data: any, fromLevel: number, toLevel: number)
+	local R = GameConfig.LevelRewards
+	local coins = 0
+	local boosts = {}
+	local unlocked = {}
+	for level = fromLevel + 1, toLevel do
+		coins += R.CoinsBase + R.CoinsPerLevel * level
+		local seconds = if level % R.BoostEvery == 0 then R.BigBoostSeconds elseif rng:NextNumber() < R.BoostChance then R.BoostSeconds else 0
+		if seconds > 0 then
+			local id = Boosts.Order[rng:NextInteger(1, #Boosts.Order)]
+			BoostService.Grant(player, id, seconds)
+			table.insert(boosts, { Id = id, Seconds = seconds })
+		end
+		for _, layer in ipairs(GameConfig.DepthLayers) do
+			if layer.RequiredLevel == level then
+				table.insert(unlocked, layer.Name)
+			end
+		end
+	end
+	data.MemeCoin += coins
+	PlayerData.Push(player)
+	Remotes.Get("LevelUp"):FireClient(player, { Level = toLevel, Coins = coins, Boosts = boosts, Unlocked = unlocked })
+end
+
 -- Segundos que lleva bajando el anzuelo (sin contar decisiones ni peleas).
 local function diveTime(session: Session, now: number): number
 	local paused = session.Paused + (if session.PauseAt then now - session.PauseAt else 0)
@@ -208,10 +234,10 @@ local function resume(session: Session, now: number)
 end
 
 -- Genera los memes de la columna de agua. Más hondo = más suerte (rarezas altas abajo).
-local function generateDive(rod: any, power: number, perfect: boolean, capacity: number, luckBoost: number): { DiveMeme }
+local function generateDive(rod: any, maxDepth: number, power: number, perfect: boolean, capacity: number, luckBoost: number): { DiveMeme }
 	local list: { DiveMeme } = {}
-	local span = rod.MaxDepth - D.StartDepth - 0.5
-	local count = math.clamp(math.floor(rod.MaxDepth / rod.DiveSpeed * D.MemesPerSecond), 6, D.MaxMemes)
+	local span = maxDepth - D.StartDepth - 0.5
+	local count = math.clamp(math.floor(maxDepth / rod.DiveSpeed * D.MemesPerSecond), 6, D.MaxMemes)
 	local baseLuck = rod.Luck * (1 + 0.4 * power) * (if perfect then 1.1 else 1)
 	for i = 1, count do
 		-- muestreo estratificado: repartidos por toda la profundidad, sin huecos enormes
@@ -249,6 +275,7 @@ local function surface(player: Player): any
 	local newIds = {}
 	local totalXP = 0
 	local leveled = false
+	local startLevel = data.Level
 	local soldValue = 0
 	local autoSoldValue = 0
 	for _, index in ipairs(session.Grabbed) do
@@ -335,6 +362,9 @@ local function surface(player: Player): any
 			task.spawn(PlayerData.SaveNow, player)
 		end
 	end
+	if leveled then
+		task.spawn(grantLevelRewards, player, data, startLevel, data.Level)
+	end
 	return { ok = true, Catches = catches, NewIds = newIds, XP = totalXP, LevelUp = leveled }
 end
 
@@ -378,7 +408,10 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 	end
 	local perfect = power >= F.PerfectPower.Min and power <= F.PerfectPower.Max
 	local capacity = rod.Capacity * (if reinforced then 1 + Rods.Items.SedalReforzado.CapacityBonus else 1)
-	local memes = generateDive(rod, power, perfect, capacity, BoostService.Luck(player))
+	-- el nivel limita hasta qué capa puedes bajar (aunque la caña llegue más hondo)
+	local unlocked, lockedLayer = GameConfig.UnlockedDepth(data.Level)
+	local maxDepth = math.min(rod.MaxDepth, unlocked)
+	local memes = generateDive(rod, maxDepth, power, perfect, capacity, BoostService.Luck(player))
 	local hooks = rod.Hooks + BoostService.ExtraHooks(player)
 	local speed = rod.DiveSpeed * BoostService.Speed(player)
 
@@ -391,7 +424,7 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 		Rod = rod,
 		Capacity = capacity,
 		Hooks = hooks,
-		MaxDepth = rod.MaxDepth,
+		MaxDepth = maxDepth,
 		Speed = speed,
 		Memes = memes,
 		Grabbed = {},
@@ -419,7 +452,9 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 		Reinforced = reinforced,
 		Capacity = capacity,
 		Hooks = hooks,
-		MaxDepth = rod.MaxDepth,
+		MaxDepth = maxDepth,
+		-- si el nivel corta la bajada, el cliente pone una barrera en el fondo con el nivel que falta
+		LockedLayer = if lockedLayer and rod.MaxDepth > maxDepth then { Name = lockedLayer.Name, Level = lockedLayer.RequiredLevel } else nil,
 		Speed = speed,
 		IntroTime = D.IntroTime,
 		Free = Inventory.Free(data),

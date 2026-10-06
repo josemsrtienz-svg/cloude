@@ -317,6 +317,25 @@ function GearModels.Potion(color: Color3): Model
 	return model
 end
 
+-- Cofre del tesoro (premio al subir de nivel). La tapa es una pieza aparte ("Lid") para poder abrirla.
+function GearModels.Chest(): Model
+	local model = Instance.new("Model")
+	model.Name = "Chest"
+	local wood, dark, gold = RGB(150, 95, 50), RGB(105, 65, 35), RGB(255, 200, 50)
+	local base = part(model, { Name = "Base", Size = Vector3.new(3, 1.8, 2), Color = wood, Material = Enum.Material.WoodPlanks, CFrame = CFrame.new(0, 0.9, 0) })
+	model.PrimaryPart = base
+	for _, x in ipairs({ -1.35, 1.35 }) do
+		part(model, { Name = "Band", Size = Vector3.new(0.25, 1.85, 2.05), Color = gold, Reflectance = 0.2, CFrame = CFrame.new(x, 0.9, 0) })
+	end
+	part(model, { Name = "Rim", Size = Vector3.new(3.05, 0.2, 2.05), Color = dark, CFrame = CFrame.new(0, 1.8, 0) })
+	part(model, { Name = "Gold", Size = Vector3.new(2.6, 0.4, 1.6), Color = gold, Material = Enum.Material.Neon, CFrame = CFrame.new(0, 1.75, 0) })
+	part(model, { Name = "Lock", Size = Vector3.new(0.5, 0.6, 0.15), Color = gold, Reflectance = 0.3, CFrame = CFrame.new(0, 1.5, -1.05) })
+	local lid = part(model, { Name = "Lid", Size = Vector3.new(3, 0.7, 2), Color = wood, Material = Enum.Material.WoodPlanks, CFrame = CFrame.new(0, 2.25, 0) })
+	part(model, { Name = "LidBand", Size = Vector3.new(3.05, 0.25, 0.3), Color = gold, Reflectance = 0.2, CFrame = CFrame.new(0, 2.25, -0.9) })
+	lid:SetAttribute("Hinge", true)
+	return model
+end
+
 -- Corona (icono del pase VIP).
 function GearModels.Crown(): Model
 	local model = Instance.new("Model")

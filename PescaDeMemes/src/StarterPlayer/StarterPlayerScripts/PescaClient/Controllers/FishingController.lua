@@ -829,8 +829,12 @@ function FishingController.RefreshHint()
 	hintLabel.Text = if broken then "💥 Caña rota: repárala en la tienda"
 		elseif UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then "👆 Mantén pulsado para lanzar"
 		else "🖱️ Mantén CLICK para lanzar"
-	rodChip.Text = ("%s · ⚖️ %s · 🎣 %d anzuelo%s · ⬇️ %d m"):format(rod.Name, FishMath.FormatWeight(rod.Capacity), rod.Hooks,
-		if rod.Hooks == 1 then "" else "s", rod.MaxDepth)
+	local unlocked, locked = GameConfig.UnlockedDepth(data and data.Level or 1)
+	local depthText = if rod.MaxDepth > unlocked and locked
+		then ("%d m (🔒 nivel %d para bajar más)"):format(unlocked, locked.RequiredLevel)
+		else ("%d m"):format(rod.MaxDepth)
+	rodChip.Text = ("%s · ⚖️ %s · 🎣 %d anzuelo%s · ⬇️ %s"):format(rod.Name, FishMath.FormatWeight(rod.Capacity), rod.Hooks,
+		if rod.Hooks == 1 then "" else "s", depthText)
 	hint.Visible = phase == "Idle" and rodTool() ~= nil and not diveHud.Visible
 end
 

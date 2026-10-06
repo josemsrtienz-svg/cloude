@@ -33,6 +33,7 @@ local gui: ScreenGui
 local toastHolder: Frame
 local coinsLabel: TextLabel
 local levelLabel: TextLabel
+local nextUnlock: TextLabel
 local xpFill: Frame
 local aquariumLabel: TextLabel
 local aquariumFill: Frame
@@ -127,6 +128,8 @@ local function refresh(data: any)
 	end
 	animateCoins(data.MemeCoin)
 	levelLabel.Text = "Nv " .. data.Level
+	local _, locked = GameConfig.UnlockedDepth(data.Level)
+	nextUnlock.Text = if locked then ("🔒 %s en Nv %d"):format(locked.Name, locked.RequiredLevel) else "🔓 Todas las capas abiertas"
 	local need = GameConfig.XPForLevel(data.Level)
 	UIKit.tween(xpFill, 0.3, { Size = UDim2.fromScale(math.clamp(data.XP / need, 0, 1), 1) })
 	local used, cap = Inventory.Used(data), Inventory.Capacity(data)
@@ -134,6 +137,63 @@ local function refresh(data: any)
 	local ratio = math.clamp(used / math.max(1, cap), 0, 1)
 	UIKit.tween(aquariumFill, 0.3, { Size = UDim2.fromScale(ratio, 1) })
 	aquariumFill.BackgroundColor3 = if ratio >= 1 then T.Danger elseif ratio > 0.75 then T.PrimaryDark else T.Accent
+end
+
+-- Cofre al subir de nivel: el cofre se abre, salen las monedas y se listan los premios.
+function HUD.ShowLevelUp(info: any)
+	local card = UIKit.new("Frame", { Name = "LevelUp", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, -0.4),
+		Size = UDim2.fromOffset(420, 420), BackgroundColor3 = T.Panel, ZIndex = 30, Parent = gui })
+	UIKit.corner(card, 22)
+	UIKit.stroke(card, 5, T.Coin)
+	UIKit.gradient(card, { T.PanelLight, T.PanelDark }, 90)
+	UIKit.responsive(card)
+	UIKit.label({ Text = ("⬆️ ¡NIVEL %d!"):format(info.Level or 0), Size = UDim2.new(1, -20, 0, 50), Position = UDim2.fromOffset(10, 10),
+		Font = T.FontTitle, TextColor3 = T.Coin, ZIndex = 31, Parent = card }, { Stroke = 4, MaxSize = 46 })
+	-- el cofre (3D) que se abre
+	local chest = GearModels.Chest()
+	UIKit.viewport(chest, { Size = UDim2.fromOffset(200, 160), Position = UDim2.new(0.5, -100, 0, 62), ZIndex = 31, Parent = card },
+		{ Angle = 20, Zoom = 1.1 })
+	local lid = chest:FindFirstChild("Lid") :: BasePart?
+	local lidBand = chest:FindFirstChild("LidBand") :: BasePart?
+	task.spawn(function()
+		task.wait(0.6)
+		if lid and lidBand then
+			local hinge = lid.CFrame * CFrame.new(0, 0, 1)
+			local lidRel, bandRel = hinge:ToObjectSpace(lid.CFrame), hinge:ToObjectSpace(lidBand.CFrame)
+			for a = 0, 1, 0.08 do
+				local rot = hinge * CFrame.Angles(math.rad(75 * a), 0, 0) -- la tapa sube por delante
+				lid.CFrame = rot * lidRel
+				lidBand.CFrame = rot * bandRel
+				task.wait()
+			end
+		end
+		UIKit.playSound("Coins")
+	end)
+	local list = UIKit.new("Frame", { Size = UDim2.new(1, -30, 0, 130), Position = UDim2.fromOffset(15, 228), BackgroundTransparency = 1, ZIndex = 31, Parent = card })
+	UIKit.list(list, Enum.FillDirection.Vertical, 6)
+	local function line(text: string, color: Color3, order: number)
+		UIKit.label({ LayoutOrder = order, Text = text, Size = UDim2.new(1, 0, 0, 30), Font = T.FontTitle, TextColor3 = color, ZIndex = 32,
+			Parent = list }, { Stroke = 3, MaxSize = 26 })
+	end
+	line(("🪙 +%s MemeCoins"):format(Util.formatShort(info.Coins or 0)), T.Coin, 1)
+	for i, b in ipairs(info.Boosts or {}) do
+		local boost = Boosts.Get(b.Id)
+		if boost then
+			line(("%s %s · %d min"):format(boost.Emoji, boost.Name, (b.Seconds or 0) // 60), boost.Color, 1 + i)
+		end
+	end
+	for i, name in ipairs(info.Unlocked or {}) do
+		line("🔓 ¡Nueva capa: " .. name .. "!", T.Success, 10 + i)
+	end
+	local ok = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -14), Size = UDim2.fromOffset(200, 52), ZIndex = 32,
+		Parent = card }, { Color = T.Success, Text = "¡Genial!", TextSize = 26 })
+	ok.Activated:Connect(function()
+		UIKit.tween(card, 0.2, { Position = UDim2.fromScale(0.5, 1.4) })
+		task.delay(0.25, function()
+			card:Destroy()
+		end)
+	end)
+	UIKit.tween(card, 0.45, { Position = UDim2.fromScale(0.5, 0.5) }, Enum.EasingStyle.Back)
 end
 
 function HUD.Init()
@@ -155,6 +215,8 @@ function HUD.Init()
 	UIKit.corner(bar, 7)
 	xpFill = UIKit.new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = T.Accent, Parent = bar })
 	UIKit.corner(xpFill, 7)
+	nextUnlock = UIKit.label({ Text = "", AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromOffset(4, -2), Size = UDim2.fromOffset(320, 20),
+		Font = T.Font, TextColor3 = T.TextDim, TextXAlignment = Enum.TextXAlignment.Left, Parent = level }, { Stroke = 2, MaxSize = 16 })
 	-- mochila-acuario: kg usados / capacidad
 	local tankIcon = UIKit.viewport(GearModels.Tank(Rods.Aquariums[1], { "NoobFeliz" }), { Position = UDim2.fromOffset(0, 40),
 		Size = UDim2.fromOffset(50, 50), Parent = stats }, { Angle = 160, Zoom = 1.3 })
@@ -273,6 +335,11 @@ function HUD.Init()
 	refresh(State.Data)
 	Remotes.Get("Notify").OnClientEvent:Connect(function(text, kind)
 		HUD.Toast(tostring(text), kind)
+	end)
+	Remotes.Get("LevelUp").OnClientEvent:Connect(function(info)
+		if type(info) == "table" then
+			HUD.ShowLevelUp(info)
+		end
 	end)
 	Remotes.Get("Announce").OnClientEvent:Connect(function(text, rarityId)
 		showAnnouncement(tostring(text), rarityId)

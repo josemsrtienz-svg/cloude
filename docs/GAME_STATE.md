@@ -53,12 +53,12 @@ NEXT_STEP:        Probar la v0.6 y seguir metiendo ideas en el prototipo (la Fas
 
 **La fase se cierra cuando el equipo lo decida**, no antes: aquí entran todas las ideas para verlas funcionando.
 
-### Pregunta abierta: ¿para qué sirve el NIVEL?
-Ahora el nivel solo sube con la XP. Propuestas (elegir una o varias):
-1. **Desbloquea capas de profundidad** (Arrecife nivel 5, Abismo nivel 15, Fosa nivel 30) además de la caña.
-2. **Desbloquea huecos de la parcela** (empiezas con 4 y llegas a 8 con niveles).
-3. **Requisito de las cañas** (no puedes equipar la Abisal hasta el nivel X).
-4. **Recompensa por nivel** (cofre con MemeCoins y a veces un boost) → sensación de progreso constante.
+### El NIVEL (decidido: opciones 1 y 4)
+- **Desbloquea capas de profundidad:** Charca (Nv 1) · Arrecife Meme (Nv 5) · Abismo Brainrot (Nv 15) · Fosa Abisal (Nv 30).
+  Aunque tu caña baje más, la inmersión se para en la primera capa bloqueada (barrera roja con el nivel que falta).
+- **Cofre al subir de nivel:** 100 + 50×nivel MemeCoins; cada 5 niveles un boost seguro de 5 min y en el resto
+  un 25 % de un boost de 3 min. Si el nivel abre una capa, el cofre lo anuncia.
+- En modo prueba empiezas en el nivel 30 para probar todas las capas.
 
 ### FASE 3 — Vertical slice (siguiente)
 - Onboarding guiado, sonido y música, efectos de partículas finales.
@@ -114,6 +114,7 @@ y PlotService el multiplicador. Los bonus son pequeños para no romper el balanc
 - [ ] Máximo de jugadores del servidor = 8 (una parcela cada uno).
 
 ## Historial
+- **v0.6.1** — El nivel desbloquea capas (5/15/30) y da un cofre con MemeCoins y boosts al subir.
 - **v0.6** — Gran Tienda rediseñada con VIP dentro y tablón de boost gratis (15 min), profundidad hasta 600 m con 4 capas, filtros de pesca y de venta automática, cañas con diseño y efectos, arco nuevo.
 - **v0.5** — Míticos y secretos con efectos, rareza Dios (eventos), capas de profundidad, Gran Tienda (boosts, Robux, regalo), fauna del río, árboles, cara del jugador en su parcela, modo prueba.
 - **v0.4** — Inmersión estilo Fish an Egg, click para lanzar, río ×2 de ancho, fotos 3D, tienda nueva, animaciones.

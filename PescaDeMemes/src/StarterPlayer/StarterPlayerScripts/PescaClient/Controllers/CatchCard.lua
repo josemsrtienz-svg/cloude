@@ -152,9 +152,7 @@ function CatchCard.ShowResults(summary: any)
 
 	UIKit.tween(card, 0.45, { Position = UDim2.fromScale(0.5, 0.5) }, Enum.EasingStyle.Back)
 	UIKit.playSound("Catch")
-	if summary.LevelUp and State.Data then
-		HUD.Toast(("⬆️ ¡Has subido al nivel %d!"):format(State.Data.Level), "Success")
-	end
+
 end
 
 function CatchCard.IsOpen(): boolean

@@ -123,10 +123,31 @@ GameConfig.Dive = {
 -- basta con cambiar los colores de una capa o añadir otra más abajo.
 local RGB = Color3.fromRGB
 GameConfig.DepthLayers = {
-	{ From = 0, Name = "Charca del Noob", Top = RGB(80, 195, 235), Bottom = RGB(45, 150, 210) },
-	{ From = 50, Name = "Arrecife Meme", Top = RGB(45, 150, 210), Bottom = RGB(25, 95, 170) },
-	{ From = 150, Name = "Abismo Brainrot", Top = RGB(25, 95, 170), Bottom = RGB(15, 45, 110) },
-	{ From = 300, Name = "Fosa Abisal", Top = RGB(15, 45, 110), Bottom = RGB(5, 10, 35), Glow = RGB(120, 255, 220) },
+	{ From = 0, Name = "Charca del Noob", RequiredLevel = 1, Top = RGB(80, 195, 235), Bottom = RGB(45, 150, 210) },
+	{ From = 50, Name = "Arrecife Meme", RequiredLevel = 5, Top = RGB(45, 150, 210), Bottom = RGB(25, 95, 170) },
+	{ From = 150, Name = "Abismo Brainrot", RequiredLevel = 15, Top = RGB(25, 95, 170), Bottom = RGB(15, 45, 110) },
+	{ From = 300, Name = "Fosa Abisal", RequiredLevel = 30, Top = RGB(15, 45, 110), Bottom = RGB(5, 10, 35), Glow = RGB(120, 255, 220) },
+}
+
+-- EL NIVEL DESBLOQUEA CAPAS (decisión del equipo): aunque tu caña baje más, no pasas de la primera capa
+-- bloqueada. Devuelve la profundidad máxima permitida y la siguiente capa bloqueada (o nil).
+function GameConfig.UnlockedDepth(level: number): (number, any?)
+	for _, layer in ipairs(GameConfig.DepthLayers) do
+		if level < layer.RequiredLevel then
+			return layer.From, layer
+		end
+	end
+	return GameConfig.Dive.MaxWorldDepth, nil
+end
+
+-- COFRE AL SUBIR DE NIVEL (decisión del equipo): MemeCoins que crecen con el nivel y a veces un boost.
+GameConfig.LevelRewards = {
+	CoinsBase = 100,
+	CoinsPerLevel = 50, -- nivel 10 → 600, nivel 30 → 1.600
+	BoostEvery = 5, -- cada 5 niveles, boost seguro de BigBoostSeconds
+	BoostChance = 0.25, -- el resto de niveles, 25 % de un boost de BoostSeconds
+	BoostSeconds = 180,
+	BigBoostSeconds = 300,
 }
 
 -- Capa en la que está una profundidad (m) y cuánto se ha avanzado dentro de ella (0–1).
@@ -150,6 +171,7 @@ end
 GameConfig.DevMode = {
 	Enabled = true,
 	Money = 1e12,
+	Level = 30, -- para probar todas las capas de profundidad desde el principio
 }
 
 -- ===== Datos iniciales del jugador (Version = versión del schema) =====

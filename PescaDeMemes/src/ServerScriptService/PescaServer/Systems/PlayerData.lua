@@ -340,6 +340,7 @@ local function onPlayerAdded(player: Player)
 		-- MODO PRUEBA: datos nuevos con dinero infinito; no se carga ni se guarda nada (tus datos reales no se tocan)
 		data, canSave = sanitize(Util.deepCopy(GameConfig.StartingData)), false
 		data.MemeCoin = GameConfig.DevMode.Money
+		data.Level = GameConfig.DevMode.Level
 	else
 		data, canSave = loadData(player)
 	end

@@ -60,6 +60,7 @@ local lineTop: BasePart? = nil
 local capacity = 1
 local maxDepth = 15
 local attachedCount = 0
+local lockedLayer: { Name: string, Level: number }? = nil
 local savedCamera: { Type: Enum.CameraType, CFrame: CFrame, FOV: number, Subject: Instance? }? = nil
 local tint: ColorCorrectionEffect? = nil
 
@@ -191,6 +192,21 @@ local function buildStatic(parent: Instance)
 		end
 	end
 	chest(parent, Vector3.new(ORIGIN.X - lane * 0.5, floorY, ORIGIN.Z + 6))
+	-- capa bloqueada por nivel: barrera roja en el fondo con el nivel que falta
+	if lockedLayer then
+		local barrier = block(parent, "LockBarrier", Vector3.new(lane * 2.4, 0.5, 30), CFrame.new(Vector3.new(ORIGIN.X, floorY + 0.3, ORIGIN.Z - 5)),
+			RGB(255, 70, 70), Enum.Material.ForceField, 0.2)
+		for k = -3, 3 do
+			block(parent, "LockBar", Vector3.new(0.3, 0.3, 30), CFrame.new(Vector3.new(ORIGIN.X + k * lane * 0.33, floorY + 0.6, ORIGIN.Z - 5)), RGB(255, 120, 120), Enum.Material.Neon, 0.3)
+		end
+		local bb = Instance.new("BillboardGui")
+		bb.Size = UDim2.fromOffset(460, 70)
+		bb.StudsOffsetWorldSpace = Vector3.new(0, 6, 0)
+		bb.LightInfluence = 0
+		bb.Parent = barrier
+		UIKit.label({ Text = ("🔒 %s · se abre en el NIVEL %d"):format(string.upper(lockedLayer.Name), lockedLayer.Level), Size = UDim2.fromScale(1, 1),
+			Font = T.FontTitle, TextColor3 = RGB(255, 120, 120), Parent = bb }, { Stroke = 3 })
+	end
 	anchor(parent, Vector3.new(ORIGIN.X + lane * 0.6, floorY, ORIGIN.Z + 7))
 	for k = 1, 4 do
 		local emitterPart = block(parent, "Bubbles", Vector3.new(1, 1, 1), CFrame.new(Vector3.new(ORIGIN.X + (k - 2.5) * lane * 0.7, floorY + 1, ORIGIN.Z + 4)),
@@ -369,6 +385,7 @@ function DiveScene.Build(spec: any, skip: { [string]: boolean }?)
 	DiveScene.Destroy()
 	capacity = spec.Capacity
 	maxDepth = spec.MaxDepth
+	lockedLayer = spec.LockedLayer
 	attachedCount = 0
 	local f = Instance.new("Folder")
 	f.Name = "DiveScene"
