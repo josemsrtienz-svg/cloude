@@ -22,6 +22,7 @@ local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local GameConfig = require(Root.Config.GameConfig)
 local Memes = require(Root.Config.Memes)
 local Rods = require(Root.Config.Rods)
+local Boosts = require(Root.Config.Boosts)
 local Remotes = require(Root.Shared.Remotes)
 local Util = require(Root.Shared.Util)
 local Inventory = require(Root.Shared.Inventory)
@@ -168,6 +169,18 @@ local function sanitize(data: any): any
 		end
 	end
 	data.Discovered = discovered
+
+	-- boosts: solo los que existen y siguen activos
+	local boosts = {}
+	if type(data.Boosts) == "table" then
+		local now = os.time()
+		for id, untilTime in pairs(data.Boosts) do
+			if Boosts.Get(id) and type(untilTime) == "number" and untilTime > now then
+				boosts[id] = math.floor(untilTime)
+			end
+		end
+	end
+	data.Boosts = boosts
 	return data
 end
 
@@ -316,7 +329,15 @@ function PlayerData.Notify(player: Player, text: string, kind: string?)
 end
 
 local function onPlayerAdded(player: Player)
-	local data, canSave = loadData(player)
+	local devMode = IS_STUDIO and GameConfig.DevMode.Enabled
+	local data, canSave
+	if devMode then
+		-- MODO PRUEBA: datos nuevos con dinero infinito; no se carga ni se guarda nada (tus datos reales no se tocan)
+		data, canSave = sanitize(Util.deepCopy(GameConfig.StartingData)), false
+		data.MemeCoin = GameConfig.DevMode.Money
+	else
+		data, canSave = loadData(player)
+	end
 	if not data then
 		return
 	end
@@ -329,7 +350,9 @@ local function onPlayerAdded(player: Player)
 	profiles[player] = { Data = data, CanSave = canSave, Saving = false, Released = false }
 	PlayerData.Push(player)
 	PlayerData.Loaded:Fire(player, data)
-	if not canSave then
+	if devMode then
+		PlayerData.Notify(player, "🧪 MODO PRUEBA (Studio): dinero infinito y NO se guarda. Se desactiva en GameConfig.DevMode", "Info")
+	elseif not canSave then
 		PlayerData.Notify(player, store and "⚠️ No se pudieron cargar tus datos: esta sesión no se guardará."
 			or "⚠️ DataStore no disponible (¿place sin publicar?): esta sesión no se guardará.", "Error")
 	end

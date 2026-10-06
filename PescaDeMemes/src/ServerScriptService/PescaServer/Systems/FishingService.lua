@@ -34,6 +34,7 @@ local Inventory = require(Root.Shared.Inventory)
 
 local PlayerData = require(script.Parent.PlayerData)
 local GearService = require(script.Parent.GearService)
+local BoostService = require(script.Parent.BoostService)
 
 local F = GameConfig.Fishing
 local D = GameConfig.Dive
@@ -89,14 +90,26 @@ local function fail(err: string): any
 	return { ok = false, err = err }
 end
 
-local function rollRarity(luck: number): string
+-- ¿Hay algún meme de esa rareza que viva a esa profundidad?
+local function existsAt(rarityId: string, depth: number): boolean
+	for _, meme in ipairs(Memes.InZone(ZONE, rarityId)) do
+		if (meme.MinDepth or 0) <= depth then
+			return true
+		end
+	end
+	return false
+end
+
+-- luck sube las rarezas altas de forma exponencial (caña, fuerza, profundidad); boost es un multiplicador
+-- LINEAL sobre Raro o más (boost ×1.5 = de verdad 1,5 veces más memes raros, no 11 veces más secretos).
+local function rollRarity(luck: number, depth: number, boost: number): string
 	local total = 0
 	local weights = {}
 	for _, id in ipairs(Memes.RarityOrder) do
 		local rarity = Memes.Rarities[id]
-		local w = rarity.Odds * (luck ^ (rarity.Order - 1))
-		-- solo rarezas que existen en esta zona
-		if #Memes.InZone(ZONE, id) == 0 then
+		local w = rarity.Odds * (luck ^ (rarity.Order - 1)) * (if rarity.Order >= 3 then boost else 1)
+		-- solo rarezas que existen en esta zona y a esta profundidad
+		if not existsAt(id, depth) then
 			w = 0
 		end
 		weights[id] = w
@@ -110,6 +123,25 @@ local function rollRarity(luck: number): string
 		end
 	end
 	return "COMMON"
+end
+
+-- Meme de esa rareza que viva a esa profundidad (MinDepth). Si no hay ninguno tan arriba,
+-- baja de rareza hasta encontrar uno: los memes difíciles solo aparecen en el fondo.
+local function pickMeme(rarityId: string, depth: number): any
+	local order = Memes.Rarities[rarityId].Order
+	for o = order, 1, -1 do
+		local id = Memes.RarityOrder[o]
+		local candidates = {}
+		for _, meme in ipairs(Memes.InZone(ZONE, id)) do
+			if (meme.MinDepth or 0) <= depth then
+				table.insert(candidates, meme)
+			end
+		end
+		if #candidates > 0 then
+			return candidates[rng:NextInteger(1, #candidates)]
+		end
+	end
+	return Memes.List[1]
 end
 
 local function rollWeight(meme: any): number
@@ -176,7 +208,7 @@ local function resume(session: Session, now: number)
 end
 
 -- Genera los memes de la columna de agua. Más hondo = más suerte (rarezas altas abajo).
-local function generateDive(rod: any, power: number, perfect: boolean, capacity: number): { DiveMeme }
+local function generateDive(rod: any, power: number, perfect: boolean, capacity: number, luckBoost: number): { DiveMeme }
 	local list: { DiveMeme } = {}
 	local span = rod.MaxDepth - D.StartDepth - 0.5
 	local count = math.clamp(math.floor(span * D.MemesPerMeter), 4, D.MaxMemes)
@@ -185,9 +217,7 @@ local function generateDive(rod: any, power: number, perfect: boolean, capacity:
 		-- muestreo estratificado: repartidos por toda la profundidad, sin huecos enormes
 		local depth = D.StartDepth + span * (i - rng:NextNumber(0.1, 0.9)) / count
 		local luck = baseLuck * (1 + D.DepthLuck * (depth / 60) ^ 2)
-		local rarityId = rollRarity(luck)
-		local pool = Memes.InZone(ZONE, rarityId)
-		local meme = pool[rng:NextInteger(1, #pool)]
+		local meme = pickMeme(rollRarity(luck, depth, luckBoost), depth)
 		local weight = rollWeight(meme)
 		local lane = D.LaneHalfWidth - 1
 		table.insert(list, {
@@ -335,7 +365,8 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 	end
 	local perfect = power >= F.PerfectPower.Min and power <= F.PerfectPower.Max
 	local capacity = rod.Capacity * (if reinforced then 1 + Rods.Items.SedalReforzado.CapacityBonus else 1)
-	local memes = generateDive(rod, power, perfect, capacity)
+	local memes = generateDive(rod, power, perfect, capacity, BoostService.Luck(player))
+	local hooks = rod.Hooks + BoostService.ExtraHooks(player)
 
 	sessions[player] = {
 		State = "Diving",
@@ -345,7 +376,7 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 		PauseAt = nil,
 		Rod = rod,
 		Capacity = capacity,
-		Hooks = rod.Hooks,
+		Hooks = hooks,
 		MaxDepth = rod.MaxDepth,
 		Speed = rod.DiveSpeed,
 		Memes = memes,
@@ -373,7 +404,7 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 		Perfect = perfect,
 		Reinforced = reinforced,
 		Capacity = capacity,
-		Hooks = rod.Hooks,
+		Hooks = hooks,
 		MaxDepth = rod.MaxDepth,
 		Speed = rod.DiveSpeed,
 		IntroTime = D.IntroTime,

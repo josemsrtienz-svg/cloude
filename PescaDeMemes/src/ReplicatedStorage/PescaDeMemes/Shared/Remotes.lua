@@ -34,6 +34,8 @@ Remotes.Definitions = {
 	BuyRod = "RemoteFunction",
 	EquipRod = "RemoteFunction",
 	BuyItem = "RemoteFunction",
+	BuyBoost = "RemoteFunction", -- (boostId) solo junto a la tienda física
+	ClaimFreeBoost = "RemoteFunction", -- recoger el boost gratis (solo junto a la tienda física)
 }
 
 local function root(): Instance

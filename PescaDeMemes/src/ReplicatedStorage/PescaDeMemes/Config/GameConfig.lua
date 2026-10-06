@@ -10,7 +10,7 @@
 local GameConfig = {}
 
 GameConfig.GameName = "PESCA DE MEMES"
-GameConfig.Version = "P0 0.4"
+GameConfig.Version = "P0 0.5"
 
 -- ===== Moneda =====
 GameConfig.CurrencyName = "MemeCoin"
@@ -112,9 +112,19 @@ GameConfig.Dive = {
 	GrabLate = 2, -- s de margen por la latencia (después ya lo has pasado)
 	BottomWait = 1.2, -- s en el fondo antes de subir solo
 	Timeout = 150, -- s máximos de una inmersión (contando peleas)
-	DepthLuck = 1, -- suerte extra según la profundidad: ×(1 + DepthLuck·(m/60)²) — las rarezas altas viven abajo
+	DepthLuck = 0.6, -- suerte extra según la profundidad: ×(1 + DepthLuck·(m/60)²) — las rarezas altas viven abajo
 	MaxMemes = 28, -- tope de memes por inmersión (rendimiento)
 	StudsPerMeter = 2,
+}
+
+-- ===== Modo prueba (SOLO en Roblox Studio) =====
+-- Con Enabled = true, al darle a Play en Studio empiezas con dinero "infinito" para probar todas las cañas,
+-- mochilas y objetos. Esa sesión NO SE GUARDA (no toca tus datos reales). En un servidor de verdad
+-- (juego publicado) nunca se activa, aunque se te olvide ponerlo en false.
+-- ⚠️ Antes de publicar: ponlo en false igualmente (está en la lista de la Fase 6).
+GameConfig.DevMode = {
+	Enabled = true,
+	Money = 1e12,
 }
 
 -- ===== Datos iniciales del jugador (Version = versión del schema) =====
@@ -135,6 +145,7 @@ GameConfig.StartingData = {
 	Rods = { Palo = true },
 	EquippedRod = "Palo",
 	Items = { SedalReforzado = 0 },
+	Boosts = {}, -- [boostId] = os.time() en que caduca (Config/Boosts)
 	-- [memeId] = { Count, Heaviest }
 	Discovered = {},
 	LastSeen = 0,

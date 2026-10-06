@@ -29,6 +29,7 @@ local Util = require(Root.Shared.Util)
 
 local PlayerData = require(script.Parent.PlayerData)
 local FishingService = require(script.Parent.FishingService)
+local BoostService = require(script.Parent.BoostService)
 
 local PlotService = {}
 
@@ -56,13 +57,52 @@ local function incomeText(catch: any): string
 	return "+🪙" .. Inventory.FormatIncome(Inventory.CatchIncome(catch, GameConfig.PlotIncomeRate))
 end
 
-local function setSign(index: number, text: string)
+-- Cartel del dueño: su nombre y, encima, la CARA de su avatar (miniatura de Roblox, la ven todos).
+local function setSign(index: number, text: string, userId: number?)
 	local plot = plotFolder(index)
-	local sign = plot and plot:FindFirstChild("OwnerSign")
+	local sign = plot and plot:FindFirstChild("OwnerSign") :: BasePart?
 	local label = sign and sign:FindFirstChild("Label", true) :: TextLabel?
 	if label then
 		label.Text = text
 	end
+	if not sign then
+		return
+	end
+	local avatar = sign:FindFirstChild("OwnerAvatar") :: BillboardGui?
+	if not avatar then
+		local bb = Instance.new("BillboardGui")
+		bb.Name = "OwnerAvatar"
+		bb.Size = UDim2.fromScale(5, 5)
+		bb.StudsOffsetWorldSpace = Vector3.new(0, 5.4, 0)
+		bb.MaxDistance = 200
+		bb.LightInfluence = 0
+		local frame = Instance.new("Frame")
+		frame.Size = UDim2.fromScale(1, 1)
+		frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		frame.Parent = bb
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = frame
+		local stroke = Instance.new("UIStroke")
+		stroke.Thickness = 4
+		stroke.Color = sign.Color
+		stroke.Parent = frame
+		local image = Instance.new("ImageLabel")
+		image.Name = "Face"
+		image.BackgroundTransparency = 1
+		image.Size = UDim2.fromScale(1, 1)
+		image.Parent = frame
+		local imageCorner = Instance.new("UICorner")
+		imageCorner.CornerRadius = UDim.new(0.5, 0)
+		imageCorner.Parent = image
+		bb.Parent = sign
+		avatar = bb
+	end
+	local face = (avatar :: BillboardGui):FindFirstChild("Face", true) :: ImageLabel?
+	if face then
+		face.Image = if userId and userId > 0 then ("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150"):format(userId) else ""
+	end
+	(avatar :: BillboardGui).Enabled = userId ~= nil and userId > 0
 end
 
 local function setBankLabel(index: number, amount: number?)
@@ -305,7 +345,7 @@ local function assign(player: Player)
 			owners[index] = player
 			plotOf[player] = index
 			player:SetAttribute("PlotIndex", index)
-			setSign(index, player.DisplayName)
+			setSign(index, player.DisplayName, player.UserId)
 			-- si los datos ya estaban cargados (p. ej. en Studio sin DataStore), pintamos la parcela ya
 			local data = PlayerData.Get(player)
 			if data then
@@ -460,7 +500,7 @@ function PlotService.Init()
 					local index = plotOf[player]
 					if index then -- sin parcela no se genera
 						local amount = Inventory.PlotIncomePerMinute(data, GameConfig.PlotIncomeRate) * INCOME_TICK / 60
-							+ (bankRemainder[player] or 0)
+							* BoostService.Money(player) + (bankRemainder[player] or 0)
 						local whole = math.floor(amount)
 						bankRemainder[player] = amount - whole
 						if whole > 0 then

@@ -15,6 +15,10 @@
 	calcetines, corbata). Nada de "un cubo con cara".
 ]]
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Memes = require(ReplicatedStorage:WaitForChild("PescaDeMemes").Config.Memes)
+
 local MemeModels = {}
 
 local RGB = Color3.fromRGB
@@ -355,6 +359,335 @@ builders.GigaChad = function(b)
 	b.box("Mouth", Vector3.new(0.6, 0.1, 0.08), Vector3.new(0, 6.5, -0.88), RGB(80, 80, 80))
 end
 
+-- ======================= MÍTICOS =======================
+
+-- 😮 Gato Pop: gato atigrado sentado con la boca abierta en "O" (el ¡POP!). Cabeza grande, bigotes y cola enroscada.
+builders.GatoPop = function(b)
+	local fur, stripe, cream, pink = RGB(240, 160, 70), RGB(190, 105, 40), RGB(255, 235, 205), RGB(255, 150, 170)
+	b.box("Body", Vector3.new(2.4, 2.2, 2.2), Vector3.new(0, 1.3, 0.2), fur, Enum.Material.Fabric)
+	b.box("Chest", Vector3.new(1.6, 1.7, 0.3), Vector3.new(0, 1.45, -0.95), cream, Enum.Material.Fabric)
+	-- collar con cascabel (identidad de gato doméstico)
+	b.box("Collar", Vector3.new(2.2, 0.3, 2.0), Vector3.new(0, 2.45, -0.1), RGB(220, 40, 60), Enum.Material.Fabric)
+	b.ball("Bell", 0.45, Vector3.new(0, 2.25, -1.15), RGB(255, 205, 40), Enum.Material.Metal)
+	for _, x in ipairs({ -1, 1 }) do
+		b.box("Haunch", Vector3.new(0.9, 1.2, 1.6), Vector3.new(x * 1.1, 0.7, 0.4), fur)
+		b.box("Paw", Vector3.new(0.7, 0.5, 0.8), Vector3.new(x * 0.55, 0.25, -1.0), cream)
+		b.box("Toe", Vector3.new(0.12, 0.12, 0.08), Vector3.new(x * 0.55, 0.3, -1.42), pink)
+	end
+	for k = 0, 2 do
+		b.box("BackStripe", Vector3.new(2.42, 0.25, 1.2), Vector3.new(0, 1.0 + k * 0.6, 0.85), stripe)
+	end
+	-- cola enroscada hacia arriba
+	b.box("Tail", Vector3.new(0.4, 1.6, 0.4), Vector3.new(1.0, 1.6, 1.3), fur, nil, Vector3.new(0, 0, -20))
+	b.box("TailTip", Vector3.new(0.42, 0.6, 0.42), Vector3.new(1.35, 2.6, 1.3), stripe, nil, Vector3.new(0, 0, -35))
+	b.box("TailStripe", Vector3.new(0.44, 0.2, 0.44), Vector3.new(1.12, 1.9, 1.3), stripe, nil, Vector3.new(0, 0, -20))
+	for _, x in ipairs({ -0.55, 0.55 }) do
+		b.box("PawPad", Vector3.new(0.35, 0.1, 0.25), Vector3.new(x, 0.02, -1.15), pink)
+	end
+	-- cabeza grande
+	b.box("Head", Vector3.new(2.8, 2.4, 2.2), Vector3.new(0, 3.6, -0.2), fur, Enum.Material.Fabric)
+	-- mofletes peludos que rompen el contorno cuadrado de la cabeza
+	for _, x in ipairs({ -1, 1 }) do
+		b.box("CheekTuft", Vector3.new(0.4, 0.8, 1.2), Vector3.new(x * 1.55, 3.0, -0.6), cream, Enum.Material.Fabric, Vector3.new(0, 0, x * 15))
+		b.box("BackHeadStripe", Vector3.new(0.3, 0.9, 0.08), Vector3.new(x * 0.5, 4.0, 0.92), stripe)
+	end
+	for _, x in ipairs({ -0.5, 0, 0.5 }) do
+		b.box("HeadStripe", Vector3.new(0.25, 0.6, 0.08), Vector3.new(x, 4.45, -1.32), stripe)
+	end
+	for _, x in ipairs({ -1, 1 }) do
+		b.wedge("Ear", Vector3.new(0.7, 0.9, 0.5), Vector3.new(x * 0.95, 5.25, -0.1), fur)
+		b.box("EarInner", Vector3.new(0.35, 0.45, 0.1), Vector3.new(x * 0.95, 5.15, -0.37), pink)
+		b.box("Whisker", Vector3.new(1.0, 0.06, 0.06), Vector3.new(x * 1.35, 3.35, -1.25), RGB(250, 250, 250), nil, Vector3.new(0, 0, x * 10))
+		b.box("Whisker", Vector3.new(1.0, 0.06, 0.06), Vector3.new(x * 1.35, 3.1, -1.25), RGB(250, 250, 250), nil, Vector3.new(0, 0, x * -8))
+	end
+	eye(b, Vector3.new(-0.62, 4.0, -1.31), 0.48)
+	eye(b, Vector3.new(0.62, 4.0, -1.31), 0.48)
+	b.box("Muzzle", Vector3.new(1.5, 1.1, 0.1), Vector3.new(0, 3.05, -1.3), cream)
+	b.box("Nose", Vector3.new(0.3, 0.2, 0.1), Vector3.new(0, 3.62, -1.36), pink)
+	-- la boca en O: el ¡POP!
+	b.box("MouthO", Vector3.new(0.85, 0.95, 0.12), Vector3.new(0, 2.95, -1.36), RGB(70, 20, 35))
+	b.box("Tongue", Vector3.new(0.55, 0.28, 0.14), Vector3.new(0, 2.62, -1.38), RGB(255, 110, 130))
+end
+
+-- 🍌 Plátano Bailarín: plátano curvo con guantes blancos y zapatillas, bailando con los brazos arriba.
+builders.PlatanoBailarin = function(b)
+	local yellow, ridge, brown = RGB(255, 220, 60), RGB(225, 180, 35), RGB(110, 75, 35)
+	local segments = {
+		{ Vector3.new(0.5, 1.3, 0), 20, 1.2 }, { Vector3.new(0.15, 2.5, 0), 10, 1.45 }, { Vector3.new(0, 3.75, 0), 0, 1.55 },
+		{ Vector3.new(0.15, 5.0, 0), -10, 1.45 }, { Vector3.new(0.5, 6.2, 0), -20, 1.2 },
+	}
+	for _, seg in ipairs(segments) do
+		local w = seg[3]
+		b.box("Peel", Vector3.new(w, 1.4, w), seg[1], yellow, nil, Vector3.new(0, 0, seg[2]))
+		b.box("Ridge", Vector3.new(0.12, 1.3, 0.1), seg[1] + Vector3.new(0, 0, -w / 2 - 0.02), ridge, nil, Vector3.new(0, 0, seg[2]))
+		b.box("Spot", Vector3.new(0.2, 0.2, 0.06), seg[1] + Vector3.new(w * 0.3, 0.3, -w / 2 - 0.03), brown)
+		-- manchas también por detrás y una costura lateral: la cáscara no es solo la cara de delante
+		b.box("BackSpot", Vector3.new(0.3, 0.25, 0.06), seg[1] + Vector3.new(-w * 0.2, -0.2, w / 2 + 0.03), brown)
+		b.box("SideRidge", Vector3.new(0.08, 1.3, 0.12), seg[1] + Vector3.new(w / 2 + 0.02, 0, 0), ridge, nil, Vector3.new(0, 0, seg[2]))
+	end
+	b.box("Stem", Vector3.new(0.45, 0.7, 0.45), Vector3.new(0.85, 7.1, 0), brown, nil, Vector3.new(0, 0, -30))
+	b.box("StemTip", Vector3.new(0.5, 0.25, 0.5), Vector3.new(1.05, 7.45, 0), RGB(70, 50, 25), nil, Vector3.new(0, 0, -30))
+	-- cara
+	eye(b, Vector3.new(-0.32, 4.75, -0.8), 0.36)
+	eye(b, Vector3.new(0.38, 4.75, -0.8), 0.36)
+	b.box("Smile", Vector3.new(0.7, 0.15, 0.08), Vector3.new(0.05, 4.15, -0.8), RGB(60, 30, 20))
+	b.box("SmileL", Vector3.new(0.14, 0.22, 0.08), Vector3.new(-0.33, 4.25, -0.8), RGB(60, 30, 20))
+	b.box("SmileR", Vector3.new(0.14, 0.22, 0.08), Vector3.new(0.43, 4.25, -0.8), RGB(60, 30, 20))
+	b.box("Blush", Vector3.new(0.25, 0.14, 0.06), Vector3.new(-0.62, 4.35, -0.79), RGB(255, 150, 120))
+	b.box("Blush", Vector3.new(0.25, 0.14, 0.06), Vector3.new(0.7, 4.35, -0.79), RGB(255, 150, 120))
+	-- brazos bailando con guantes blancos
+	b.box("ArmL", Vector3.new(0.28, 1.4, 0.28), Vector3.new(-1.0, 4.6, 0), brown, nil, Vector3.new(0, 0, 30))
+	b.box("GloveL", Vector3.new(0.55, 0.55, 0.55), Vector3.new(-1.4, 5.35, 0), RGB(250, 250, 250))
+	b.box("CuffL", Vector3.new(0.6, 0.15, 0.6), Vector3.new(-1.27, 5.05, 0), RGB(230, 230, 235), nil, Vector3.new(0, 0, 30))
+	b.box("BottomTip", Vector3.new(0.6, 0.35, 0.6), Vector3.new(0.85, 0.75, 0), RGB(70, 50, 25), nil, Vector3.new(0, 0, 30))
+	b.box("ArmR", Vector3.new(0.28, 1.4, 0.28), Vector3.new(1.35, 4.3, 0), brown, nil, Vector3.new(0, 0, -55))
+	b.box("GloveR", Vector3.new(0.55, 0.55, 0.55), Vector3.new(2.0, 4.75, 0), RGB(250, 250, 250))
+	b.box("CuffR", Vector3.new(0.6, 0.15, 0.6), Vector3.new(1.78, 4.6, 0), RGB(230, 230, 235), nil, Vector3.new(0, 0, -55))
+	-- piernas y zapatillas rojas
+	for _, x in ipairs({ 0.1, 0.8 }) do
+		b.box("Leg", Vector3.new(0.25, 0.7, 0.25), Vector3.new(x, 0.5, 0), brown)
+		b.box("Shoe", Vector3.new(0.55, 0.3, 0.8), Vector3.new(x, 0.15, -0.12), RGB(230, 50, 60))
+		b.box("ShoeToe", Vector3.new(0.56, 0.12, 0.25), Vector3.new(x, 0.08, -0.45), RGB(250, 250, 250))
+	end
+end
+
+-- 🐹 Hámster Dramático: hámster gordito girando la cabeza con mirada intensa (cejas, ojos de lado, mofletes).
+builders.HamsterDramatico = function(b)
+	local tan, white, pink = RGB(220, 160, 95), RGB(250, 240, 225), RGB(255, 165, 175)
+	b.box("Body", Vector3.new(2.6, 2.4, 2.8), Vector3.new(0, 1.4, 0.2), tan, Enum.Material.Fabric)
+	b.box("BellyLine", Vector3.new(0.1, 1.2, 0.05), Vector3.new(0, 1.3, -1.36), RGB(235, 220, 200))
+	b.box("Belly", Vector3.new(1.8, 1.7, 0.2), Vector3.new(0, 1.35, -1.25), white)
+	b.box("BackPatch", Vector3.new(1.6, 0.9, 1.6), Vector3.new(0, 2.5, 0.6), RGB(190, 130, 75))
+	for _, x in ipairs({ -1, 1 }) do
+		b.box("Foot", Vector3.new(0.6, 0.3, 0.8), Vector3.new(x * 0.7, 0.15, -0.8), pink)
+		b.box("Hand", Vector3.new(0.45, 0.35, 0.45), Vector3.new(x * 0.5, 2.15, -1.45), pink)
+		b.box("Ear", Vector3.new(0.6, 0.6, 0.3), Vector3.new(x * 0.9, 4.45, -0.15), tan)
+		b.box("EarInner", Vector3.new(0.3, 0.32, 0.1), Vector3.new(x * 0.9, 4.42, -0.32), pink)
+		b.box("Cheek", Vector3.new(0.85, 0.85, 0.85), Vector3.new(x * 1.05, 2.95, -0.95), white)
+		-- cejas dramáticas, muy inclinadas
+		b.box("Brow", Vector3.new(0.5, 0.12, 0.08), Vector3.new(x * 0.55, 4.0, -1.33), RGB(110, 70, 40), nil, Vector3.new(0, 0, x * 22))
+	end
+	b.box("Head", Vector3.new(2.4, 2.1, 2.0), Vector3.new(0, 3.3, -0.3), tan, Enum.Material.Fabric)
+	-- mechón despeinado y bigotes
+	b.box("Tuft", Vector3.new(0.3, 0.5, 0.3), Vector3.new(-0.15, 4.5, -0.6), tan, Enum.Material.Fabric, Vector3.new(0, 0, 20))
+	b.box("Tuft", Vector3.new(0.3, 0.4, 0.3), Vector3.new(0.2, 4.45, -0.5), RGB(190, 130, 75), Enum.Material.Fabric, Vector3.new(0, 0, -25))
+	for _, x in ipairs({ -1, 1 }) do
+		b.box("Whisker", Vector3.new(0.8, 0.05, 0.05), Vector3.new(x * 0.75, 3.05, -1.5), RGB(90, 70, 50), nil, Vector3.new(0, 0, x * 12))
+	end
+	b.box("Face", Vector3.new(1.4, 0.9, 0.1), Vector3.new(0, 2.95, -1.31), white)
+	b.box("Snout", Vector3.new(0.8, 0.5, 0.35), Vector3.new(0, 3.0, -1.45), white)
+	b.box("Nose", Vector3.new(0.26, 0.18, 0.1), Vector3.new(0, 3.2, -1.65), pink)
+	b.box("Teeth", Vector3.new(0.3, 0.22, 0.08), Vector3.new(0, 2.65, -1.62), RGB(255, 255, 250))
+	-- mirada de reojo
+	eye(b, Vector3.new(-0.55, 3.55, -1.31), 0.55, 1)
+	eye(b, Vector3.new(0.55, 3.55, -1.31), 0.55, 1)
+	b.box("Tail", Vector3.new(0.3, 0.3, 0.3), Vector3.new(0, 0.9, 1.65), tan)
+end
+
+-- ======================= SECRETOS =======================
+
+-- 🦈 Tiburón Zapatillero: tiburón tumbado sobre dos piernas con zapatillas de deporte enormes.
+builders.TiburonZapatillero = function(b)
+	local skin, belly, dark = RGB(90, 135, 180), RGB(240, 245, 250), RGB(55, 90, 125)
+	b.box("Body", Vector3.new(2.2, 2.2, 4.6), Vector3.new(0, 3.3, 0.2), skin)
+	b.box("Belly", Vector3.new(1.8, 0.7, 4.0), Vector3.new(0, 2.35, -0.1), belly)
+	for k = 0, 3 do
+		b.box("BellyGroove", Vector3.new(1.82, 0.06, 0.08), Vector3.new(0, 2.25, -1.4 + k * 0.8), RGB(205, 215, 225))
+		b.box("BackSpot", Vector3.new(0.35, 0.08, 0.35), Vector3.new((k % 2 - 0.5) * 0.9, 4.42, -1 + k * 0.8), dark)
+	end
+	b.box("Scar", Vector3.new(0.6, 0.08, 0.06), Vector3.new(0.5, 4.0, -3.31), RGB(220, 230, 240), nil, Vector3.new(0, 0, 35))
+	b.box("Head", Vector3.new(1.9, 1.8, 1.4), Vector3.new(0, 3.25, -2.6), skin)
+	b.wedge("Snout", Vector3.new(1.8, 1.0, 0.9), Vector3.new(0, 3.65, -3.65), skin)
+	b.box("Jaw", Vector3.new(1.7, 0.5, 1.3), Vector3.new(0, 2.55, -2.9), belly)
+	b.box("Mouth", Vector3.new(1.4, 0.25, 0.1), Vector3.new(0, 2.85, -3.56), RGB(120, 30, 40))
+	for k = -2, 2 do
+		b.wedge("Tooth", Vector3.new(0.18, 0.2, 0.1), Vector3.new(k * 0.28, 2.95, -3.58), RGB(255, 255, 255), Vector3.new(0, 0, 180))
+	end
+	eye(b, Vector3.new(-0.55, 3.75, -3.31), 0.36, -1)
+	eye(b, Vector3.new(0.55, 3.75, -3.31), 0.36, 1)
+	for _, x in ipairs({ -1, 1 }) do
+		b.box("Gill", Vector3.new(0.05, 0.6, 0.08), Vector3.new(x * 1.11, 3.3, -1.6), dark)
+		b.box("Gill", Vector3.new(0.05, 0.6, 0.08), Vector3.new(x * 1.11, 3.3, -1.35), dark)
+		b.box("Fin", Vector3.new(1.4, 0.2, 1.0), Vector3.new(x * 1.5, 2.8, -0.8), dark, nil, Vector3.new(0, 0, x * -25))
+	end
+	b.wedge("Dorsal", Vector3.new(0.35, 1.6, 1.6), Vector3.new(0, 5.15, 0.4), dark)
+	b.box("TailBase", Vector3.new(1.2, 1.2, 1.2), Vector3.new(0, 3.4, 2.9), skin)
+	b.wedge("TailTop", Vector3.new(0.35, 1.6, 1.0), Vector3.new(0, 4.6, 3.6), dark, Vector3.new(0, 180, 0))
+	b.wedge("TailBottom", Vector3.new(0.35, 1.0, 0.8), Vector3.new(0, 2.5, 3.6), dark, Vector3.new(180, 0, 0))
+	-- piernas y zapatillas de deporte (la firma del personaje)
+	for _, x in ipairs({ -0.65, 0.65 }) do
+		b.box("Leg", Vector3.new(0.6, 1.5, 0.6), Vector3.new(x, 1.2, -0.3), skin)
+		b.box("Sock", Vector3.new(0.65, 0.35, 0.65), Vector3.new(x, 0.65, -0.3), RGB(250, 250, 250))
+		b.box("Shoe", Vector3.new(0.95, 0.55, 1.7), Vector3.new(x, 0.32, -0.55), RGB(250, 250, 250))
+		b.box("Sole", Vector3.new(1.0, 0.16, 1.75), Vector3.new(x, 0.06, -0.55), RGB(70, 70, 80))
+		b.box("Swoosh", Vector3.new(0.97, 0.14, 0.9), Vector3.new(x, 0.38, -0.5), RGB(40, 140, 255), nil, Vector3.new(15, 0, 0))
+		b.box("Lace", Vector3.new(0.5, 0.06, 0.06), Vector3.new(x, 0.62, -0.9), RGB(40, 40, 50))
+		b.box("Lace", Vector3.new(0.5, 0.06, 0.06), Vector3.new(x, 0.62, -0.65), RGB(40, 40, 50))
+		b.box("Tongue", Vector3.new(0.55, 0.35, 0.3), Vector3.new(x, 0.75, -0.25), RGB(40, 140, 255))
+		b.box("HeelTab", Vector3.new(0.4, 0.3, 0.12), Vector3.new(x, 0.6, 0.32), RGB(40, 140, 255))
+	end
+end
+
+-- 🍊 Capibara Zen: capibara sentada meditando con una naranja en la cabeza y los ojos cerrados.
+builders.CapibaraZen = function(b)
+	local fur, dark, light = RGB(150, 100, 60), RGB(105, 70, 40), RGB(180, 130, 85)
+	b.box("Body", Vector3.new(2.6, 2.0, 3.2), Vector3.new(0, 1.3, 0.3), fur, Enum.Material.Fabric)
+	-- pelo más oscuro por el lomo (variación de color en toda la superficie, no solo delante)
+	b.box("BackFur", Vector3.new(1.8, 0.2, 2.6), Vector3.new(0, 2.38, 0.5), dark, Enum.Material.Fabric)
+	b.box("SideFur", Vector3.new(0.08, 0.8, 1.6), Vector3.new(1.32, 1.5, 0.6), dark, Enum.Material.Fabric)
+	b.box("SideFur", Vector3.new(0.08, 0.8, 1.6), Vector3.new(-1.32, 1.5, 0.6), dark, Enum.Material.Fabric)
+	-- nenúfar zen bajo la capibara
+	b.box("LilyPad", Vector3.new(4.2, 0.15, 4.6), Vector3.new(0, 0.05, 0.1), RGB(70, 160, 70))
+	b.box("LilyNotch", Vector3.new(0.6, 0.17, 1.2), Vector3.new(1.5, 0.06, -1.9), RGB(50, 130, 55), nil, Vector3.new(0, 30, 0))
+	for k = 0, 4 do
+		local a = k * math.pi * 2 / 5
+		b.box("Petal", Vector3.new(0.5, 0.25, 0.8), Vector3.new(-1.6 + math.cos(a) * 0.35, 0.25, -1.7 + math.sin(a) * 0.35), RGB(255, 150, 200), nil, Vector3.new(0, math.deg(a), 20))
+	end
+	b.box("Rump", Vector3.new(2.4, 1.6, 1.0), Vector3.new(0, 1.1, 1.8), fur)
+	b.box("Chest", Vector3.new(1.9, 1.4, 0.4), Vector3.new(0, 1.5, -1.3), light)
+	for _, x in ipairs({ -0.75, 0.75 }) do
+		b.box("FrontLeg", Vector3.new(0.5, 0.8, 0.5), Vector3.new(x, 0.4, -1.1), dark)
+		b.box("BackLeg", Vector3.new(0.7, 0.6, 1.0), Vector3.new(x * 1.3, 0.3, 1.4), dark)
+	end
+	b.box("Head", Vector3.new(1.8, 1.6, 2.0), Vector3.new(0, 2.7, -1.5), fur, Enum.Material.Fabric)
+	b.box("Snout", Vector3.new(1.6, 1.1, 0.9), Vector3.new(0, 2.4, -2.8), light)
+	b.box("NoseTop", Vector3.new(1.0, 0.15, 0.1), Vector3.new(0, 2.85, -3.26), dark)
+	for _, x in ipairs({ -1, 1 }) do
+		b.box("Nostril", Vector3.new(0.15, 0.12, 0.08), Vector3.new(x * 0.3, 2.65, -3.27), RGB(50, 30, 20))
+		-- ojos cerrados (meditando)
+		b.box("ClosedEye", Vector3.new(0.4, 0.08, 0.08), Vector3.new(x * 0.6, 3.05, -2.52), RGB(40, 25, 15), nil, Vector3.new(0, 0, x * -8))
+		b.box("Ear", Vector3.new(0.35, 0.3, 0.25), Vector3.new(x * 0.65, 3.6, -1.1), dark)
+	end
+	b.box("Mouth", Vector3.new(0.5, 0.06, 0.06), Vector3.new(0, 2.05, -3.26), RGB(60, 40, 25))
+	-- la naranja con su hoja
+	b.ball("Orange", 1.0, Vector3.new(0, 4.0, -1.5), RGB(255, 145, 30))
+	b.box("OrangeStem", Vector3.new(0.12, 0.25, 0.12), Vector3.new(0, 4.55, -1.5), RGB(90, 60, 30))
+	b.box("Leaf", Vector3.new(0.5, 0.08, 0.3), Vector3.new(0.25, 4.6, -1.5), RGB(60, 160, 60), nil, Vector3.new(0, 0, 20))
+end
+
+-- 🐊 Cocodrilo Aviador: cocodrilo con alas de avioneta, gafas de piloto, bufanda y hélice en el morro.
+builders.CocodriloAviador = function(b)
+	local green, belly, metal, red = RGB(80, 140, 70), RGB(200, 210, 150), RGB(170, 175, 185), RGB(210, 50, 50)
+	b.box("Body", Vector3.new(2.2, 1.5, 4.2), Vector3.new(0, 2.3, 0.4), green, Enum.Material.Slate)
+	b.box("Belly", Vector3.new(1.8, 0.4, 3.8), Vector3.new(0, 1.45, 0.4), belly)
+	for k = 0, 3 do
+		b.box("Scute", Vector3.new(0.5, 0.25, 0.5), Vector3.new(0, 3.15, -0.8 + k * 0.9), RGB(60, 110, 55))
+	end
+	b.box("Head", Vector3.new(1.6, 1.1, 1.4), Vector3.new(0, 2.5, -2.3), green)
+	b.box("Snout", Vector3.new(1.3, 0.6, 1.8), Vector3.new(0, 2.25, -3.8), green)
+	b.box("Jaw", Vector3.new(1.25, 0.35, 1.7), Vector3.new(0, 1.8, -3.7), belly)
+	for _, x in ipairs({ -1, 1 }) do
+		for k = 0, 3 do
+			b.wedge("Tooth", Vector3.new(0.1, 0.2, 0.15), Vector3.new(x * 0.6, 2.0, -3.0 - k * 0.4), RGB(255, 255, 245), Vector3.new(0, 0, 180))
+		end
+		-- ojos saltones con gafas de aviador
+		b.box("EyeBump", Vector3.new(0.5, 0.45, 0.5), Vector3.new(x * 0.45, 3.2, -2.2), green)
+		b.box("GoggleLens", Vector3.new(0.45, 0.4, 0.1), Vector3.new(x * 0.45, 3.25, -2.5), RGB(120, 200, 255), Enum.Material.Glass)
+		b.box("GoggleRim", Vector3.new(0.55, 0.5, 0.08), Vector3.new(x * 0.45, 3.25, -2.47), RGB(120, 80, 40))
+		-- alas de avioneta con franja roja y motor
+		b.box("Wing", Vector3.new(2.6, 0.22, 1.5), Vector3.new(x * 2.4, 2.5, 0), metal, Enum.Material.Metal)
+		b.box("WingStripe", Vector3.new(0.4, 0.24, 1.52), Vector3.new(x * 3.2, 2.5, 0), red)
+		b.box("Engine", Vector3.new(0.5, 0.5, 0.9), Vector3.new(x * 1.9, 2.15, -0.5), RGB(80, 80, 90), Enum.Material.Metal)
+		b.box("Exhaust", Vector3.new(0.2, 0.2, 0.4), Vector3.new(x * 1.9, 2.0, 0.1), RGB(50, 50, 55), Enum.Material.Metal)
+		for k = 0, 2 do
+			b.box("Rivet", Vector3.new(0.12, 0.05, 0.12), Vector3.new(x * (1.5 + k * 0.8), 2.63, 0.55), RGB(120, 125, 135), Enum.Material.Metal)
+		end
+		b.box("Leg", Vector3.new(0.5, 1.0, 0.6), Vector3.new(x * 0.75, 0.6, -1.0), green)
+		b.box("Leg", Vector3.new(0.5, 1.0, 0.6), Vector3.new(x * 0.75, 0.6, 1.6), green)
+		b.box("Claw", Vector3.new(0.6, 0.15, 0.4), Vector3.new(x * 0.75, 0.08, -1.25), RGB(240, 235, 210))
+	end
+	b.box("Strap", Vector3.new(1.65, 0.15, 0.3), Vector3.new(0, 3.25, -2.1), RGB(120, 80, 40))
+	b.box("Scarf", Vector3.new(1.7, 0.35, 1.5), Vector3.new(0, 2.6, -1.4), red)
+	b.box("ScarfTail", Vector3.new(0.35, 0.8, 0.12), Vector3.new(0.6, 2.4, -0.55), red, nil, Vector3.new(-35, 0, 15))
+	-- cola con timón de avión
+	b.box("Tail", Vector3.new(1.2, 0.9, 1.8), Vector3.new(0, 2.25, 3.3), green, Enum.Material.Slate)
+	for k = 0, 2 do
+		b.box("TailScute", Vector3.new(0.35, 0.25, 0.35), Vector3.new(0, 2.8, 2.7 + k * 0.5), RGB(60, 110, 55))
+	end
+	b.box("Rudder", Vector3.new(0.2, 1.3, 0.9), Vector3.new(0, 3.2, 3.9), red)
+	b.box("Stabilizer", Vector3.new(2.2, 0.15, 0.7), Vector3.new(0, 2.55, 3.9), metal, Enum.Material.Metal)
+	-- hélice en el morro
+	b.box("PropHub", Vector3.new(0.4, 0.4, 0.3), Vector3.new(0, 2.25, -4.85), RGB(60, 60, 70), Enum.Material.Metal)
+	b.box("PropBlade", Vector3.new(0.22, 2.2, 0.08), Vector3.new(0, 2.25, -5.02), RGB(110, 75, 40), Enum.Material.Wood, Vector3.new(0, 0, 20))
+	b.box("PropBlade", Vector3.new(2.2, 0.22, 0.08), Vector3.new(0, 2.25, -5.02), RGB(110, 75, 40), Enum.Material.Wood, Vector3.new(0, 0, 20))
+end
+
+-- ======================= Efectos por rareza =======================
+-- Míticos: chispas de su color + luz. Secretos: aura arcoíris, luz fuerte y un efecto propio de cada uno.
+-- El tamaño de las partículas sigue la escala del modelo.
+
+local RAINBOW = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, RGB(255, 80, 80)), ColorSequenceKeypoint.new(0.2, RGB(255, 200, 60)),
+	ColorSequenceKeypoint.new(0.4, RGB(90, 230, 110)), ColorSequenceKeypoint.new(0.6, RGB(70, 200, 255)),
+	ColorSequenceKeypoint.new(0.8, RGB(170, 90, 255)), ColorSequenceKeypoint.new(1, RGB(255, 90, 200)),
+})
+
+local function emitter(parent: Instance, props: { [string]: any }): ParticleEmitter
+	local e = Instance.new("ParticleEmitter")
+	e.LightEmission = 1
+	e.LockedToPart = false
+	for k, v in pairs(props) do
+		(e :: any)[k] = v
+	end
+	e.Parent = parent
+	return e
+end
+
+local SPECIAL_FX: { [string]: (Attachment, number) -> () } = {
+	-- burbujas azules (estela de nado)
+	TiburonZapatillero = function(att, s)
+		emitter(att, { Name = "Bubbles", Rate = 8, Lifetime = NumberRange.new(1.2, 2), Speed = NumberRange.new(1, 3),
+			Size = NumberSequence.new(0.35 * s), Color = ColorSequence.new(RGB(150, 220, 255)), Transparency = NumberSequence.new(0.3),
+			SpreadAngle = Vector2.new(60, 60), EmissionDirection = Enum.NormalId.Top })
+	end,
+	-- anillos dorados que suben (meditación)
+	CapibaraZen = function(att, s)
+		emitter(att, { Name = "ZenRings", Rate = 2, Lifetime = NumberRange.new(2, 2.5), Speed = NumberRange.new(1.5, 2),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5 * s), NumberSequenceKeypoint.new(1, 3 * s) }),
+			Color = ColorSequence.new(RGB(255, 210, 90)), Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) }),
+			EmissionDirection = Enum.NormalId.Top, SpreadAngle = Vector2.new(0, 0) })
+	end,
+	-- humo de motor
+	CocodriloAviador = function(att, s)
+		emitter(att, { Name = "Smoke", Rate = 6, Lifetime = NumberRange.new(1.5, 2.5), Speed = NumberRange.new(1, 2),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6 * s), NumberSequenceKeypoint.new(1, 2 * s) }),
+			Color = ColorSequence.new(RGB(170, 170, 175)), LightEmission = 0, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.4), NumberSequenceKeypoint.new(1, 1) }),
+			EmissionDirection = Enum.NormalId.Back, SpreadAngle = Vector2.new(20, 20) })
+	end,
+}
+
+local function addRarityFx(model: Model, memeId: string, s: number)
+	local meme = Memes.Get(memeId)
+	local rarity = meme and Memes.Rarities[meme.Rarity]
+	local root = model.PrimaryPart
+	if not rarity or not root or rarity.Order < 5 then
+		return
+	end
+	local att = Instance.new("Attachment")
+	att.Name = "FX"
+	att.Position = Vector3.new(0, MemeModels.Height(memeId, s) * 0.5, 0)
+	att.Parent = root
+	local light = Instance.new("PointLight")
+	light.Color = rarity.Color
+	light.Range = 10 * s
+	light.Brightness = if rarity.Order >= 7 then 2 else 1.2
+	light.Parent = root
+	emitter(att, { Name = "Sparkles", Rate = if rarity.Order >= 7 then 14 else 7, Lifetime = NumberRange.new(1, 1.8),
+		Speed = NumberRange.new(1, 2.5), SpreadAngle = Vector2.new(180, 180), Size = NumberSequence.new(0.3 * s),
+		Color = if rarity.Order >= 7 then RAINBOW else ColorSequence.new(rarity.Color),
+		Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1) }) })
+	if rarity.Order >= 7 then
+		-- aura arcoíris en el suelo
+		emitter(att, { Name = "Aura", Rate = 4, Lifetime = NumberRange.new(1.5, 2), Speed = NumberRange.new(0, 0.3),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 2 * s), NumberSequenceKeypoint.new(1, 4 * s) }),
+			Color = RAINBOW, Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6), NumberSequenceKeypoint.new(1, 1) }) })
+		local special = SPECIAL_FX[memeId]
+		if special then
+			special(att, s)
+		end
+	end
+end
+
 -- Pinta el modelo de oro manteniendo las zonas oscuras (ojos, detalles) para que no pierda la cara.
 local function goldify(model: Model)
 	for _, p in ipairs(model:GetDescendants()) do
@@ -375,7 +708,8 @@ local function goldify(model: Model)
 	end
 end
 
-function MemeModels.Build(memeId: string, scale: number?, golden: boolean?): Model
+-- fx = false para iconos y miniaturas (las partículas no se ven en un ViewportFrame y en miniatura molestan)
+function MemeModels.Build(memeId: string, scale: number?, golden: boolean?, fx: boolean?): Model
 	local s = scale or 1
 	local model = Instance.new("Model")
 	model.Name = "Meme_" .. memeId
@@ -395,12 +729,16 @@ function MemeModels.Build(memeId: string, scale: number?, golden: boolean?): Mod
 	if golden then
 		goldify(model)
 	end
+	if fx ~= false then
+		addRarityFx(model, memeId, s)
+	end
 	return model
 end
 
 -- Altura aproximada (studs) para colocar etiquetas encima.
 function MemeModels.Height(memeId: string, scale: number?): number
-	local heights = { Stonks = 6.5, Sospechoso = 8.3, PatoInfinito = 7, GatoPianista = 6.8, Moai = 7.7, GigaChad = 8.4 }
+	local heights = { Stonks = 6.5, Sospechoso = 8.3, PatoInfinito = 7, GatoPianista = 6.8, Moai = 7.7, GigaChad = 8.4,
+		GatoPop = 5.7, PlatanoBailarin = 7.6, HamsterDramatico = 4.8, TiburonZapatillero = 6, CapibaraZen = 4.7, CocodriloAviador = 4.2 }
 	return (heights[memeId] or 6.3) * (scale or 1)
 end
 

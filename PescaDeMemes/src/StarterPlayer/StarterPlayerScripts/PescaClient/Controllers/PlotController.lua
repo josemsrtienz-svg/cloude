@@ -72,7 +72,7 @@ local function updateMarker()
 	if not ownerSign then
 		return
 	end
-	local bb = UIKit.new("BillboardGui", { Name = "MyPlotMarker", Size = UDim2.fromOffset(220, 64), StudsOffsetWorldSpace = Vector3.new(0, 7, 0),
+	local bb = UIKit.new("BillboardGui", { Name = "MyPlotMarker", Size = UDim2.fromOffset(220, 64), StudsOffsetWorldSpace = Vector3.new(0, 10.5, 0),
 		AlwaysOnTop = true, MaxDistance = 1000, LightInfluence = 0, Parent = ownerSign })
 	UIKit.label({ Text = "🏠 TU PARCELA", Size = UDim2.fromScale(1, 1), Font = T.FontTitle, TextColor3 = T.Primary, Parent = bb }, { Stroke = 3 })
 	marker = bb

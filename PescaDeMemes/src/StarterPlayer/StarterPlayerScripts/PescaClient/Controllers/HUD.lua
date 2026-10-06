@@ -19,6 +19,7 @@ local Util = require(Root.Shared.Util)
 local Inventory = require(Root.Shared.Inventory)
 local GearModels = require(Root.Shared.GearModels)
 local Rods = require(Root.Config.Rods)
+local Boosts = require(Root.Config.Boosts)
 
 local Controllers = script.Parent
 local UIKit = require(Controllers.UIKit)
@@ -217,6 +218,51 @@ function HUD.Init()
 			HUD.ButtonPressed:Fire(b[1])
 		end)
 	end
+
+	-- boosts activos (con cuenta atrás) y aviso del boost gratis, arriba a la izquierda
+	local boostRow = UIKit.new("Frame", { Name = "Boosts", Position = UDim2.fromOffset(14, 12), Size = UDim2.fromOffset(520, 40),
+		BackgroundTransparency = 1, Parent = gui })
+	UIKit.responsive(boostRow)
+	UIKit.list(boostRow, Enum.FillDirection.Horizontal, 8, Enum.HorizontalAlignment.Left)
+	local chips: { [string]: TextLabel } = {}
+	local function chip(id: string, color: Color3, order: number): TextLabel
+		local c = UIKit.label({ Name = id, LayoutOrder = order, Size = UDim2.fromOffset(150, 36), BackgroundTransparency = 0,
+			BackgroundColor3 = T.PanelDark, Font = T.FontTitle, Visible = false, Parent = boostRow }, { Stroke = 2, MaxSize = 20 })
+		UIKit.corner(c, 18)
+		UIKit.stroke(c, 3, color)
+		chips[id] = c
+		return c
+	end
+	for i, id in ipairs(Boosts.Order) do
+		chip(id, Boosts.List[id].Color, i)
+	end
+	local freeChip = chip("Free", T.Coin, 99)
+	freeChip.Size = UDim2.fromOffset(260, 36)
+	task.spawn(function()
+		while gui.Parent do
+			-- hora del SERVIDOR (los boosts caducan según el reloj del servidor, no el del PC)
+			local now = math.floor(workspace:GetServerTimeNow())
+			local data = State.Data
+			for _, id in ipairs(Boosts.Order) do
+				local untilTime = data and data.Boosts and data.Boosts[id]
+				local left = if type(untilTime) == "number" then untilTime - now else 0
+				local c = chips[id]
+				c.Visible = left > 0
+				if left > 0 then
+					c.Text = ("%s %s %d:%02d"):format(Boosts.List[id].Emoji, string.match(Boosts.List[id].Name, "×[%d%.]+") or "", left // 60, left % 60)
+				end
+			end
+			local freeId = player:GetAttribute("FreeBoost")
+			local freeUntil = player:GetAttribute("FreeBoostUntil")
+			freeChip.Visible = Boosts.Get(freeId) ~= nil
+			if freeChip.Visible then
+				local left = math.max(0, (if type(freeUntil) == "number" then freeUntil else now) - now)
+				freeChip.Text = ("🎁 Boost gratis en la TIENDA %d:%02d"):format(left // 60, left % 60)
+				freeChip.TextColor3 = if now % 2 == 0 then T.Coin else T.Text
+			end
+			task.wait(1)
+		end
+	end)
 
 	-- avisos
 	toastHolder = UIKit.new("Frame", { Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 150),

@@ -105,7 +105,7 @@ function GearModels.Tank(aquarium: any, memeIds: { string }?): Model
 			break
 		end
 		if MemeModels.Has(memeId) then
-			local mini = MemeModels.Build(memeId, 0.13)
+			local mini = MemeModels.Build(memeId, 0.13, false, false)
 			mini:PivotTo(CFrame.new(-0.55 + (i - 1) * 0.55, -0.85, 0.05) * CFrame.Angles(0, math.pi, 0))
 			for _, d in ipairs(mini:GetDescendants()) do
 				if d:IsA("BasePart") then
@@ -181,6 +181,39 @@ function GearModels.Book(): Model
 	part(model, { Name = "Spine", Size = Vector3.new(0.3, 2.8, 0.56), Color = RGB(25, 80, 170), CFrame = CFrame.new(-1.05, 0, 0) })
 	part(model, { Name = "Star", Size = Vector3.new(0.8, 0.8, 0.1), Color = RGB(255, 205, 40), Material = Enum.Material.Neon,
 		CFrame = CFrame.new(0.1, 0.3, -0.3) * CFrame.Angles(0, 0, math.rad(45)) })
+	return model
+end
+
+-- Poción de boost: frasco con líquido de color, tapón de corcho y brillo.
+function GearModels.Potion(color: Color3): Model
+	local model = Instance.new("Model")
+	model.Name = "Potion"
+	local bottle = part(model, { Name = "Bottle", Size = Vector3.new(1.8, 1.8, 1.8), Color = RGB(220, 245, 255), Material = Enum.Material.Glass,
+		Transparency = 0.45, CFrame = CFrame.new(0, 0.9, 0) })
+	model.PrimaryPart = bottle
+	part(model, { Name = "Liquid", Size = Vector3.new(1.55, 1.2, 1.55), Color = color, Material = Enum.Material.Neon, Transparency = 0.15,
+		CFrame = CFrame.new(0, 0.7, 0) })
+	part(model, { Name = "Neck", Size = Vector3.new(0.7, 0.7, 0.7), Color = RGB(220, 245, 255), Material = Enum.Material.Glass,
+		Transparency = 0.4, CFrame = CFrame.new(0, 2.1, 0) })
+	part(model, { Name = "Cork", Size = Vector3.new(0.6, 0.5, 0.6), Color = RGB(160, 115, 70), Material = Enum.Material.Wood, CFrame = CFrame.new(0, 2.65, 0) })
+	part(model, { Name = "Shine", Size = Vector3.new(0.2, 0.9, 0.1), Color = RGB(255, 255, 255), Material = Enum.Material.Neon,
+		CFrame = CFrame.new(-0.5, 1.1, -0.92) })
+	return model
+end
+
+-- Corona (icono del pase VIP).
+function GearModels.Crown(): Model
+	local model = Instance.new("Model")
+	model.Name = "Crown"
+	local band = part(model, { Name = "Band", Size = Vector3.new(2.6, 0.8, 2.6), Color = RGB(255, 200, 50), Reflectance = 0.2, CFrame = CFrame.new() })
+	model.PrimaryPart = band
+	for i = 0, 3 do
+		local a = i * math.pi / 2
+		local p = Vector3.new(math.sin(a) * 1.05, 0.9, math.cos(a) * 1.05)
+		part(model, { Name = "Spike", Size = Vector3.new(0.6, 1.1, 0.6), Color = RGB(255, 200, 50), Reflectance = 0.2, CFrame = CFrame.new(p) })
+		part(model, { Name = "Jewel", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.45, Color = if i % 2 == 0 then RGB(255, 60, 90) else RGB(70, 170, 255),
+			Material = Enum.Material.Neon, CFrame = CFrame.new(p * Vector3.new(1.2, 0, 1.2) + Vector3.new(0, 0, 0)) })
+	end
 	return model
 end
 

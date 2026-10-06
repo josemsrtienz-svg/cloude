@@ -22,6 +22,7 @@ local Inventory = require(Root.Shared.Inventory)
 local PlayerData = require(script.Parent.PlayerData)
 local GearService = require(script.Parent.GearService)
 local FishingService = require(script.Parent.FishingService)
+local BoostService = require(script.Parent.BoostService)
 
 local EconomyService = {}
 
@@ -68,9 +69,10 @@ local function onSellCatch(player: Player, data: any, catchId: any): any
 		return fail("Recógelo de tu parcela antes de venderlo")
 	end
 	data.Catches[catchId] = nil
-	data.MemeCoin += c.Value
+	local earned = math.floor(c.Value * BoostService.Money(player)) -- boost ×2 dinero / pase VIP
+	data.MemeCoin += earned
 	PlayerData.Push(player)
-	return { ok = true, Earned = c.Value }
+	return { ok = true, Earned = earned }
 end
 
 local function onSellAll(player: Player, data: any): any
@@ -87,6 +89,7 @@ local function onSellAll(player: Player, data: any): any
 	if count == 0 then
 		return fail("No hay nada que vender (los épicos, dorados e imposibles se venden a mano)")
 	end
+	earned = math.floor(earned * BoostService.Money(player))
 	data.MemeCoin += earned
 	PlayerData.Push(player)
 	return { ok = true, Earned = earned, Count = count }

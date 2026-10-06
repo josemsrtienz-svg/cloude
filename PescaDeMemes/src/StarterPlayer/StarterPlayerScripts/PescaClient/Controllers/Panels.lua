@@ -9,6 +9,7 @@
 
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
+local MarketplaceService = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
@@ -18,6 +19,8 @@ local Rods = require(Root.Config.Rods)
 local FishMath = require(Root.Shared.FishMath)
 local Util = require(Root.Shared.Util)
 local Inventory = require(Root.Shared.Inventory)
+local Boosts = require(Root.Config.Boosts)
+local Monetization = require(Root.Config.Monetization)
 local GearModels = require(Root.Shared.GearModels)
 
 local Controllers = script.Parent
@@ -177,12 +180,21 @@ end
 -- Diseño: pestañas a la izquierda · cartas con FOTO 3D en el centro · vista previa grande que gira a la
 -- derecha con barras de estadísticas y el botón de acción (comprar / equipar / reparar).
 
+-- Dos modos: la tienda del HUD (botón Tienda) solo vende lo básico; la GRAN TIENDA física (ir hasta ella)
+-- tiene además boosts, pases de Robux y muelles. Full = solo en la tienda física.
 local SHOP_TABS = {
 	{ Id = "Rods", Text = "🎣 Cañas", Color = RGB(255, 170, 40) },
 	{ Id = "Packs", Text = "🐠 Mochilas", Color = RGB(70, 170, 255) },
 	{ Id = "Items", Text = "🧵 Objetos", Color = RGB(255, 90, 150) },
-	{ Id = "Skins", Text = "✨ Muelles", Color = RGB(185, 90, 255) },
+	{ Id = "Boosts", Text = "⚡ Boosts", Color = RGB(90, 220, 90), Full = true },
+	{ Id = "Robux", Text = "💎 Robux", Color = RGB(120, 60, 200), Full = true },
+	{ Id = "Skins", Text = "✨ Muelles", Color = RGB(185, 90, 255), Full = true },
 }
+local shopFull = false
+local SHOP_TABS_BY_ID: { [string]: any } = {}
+for _, tab in ipairs(SHOP_TABS) do
+	SHOP_TABS_BY_ID[tab.Id] = tab
+end
 -- Teaser de la próxima actualización: skins de parcela/muelle con suerte y multiplicador
 local SKIN_PREVIEWS = {
 	{ Name = "Muelle Pirata", Desc = "Barco hundido, cofres y banderas. +10 % suerte.", Color = RGB(150, 104, 66) },
@@ -190,7 +202,16 @@ local SKIN_PREVIEWS = {
 	{ Name = "Muelle Dorado", Desc = "Todo de oro. +25 % suerte y ×1.5 dinero. Evento.", Color = RGB(255, 200, 50) },
 }
 local shopTab = "Rods"
-local shopSelected: { [string]: number } = { Rods = 1, Packs = 1, Items = 1, Skins = 1 }
+local shopSelected: { [string]: number } = { Rods = 1, Packs = 1, Items = 1, Boosts = 1, Robux = 1, Skins = 1 }
+
+local function passModel(key: string): Model
+	if key == "VIP" then
+		return GearModels.Crown()
+	elseif key == "ExtraHook" then
+		return GearModels.Rod(Rods.List[4])
+	end
+	return GearModels.Potion(RGB(80, 200, 255))
+end
 
 type ShopEntry = {
 	Name: string,
@@ -199,6 +220,7 @@ type ShopEntry = {
 	Desc: string,
 	Price: string,
 	Tag: string?, -- "EQUIPADA", "ROTA", "TUYA"…
+	Angle: number?, -- giro de la foto 3D (por defecto según la pestaña)
 	TagColor: Color3?,
 	Stats: { { Name: string, Value: number, Text: string } }?,
 	Action: { Text: string, Color: Color3, Run: (() -> ())? }?,
@@ -287,6 +309,69 @@ local function shopEntries(data: any): { ShopEntry }
 				call("BuyItem", "🧵 +1 Sedal Reforzado", item.Id)
 			end },
 		})
+	elseif shopTab == "Boosts" then
+		local player = Players.LocalPlayer
+		local freeId = player:GetAttribute("FreeBoost")
+		local free = Boosts.Get(freeId)
+		if free then
+			table.insert(list, {
+				Name = "🎁 " .. free.Name .. " GRATIS", Color = free.Color, Desc = "¡Tu regalo! También lo recoges en el pedestal del regalo. " .. free.Description,
+				Model = function()
+					return GearModels.Potion(free.Color)
+				end,
+				Price = "GRATIS", Tag = "🎁", TagColor = T.Success,
+				Stats = { { Name = "Duración", Value = free.Duration / 600, Text = ("%d min"):format(free.Duration // 60) } },
+				Action = { Text = "🎁 Recoger GRATIS", Color = T.Success, Run = function()
+					local r = call("ClaimFreeBoost", nil)
+					if r.ok then
+						HUD.Toast(("🎁 ¡%s activado!"):format(r.Name or "Boost"), "Success")
+						UIKit.playSound("Coins")
+					end
+				end },
+			})
+		end
+		local now = workspace:GetServerTimeNow()
+		for _, id in ipairs(Boosts.Order) do
+			local boost = Boosts.List[id]
+			local untilTime = data.Boosts and data.Boosts[id]
+			local isActive = type(untilTime) == "number" and untilTime > now
+			table.insert(list, {
+				Name = boost.Name, Color = boost.Color, Desc = boost.Description .. " Si ya lo tienes, suma tiempo.",
+				Model = function()
+					return GearModels.Potion(boost.Color)
+				end,
+				Price = "🪙 " .. Util.formatShort(boost.Price), Tag = if isActive then "ACTIVO" else nil, TagColor = T.Success,
+				Stats = { { Name = "Duración", Value = boost.Duration / 600, Text = ("%d min"):format(boost.Duration // 60) },
+					{ Name = "Efecto", Value = (boost.Multiplier - 1), Text = "×" .. boost.Multiplier } },
+				Action = { Text = "Comprar 🪙 " .. Util.formatShort(boost.Price), Color = can(boost.Price), Run = function()
+					call("BuyBoost", "⚡ ¡" .. boost.Name .. " activado!", boost.Id)
+				end },
+			})
+		end
+	elseif shopTab == "Robux" then
+		local player = Players.LocalPlayer
+		for _, pass in ipairs(Monetization.GamePasses) do
+			local owned = player:GetAttribute("Pass_" .. pass.Key) == true
+			local action
+			if owned then
+				action = { Text = "✅ Ya es tuyo", Color = T.PanelDark }
+			elseif pass.Id > 0 then
+				action = { Text = "💎 R$ " .. pass.Robux, Color = RGB(120, 60, 200), Run = function()
+					MarketplaceService:PromptGamePassPurchase(player, pass.Id)
+				end }
+			else
+				action = { Text = "🔒 Próximamente", Color = T.PanelDark }
+			end
+			table.insert(list, {
+				Name = pass.Name, Color = pass.Color, Desc = pass.Description .. " Pase para siempre (Game Pass).",
+				Model = function()
+					return passModel(pass.Key)
+				end,
+				Angle = if pass.Key == "ExtraHook" then 80 else 25,
+				Price = if owned then "" else "R$ " .. pass.Robux, Tag = if owned then "✅ TUYO" else nil, TagColor = T.Success,
+				Action = action,
+			})
+		end
 	else
 		for _, skin in ipairs(SKIN_PREVIEWS) do
 			table.insert(list, {
@@ -324,7 +409,17 @@ local function renderShop()
 	-- pestañas
 	local tabs = UIKit.new("Frame", { Name = "Tabs", Size = UDim2.new(0, 150, 1, 0), BackgroundTransparency = 1, Parent = body })
 	UIKit.list(tabs, Enum.FillDirection.Vertical, 8)
+	if not shopFull and SHOP_TABS_BY_ID[shopTab] and SHOP_TABS_BY_ID[shopTab].Full then
+		shopTab = "Rods"
+	end
+	local title = p.Frame:FindFirstChild("Title", true) :: TextLabel?
+	if title then
+		title.Text = if shopFull then "🛒 GRAN TIENDA" else "🛒 TIENDA"
+	end
 	for i, tab in ipairs(SHOP_TABS) do
+		if tab.Full and not shopFull then
+			continue
+		end
 		local active = tab.Id == shopTab
 		local b = UIKit.button({ LayoutOrder = i, Size = UDim2.new(1, -6, 0, 52), Parent = tabs },
 			{ Color = if active then tab.Color else T.PanelLight, Text = tab.Text, TextSize = 22, StrokeThickness = if active then 4 else 3 })
@@ -332,6 +427,12 @@ local function renderShop()
 			shopTab = tab.Id
 			renderShop()
 		end)
+	end
+
+	if not shopFull then
+		-- la tienda del HUD invita a ir a la física, que es donde está todo
+		UIKit.label({ LayoutOrder = 99, Text = "⚡ Boosts, 💎 Robux y ✨ muelles: ve a la GRAN TIENDA (entrada del mapa)",
+			Size = UDim2.new(1, -6, 0, 70), Font = T.Font, TextColor3 = T.Coin, Parent = tabs }, { MaxSize = 15 })
 	end
 
 	local entries = shopEntries(data)
@@ -351,7 +452,7 @@ local function renderShop()
 		UIKit.corner(card, 12)
 		UIKit.stroke(card, if isSel then 4 else 3, if isSel then T.Primary else e.Color)
 		UIKit.modelIcon(e.Model(), e.Color, { Size = UDim2.new(1, -12, 0, 96), Position = UDim2.fromOffset(6, 6), Parent = card },
-			{ Angle = if shopTab == "Rods" then 80 elseif shopTab == "Packs" then 160 else 25, Zoom = 1.25 })
+			{ Angle = e.Angle or (if shopTab == "Rods" then 80 elseif shopTab == "Packs" then 160 else 25), Zoom = 1.25 })
 		UIKit.label({ Text = e.Name, Size = UDim2.new(1, -8, 0, 22), Position = UDim2.fromOffset(4, 106), Font = T.FontTitle,
 			Parent = card }, { Stroke = 2, MaxSize = 16 })
 		UIKit.label({ Text = if e.Price ~= "" then e.Price else (e.Tag or ""), Size = UDim2.new(1, -8, 0, 22), Position = UDim2.fromOffset(4, 132),
@@ -504,8 +605,13 @@ function Panels.Signature(name: string): string
 			table.insert(broken, id)
 		end
 		table.sort(broken)
+		for _, id in ipairs(Boosts.Order) do
+			table.insert(affordable, if data.MemeCoin >= Boosts.List[id].Price then "1" else "0")
+			local untilTime = data.Boosts and data.Boosts[id]
+			table.insert(affordable, if type(untilTime) == "number" and untilTime > workspace:GetServerTimeNow() then "A" else "-")
+		end
 		return table.concat(rods, ",") .. "|" .. data.EquippedRod .. "|" .. tostring(data.Items.SedalReforzado) .. "|" .. table.concat(affordable)
-			.. "|" .. table.concat(broken, ",") .. "|" .. tostring(data.AquariumTier)
+			.. "|" .. table.concat(broken, ",") .. "|" .. tostring(data.AquariumTier) .. "|" .. tostring(Players.LocalPlayer:GetAttribute("FreeBoost"))
 	elseif name == "Bestiary" then
 		local parts = {}
 		for id, entry in pairs(data.Discovered) do
@@ -536,6 +642,19 @@ function Panels.Open(name: string)
 	p.Render()
 	p.Frame.Visible = true
 	UIKit.pop(p.Frame, 0.85)
+end
+
+-- full = GRAN TIENDA física (todas las pestañas); tab = pestaña inicial opcional.
+function Panels.OpenShop(full: boolean, tab: string?)
+	shopFull = full
+	if tab then
+		shopTab = tab
+	end
+	if openName == "Shop" then
+		panels.Shop.Render() -- ya abierta: cambia de modo sin cerrarse
+		return
+	end
+	Panels.Open("Shop")
 end
 
 function Panels.Close()
@@ -576,7 +695,18 @@ function Panels.Init()
 	makePanel("Shop", "🛒 TIENDA", RGB(60, 200, 80), nil, renderShop, nil, Vector2.new(900, 560))
 	makePanel("Bestiary", "📖 ÍNDICE", RGB(40, 170, 255), Vector2.new(330, 140), renderBestiary)
 
-	HUD.ButtonPressed:Connect(Panels.Open)
+	HUD.ButtonPressed:Connect(function(name)
+		if name == "Shop" then
+			Panels.OpenShop(false)
+		else
+			Panels.Open(name)
+		end
+	end)
+	Players.LocalPlayer.AttributeChanged:Connect(function(attr)
+		if openName == "Shop" and (attr == "FreeBoost" or string.sub(attr, 1, 5) == "Pass_") then
+			panels.Shop.Render()
+		end
+	end)
 	Players.LocalPlayer:GetAttributeChangedSignal("PlotBank"):Connect(function()
 		if openName == "Plot" then
 			panels.Plot.Render()
@@ -584,7 +714,15 @@ function Panels.Init()
 	end)
 	ProximityPromptService.PromptTriggered:Connect(function(prompt)
 		if prompt.Name == "ShopPrompt" then
-			Panels.Open("Shop")
+			Panels.OpenShop(true)
+		elseif prompt.Name == "VipPrompt" then
+			Panels.OpenShop(true, "Robux")
+		elseif prompt.Name == "GiftPrompt" then
+			local r = call("ClaimFreeBoost", nil)
+			if r.ok then
+				HUD.Toast(("🎁 ¡%s activado!"):format(r.Name or "Boost"), "Success")
+				UIKit.playSound("Coins")
+			end
 		end
 	end)
 

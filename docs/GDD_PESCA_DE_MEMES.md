@@ -4,7 +4,7 @@
 PROJECT: Pesca de Memes (nombre provisional)
 STATUS: Prototipo
 CURRENT_PHASE: FASE 2 — PROTOTIPO (P0)
-GAME_VERSION: P0 0.4 (carpeta PescaDeMemes/) — estado detallado y fases en GAME_STATE.md
+GAME_VERSION: P0 0.5 (carpeta PescaDeMemes/) — estado detallado y fases en GAME_STATE.md
 CORE_LOOP_STATUS: Implementado (click → inmersión guiando el anzuelo → peso/capacidad + tirones → mochila → parcela); falta probar con jugadores
 MAP_STATUS: Mapa "en fila" estilo steal: río central ancho (80 studs), 4 parcelas por lado con muelle propio, casillas con studs
 SYSTEMS_STATUS: PlayerData (schema v3), GearService, FishingService, PlotService, EconomyService
@@ -160,6 +160,18 @@ Inspirado en el principio de Steal a Egg ("tu base es tuya y se ve"), con aplica
   con barras de Capacidad / Profundidad / Anzuelos / Suerte. Pestaña Muelles = teaser de las skins de parcela.
 - **Animaciones:** latigazo del brazo al lanzar, chapuzón con gotas, memes nadando y balanceándose, sedal que sube,
   memes que saltan del agua a tu mochila, memes de la parcela botando, lluvia de monedas al cobrar, dinero que cuenta.
+
+## 5e. Cambios v0.5 (tras probar la v0.4: sin errores)
+- **Rarezas:** Común → Poco común → Raro → Épico → Mítico → Legendario → Secreto → **Dios** (solo eventos).
+- **6 memes nuevos con efectos** (partículas, luz, aura arcoíris en los secretos): Gato Pop, Plátano Bailarín,
+  Hámster Dramático (míticos) · Tiburón Zapatillero, Capibara Zen, Cocodrilo Aviador (secretos).
+- **Capas de profundidad** en vez de zonas separadas: cada meme tiene `MinDepth`; lo difícil vive en el fondo.
+- **Gran Tienda física** = destino del mapa: tendero animado, puesto VIP (Robux), pedestal del **boost gratis**
+  (reloj aleatorio por jugador, 9–20 min). La tienda del HUD solo vende Cañas/Mochilas/Objetos.
+- **Boosts** (Dinero ×2, Suerte ×1.5, 5 min) y **Game Passes** configurables (VIP, Suerte Eterna, +1 Anzuelo).
+- **Mapa con vida:** peces que saltan, delfines, patos, gaviotas, árboles de bloques, flores, bancos.
+- **Cara del jugador** (avatar) sobre el cartel de su parcela.
+- **Modo prueba** (solo Studio): dinero infinito y no se guarda. Se apaga antes de publicar.
 
 ## 6. Pescadores Furtivos (el toque social)
 Para tener tensión social **sin** convertirlo en un clon de "steal":

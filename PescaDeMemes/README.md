@@ -37,7 +37,11 @@ rojo build default.project.json -o PescaDeMemes.rbxlx
 6. Se sube al llenar los anzuelos, al tocar el fondo o con **SUBIR (E)**. Los memes saltan a tu **mochila-acuario**.
 7. Vuelve a tu parcela: **al entrar se colocan solos** en el césped y generan MemeCoins en el **círculo verde**
    (písalo para cobrar). "Recoger" junto a un meme lo devuelve al acuario.
-8. **Tienda** (entrada del mapa): cañas (más kg, anzuelos y profundidad), **reparar**, mochilas más grandes y Sedal Reforzado.
+8. **Tienda:** el botón del HUD vende cañas, mochilas y objetos. La **GRAN TIENDA** (entrada del mapa) tiene además
+   **⚡ boosts** (Dinero ×2, Suerte ×1.5), **💎 pases de Robux** y el **🎁 boost gratis** que te sale de vez en cuando.
+
+> 🧪 **Modo prueba:** en Studio empiezas con dinero infinito y la sesión NO se guarda (`GameConfig.DevMode`).
+> Apágalo (`Enabled = false`) para probar el guardado y siempre antes de publicar.
 
 Estado y fases del proyecto: [`docs/GAME_STATE.md`](../docs/GAME_STATE.md).
 
