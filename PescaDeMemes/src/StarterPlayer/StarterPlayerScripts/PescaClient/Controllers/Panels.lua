@@ -2,15 +2,12 @@
 	PescaDeMemes • Panels (ModuleScript, cliente)
 	StarterPlayerScripts > PescaClient > Controllers > Panels
 
-	Paneles modales: 🎒 Mochila · 🐠 Acuario · 🛒 Tienda · 📖 Bestiario.
-	Se abren con los botones del HUD o con los ProximityPrompt del mundo (tienda y acuario).
-	También pinta, solo para ti, tus memes nadando dentro del acuario del mapa.
+	Paneles modales: 🎒 Mochila · 🏠 Parcela · 🛒 Tienda · 📖 Bestiario.
+	Se abren con los botones del HUD o con el ProximityPrompt de la tienda.
 ]]
 
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
@@ -19,6 +16,7 @@ local Memes = require(Root.Config.Memes)
 local Rods = require(Root.Config.Rods)
 local FishMath = require(Root.Shared.FishMath)
 local Util = require(Root.Shared.Util)
+local Inventory = require(Root.Shared.Inventory)
 
 local Controllers = script.Parent
 local UIKit = require(Controllers.UIKit)
@@ -105,9 +103,9 @@ local function catchOptions(catch: any)
 		local b = UIKit.button({ LayoutOrder = order, Size = UDim2.new(1, 0, 0, 44), ZIndex = 12, Parent = list }, { Color = color, Text = text, TextSize = 22 })
 		b.Activated:Connect(fn)
 	end
-	opt("🐠 Poner en el acuario", T.Accent, 1, function()
-		if call("PlaceInAquarium", "🐠 ¡Al acuario!", catch.Id).ok then
-			box:Destroy()
+	opt("🏠 Llevar a mi parcela", T.Accent, 1, function()
+		if call("CarryCatch", "🏠 ¡Llévalo a un pedestal de tu parcela!", catch.Id).ok then
+			Panels.Close()
 		end
 	end)
 	opt(("💰 Vender por %s"):format(Util.formatNumber(catch.Value)), T.Primary, 2, function()
@@ -139,35 +137,35 @@ local function renderBackpack()
 	end
 end
 
--- ===== Acuario =====
-local function renderAquarium()
-	local p = panels.Aquarium
+-- ===== Parcela =====
+local function renderPlot()
+	local p = panels.Plot
 	local data = State.Data
 	local grid = p.Content:FindFirstChild("Grid") :: ScrollingFrame
 	clear(grid)
 	if not data then
 		return
 	end
-	local perMinute = 0
-	for slot = 1, GameConfig.AquariumSlots do
-		local id = data.Aquarium[slot]
+	for slot = 1, GameConfig.PlotSlots do
+		local id = data.Plot[slot]
 		local catch = id ~= "" and data.Catches[id]
 		if catch then
-			perMinute += catch.Value * GameConfig.AquariumIncomeRate
 			local tile = catchTile(grid, catch, slot)
-			UIKit.label({ Text = "Toca para sacar", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -2), Size = UDim2.new(1, -8, 0, 14),
+			UIKit.label({ Text = "Pedestal " .. slot, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -2), Size = UDim2.new(1, -8, 0, 14),
 				Font = T.FontBody, TextColor3 = T.TextDim, Parent = tile }, { Stroke = false, MaxSize = 12 })
 			tile.Activated:Connect(function()
-				call("RemoveFromAquarium", "🎒 Vuelve a la mochila", slot)
+				HUD.Toast("Para moverlo, ve a tu parcela y pulsa \"Recoger\" en su pedestal", "Info")
 			end)
 		else
 			local empty = UIKit.new("Frame", { LayoutOrder = slot, BackgroundColor3 = T.PanelDark, Parent = grid })
 			UIKit.corner(empty, 12)
 			UIKit.stroke(empty, 3, T.PanelLight)
-			UIKit.label({ Text = "Hueco libre\n➕", Size = UDim2.fromScale(1, 1), Font = T.Font, TextColor3 = T.TextDim, Parent = empty }, { MaxSize = 20 })
+			UIKit.label({ Text = ("Pedestal %d\nlibre"):format(slot), Size = UDim2.fromScale(1, 1), Font = T.Font, TextColor3 = T.TextDim, Parent = empty }, { MaxSize = 20 })
 		end
 	end
-	p.Content.Count.Text = ("Genera 🪙 %s / min  (mientras no estás, la mitad)"):format(Util.formatNumber(math.floor(perMinute + 0.5)))
+	local bank = Players.LocalPlayer:GetAttribute("PlotBank")
+	p.Content.Count.Text = ("🪙 %s · Cobrador: 🪙 %s"):format(Inventory.FormatIncome(Inventory.PlotIncomePerMinute(data, GameConfig.PlotIncomeRate)),
+		Util.formatNumber(if type(bank) == "number" then bank else data.PlotBank or 0))
 end
 
 -- ===== Tienda =====
@@ -302,11 +300,11 @@ function Panels.Signature(name: string): string
 	end
 	table.sort(ids)
 	local catches = table.concat(ids, ",")
-	local aquarium = table.concat(data.Aquarium, ",")
+	local plot = table.concat(data.Plot, ",")
 	if name == "Backpack" then
-		return catches .. "|" .. aquarium
-	elseif name == "Aquarium" then
-		return aquarium
+		return catches .. "|" .. plot
+	elseif name == "Plot" then
+		return plot .. "|" .. tostring(Players.LocalPlayer:GetAttribute("PlotBank"))
 	elseif name == "Shop" then
 		local rods = {}
 		for id in pairs(data.Rods) do
@@ -364,54 +362,6 @@ function Panels.Close()
 	openName = nil
 end
 
--- ===== Tus memes nadando en el acuario del mapa (solo los ves tú) =====
-local swimmers: { { Part: BasePart, Phase: number, Speed: number } } = {}
-local tankSignature = ""
-local function refreshTank()
-	local data = State.Data
-	local signature = data and table.concat(data.Aquarium, ",") or ""
-	if signature == tankSignature and #swimmers > 0 then
-		return
-	end
-	tankSignature = signature
-	for _, s in ipairs(swimmers) do
-		s.Part:Destroy()
-	end
-	table.clear(swimmers)
-	local map = Workspace:FindFirstChild("Map")
-	local water = map and map:FindFirstChild("Aquarium") and map.Aquarium:FindFirstChild("AquariumWater") :: BasePart?
-	if not water or not data then
-		return
-	end
-	for slot, id in ipairs(data.Aquarium) do
-		local catch = id ~= "" and data.Catches[id]
-		local meme = catch and Memes.Get(catch.MemeId)
-		if meme then
-			local holder = UIKit.new("Part", { Name = "Swimmer", Size = Vector3.one * 0.2, Transparency = 1, Anchored = true, CanCollide = false,
-				CanQuery = false, CanTouch = false, CFrame = water.CFrame, Parent = water })
-			local bb = UIKit.new("BillboardGui", { Size = UDim2.fromScale(2.4, 2.4), LightInfluence = 0, MaxDistance = 120, Parent = holder })
-			UIKit.label({ Text = meme.Emoji, Size = UDim2.fromScale(1, 1), Parent = bb }, { Stroke = false })
-			table.insert(swimmers, { Part = holder, Phase = slot * 1.3, Speed = 0.4 + (slot % 3) * 0.15 })
-		end
-	end
-end
-
-local function animateTank()
-	local map = Workspace:FindFirstChild("Map")
-	local water = map and map:FindFirstChild("Aquarium") and map.Aquarium:FindFirstChild("AquariumWater") :: BasePart?
-	if not water or #swimmers == 0 then
-		return
-	end
-	local t = os.clock()
-	local half = water.Size / 2
-	for i, s in ipairs(swimmers) do
-		local x = math.sin(t * s.Speed + s.Phase) * (half.X - 1.2)
-		local y = math.sin(t * 0.7 + i) * (half.Y - 1.5)
-		local z = math.cos(t * s.Speed * 0.8 + s.Phase) * (half.Z - 0.8)
-		s.Part.CFrame = water.CFrame * CFrame.new(x, y, z)
-	end
-end
-
 function Panels.Init()
 	gui = UIKit.new("ScreenGui", { Name = "PescaPanels", ResetOnSpawn = false, DisplayOrder = 10,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling, Parent = Players.LocalPlayer:WaitForChild("PlayerGui") })
@@ -426,16 +376,27 @@ function Panels.Init()
 			end
 		end)
 	end)
-	makePanel("Aquarium", "🐠 TU ACUARIO", T.Accent, Vector2.new(140, 150), renderAquarium)
+	makePanel("Plot", "🏠 TU PARCELA", T.Accent, Vector2.new(140, 150), renderPlot, function(content)
+		local home = UIKit.button({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, -2), Size = UDim2.fromOffset(190, 36),
+			Parent = content }, { Color = T.Success, Text = "🏠 Ir a mi parcela", TextSize = 18 })
+		home.Activated:Connect(function()
+			if call("GoHome", nil).ok then
+				Panels.Close()
+			end
+		end)
+	end)
 	makePanel("Shop", "🛒 CAÑAS & CEBOS", T.Secondary, Vector2.new(220, 170), renderShop)
 	makePanel("Bestiary", "📖 BESTIARIO", T.Success, Vector2.new(330, 140), renderBestiary)
 
 	HUD.ButtonPressed:Connect(Panels.Open)
+	Players.LocalPlayer:GetAttributeChangedSignal("PlotBank"):Connect(function()
+		if openName == "Plot" then
+			panels.Plot.Render()
+		end
+	end)
 	ProximityPromptService.PromptTriggered:Connect(function(prompt)
 		if prompt.Name == "ShopPrompt" then
 			Panels.Open("Shop")
-		elseif prompt.Name == "AquariumPrompt" then
-			Panels.Open("Aquarium")
 		end
 	end)
 
@@ -451,10 +412,7 @@ function Panels.Init()
 				p.Content.Count.Text = ("Tienes 🪙 %s"):format(Util.formatNumber(State.Data.MemeCoin))
 			end
 		end
-		refreshTank()
 	end)
-	refreshTank()
-	RunService.RenderStepped:Connect(animateTank)
 end
 
 return Panels

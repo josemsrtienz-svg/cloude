@@ -4,7 +4,7 @@
 
 	Lo que siempre está en pantalla:
 	  · MemeCoins y nivel/XP (arriba a la izquierda)
-	  · Botones de paneles (derecha): Mochila, Acuario, Tienda, Bestiario
+	  · Botones de paneles (derecha): Mochila, Parcela, Tienda, Bestiario
 	  · Avisos (toasts) y anuncios de capturas épicas de otros jugadores
 ]]
 
@@ -121,7 +121,7 @@ function HUD.Init()
 	UIKit.list(column, Enum.FillDirection.Vertical, 10)
 	local buttons = {
 		{ "Backpack", "🎒", "Mochila", T.Primary },
-		{ "Aquarium", "🐠", "Acuario", T.Accent },
+		{ "Plot", "🏠", "Parcela", T.Accent },
 		{ "Shop", "🛒", "Tienda", T.Secondary },
 		{ "Bestiary", "📖", "Bestiario", T.Success },
 	}

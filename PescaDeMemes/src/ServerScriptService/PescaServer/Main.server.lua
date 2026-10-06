@@ -21,8 +21,8 @@ if not ok then
 	warn("[PescaDeMemes] Error construyendo el mapa: " .. tostring(err))
 end
 
--- 2) Sistemas (el orden importa: datos → pesca → economía)
-local order = { "PlayerData", "FishingService", "EconomyService" }
+-- 2) Sistemas (el orden importa: datos → pesca → parcelas → economía)
+local order = { "PlayerData", "FishingService", "PlotService", "EconomyService" }
 for _, name in ipairs(order) do
 	local okInit, errInit = pcall(function()
 		require(Systems[name]).Init()

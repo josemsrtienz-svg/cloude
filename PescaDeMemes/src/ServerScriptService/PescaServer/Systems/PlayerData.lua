@@ -44,7 +44,13 @@ local pendingSaves = 0
 local store: DataStore? = nil
 
 local MIGRATIONS: { [number]: (any) -> any } = {
-	-- [1] = function(data) ... return data end, -- de la versión 1 a la 2
+	-- 1 → 2: el acuario (6 huecos) pasa a ser la parcela (8 pedestales) con su cobrador
+	[1] = function(data)
+		data.Plot = type(data.Aquarium) == "table" and data.Aquarium or {}
+		data.Aquarium = nil
+		data.PlotBank = 0
+		return data
+	end,
 }
 
 local function migrate(data: any): any
@@ -90,17 +96,18 @@ local function sanitize(data: any): any
 	end
 	data.Catches = catches
 
-	local aquarium, seen = {}, {}
-	for slot = 1, GameConfig.AquariumSlots do
-		local id = type(data.Aquarium) == "table" and data.Aquarium[slot] or ""
+	local plot, seen = {}, {}
+	for slot = 1, GameConfig.PlotSlots do
+		local id = type(data.Plot) == "table" and data.Plot[slot] or ""
 		if type(id) == "string" and catches[id] and not seen[id] then
-			aquarium[slot] = id
+			plot[slot] = id
 			seen[id] = true
 		else
-			aquarium[slot] = ""
+			plot[slot] = ""
 		end
 	end
-	data.Aquarium = aquarium
+	data.Plot = plot
+	data.PlotBank = math.max(0, math.floor(tonumber(data.PlotBank) or 0))
 
 	local rods = { Palo = true }
 	if type(data.Rods) == "table" then

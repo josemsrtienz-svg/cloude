@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local Remotes = require(Root.Shared.Remotes)
 local Util = require(Root.Shared.Util)
+local Inventory = require(Root.Shared.Inventory)
 
 local State = {}
 State.Data = nil :: any
@@ -32,29 +33,9 @@ function State.Init()
 	end)
 end
 
--- Capturas que no están en el acuario, ordenadas de más a menos valiosas.
+-- Capturas de la mochila (no puestas en la parcela), de más a menos valiosas.
 function State.Backpack(): { any }
-	local data = State.Data
-	if not data then
-		return {}
-	end
-	local inAquarium = {}
-	for _, id in ipairs(data.Aquarium) do
-		inAquarium[id] = true
-	end
-	local list = {}
-	for id, c in pairs(data.Catches) do
-		if not inAquarium[id] then
-			table.insert(list, c)
-		end
-	end
-	table.sort(list, function(a, b)
-		if a.Value ~= b.Value then
-			return a.Value > b.Value
-		end
-		return a.Time > b.Time
-	end)
-	return list
+	return if State.Data then Inventory.Backpack(State.Data) else {}
 end
 
 -- Llama a una RemoteFunction y devuelve su resultado; si falla, devuelve { ok = false }.

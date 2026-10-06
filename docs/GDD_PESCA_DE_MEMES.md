@@ -6,8 +6,8 @@ STATUS: Prototipo
 CURRENT_PHASE: FASE 2 — PROTOTIPO (P0)
 GAME_VERSION: P0 0.1 (carpeta PescaDeMemes/)
 CORE_LOOP_STATUS: Implementado (pesca + peso/capacidad + tirones + acuario + tienda); falta probar con jugadores
-MAP_STATUS: Zona 1 "Charca del Noob" por script (WorldBuilder)
-SYSTEMS_STATUS: PlayerData, FishingService, EconomyService
+MAP_STATUS: Charca del Noob + 8 PARCELAS alrededor (una por jugador, con muelle privado) por script
+SYSTEMS_STATUS: PlayerData (schema v2), FishingService, PlotService, EconomyService
 UI_STATUS: HUD, minijuego, tarjeta de captura, mochila, acuario, tienda, bestiario
 DATA_STATUS: Schema v1 con session lock y migraciones
 SECURITY_STATUS: Servidor decide capturas/valores; riesgo conocido: resultado de la pelea lo informa el cliente
@@ -125,6 +125,15 @@ Reutilizamos los 16 memes de `MemeCatalog` como la primera tanda de "peces", rep
 
 - **Fama del acuario:** sube con likes de visitantes y con la colección expuesta → desbloquea decoración y un puesto en el ranking del servidor.
 - **Rebirth (post-MVP):** "Nueva Temporada de Pesca", que reinicia monedas y zonas a cambio de un multiplicador permanente y una caña exclusiva.
+
+## 5b. Parcelas (cambio v0.2, idea del equipo)
+Inspirado en el principio de Steal a Egg ("tu base es tuya y se ve"), con aplicación propia:
+- 8 parcelas alrededor de la charca, mirando al agua, cada una con **su propio muelle** para pescar.
+- Al entrar se te asigna una; apareces en ella y el cartel dice "Parcela de TuNombre".
+- Pescas → **🏠 Llevar** → el meme flota sobre tu cabeza (no puedes pescar mientras) → lo colocas en uno de los **8 pedestales**.
+- Los memes expuestos se ven para todos y generan MemeCoins que se acumulan en el **cobrador** (se cobra pisándolo).
+- Sustituye al acuario (migración de datos v1 → v2 automática).
+- Preparado para el futuro "robo": los pedestales ya tienen prompt; hoy el cliente oculta los de otras parcelas y el servidor rechaza usarlos.
 
 ## 6. Pescadores Furtivos (el toque social)
 Para tener tensión social **sin** convertirlo en un clon de "steal":

@@ -26,6 +26,7 @@ local Rods = require(Root.Config.Rods)
 local Remotes = require(Root.Shared.Remotes)
 local FishMath = require(Root.Shared.FishMath)
 local Util = require(Root.Shared.Util)
+local Inventory = require(Root.Shared.Inventory)
 
 local PlayerData = require(script.Parent.PlayerData)
 
@@ -86,20 +87,6 @@ local function rollWeight(meme: any): number
 	local u = rng:NextNumber() ^ 2.2
 	local w = meme.WeightMin + (meme.WeightMax - meme.WeightMin) * u
 	return math.floor(w * 10 + 0.5) / 10
-end
-
-local function backpackCount(data: any): number
-	local inAquarium = {}
-	for _, id in ipairs(data.Aquarium) do
-		inAquarium[id] = true
-	end
-	local n = 0
-	for id in pairs(data.Catches) do
-		if not inAquarium[id] then
-			n += 1
-		end
-	end
-	return n
 end
 
 local function nearPond(player: Player): boolean
@@ -203,8 +190,12 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 	if not nearPond(player) then
 		return fail("Acércate al agua para pescar")
 	end
-	if backpackCount(data) >= GameConfig.MaxBackpack then
-		return fail("🎒 Mochila llena: vende o pon memes en el acuario")
+	local carrying = player:GetAttribute("Carrying")
+	if type(carrying) == "string" and carrying ~= "" then
+		return fail("🏠 Primero lleva el meme a tu parcela (o guárdalo en la mochila)")
+	end
+	if Inventory.BackpackCount(data) >= GameConfig.MaxBackpack then
+		return fail("🎒 Mochila llena: vende o pon memes en tu parcela")
 	end
 	lastCast[player] = now
 	power = math.clamp(power, 0, 1)
@@ -406,6 +397,16 @@ local function onFinish(player: Player, success: any): any
 	end
 
 	return { ok = true, Catch = Util.deepCopy(catch), FirstTime = firstTime, LevelUp = leveled, XP = xp }
+end
+
+-- Una sesión abandonada (sin Release ni Finish) caduca igual que en onCast.
+function FishingService.IsFishing(player: Player): boolean
+	local session = sessions[player]
+	if session and os.clock() - session.CastAt >= F.SessionTimeout + F.FightTimeout then
+		sessions[player] = nil
+		return false
+	end
+	return session ~= nil
 end
 
 local function onRelease(player: Player): any

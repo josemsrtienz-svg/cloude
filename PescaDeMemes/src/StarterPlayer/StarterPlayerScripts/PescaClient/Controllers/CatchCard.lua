@@ -3,7 +3,7 @@
 	StarterPlayerScripts > PescaClient > Controllers > CatchCard
 
 	Tarjeta que aparece al pescar algo: meme, rareza, peso, tamaño, insignias y valor.
-	Botones: 🐠 Acuario · 💰 Vender · 🎒 Guardar (cada acción la valida el servidor).
+	Botones: 🏠 Llevar a tu parcela · 💰 Vender · 🎒 Guardar (cada acción la valida el servidor).
 ]]
 
 local Players = game:GetService("Players")
@@ -115,15 +115,15 @@ function CatchCard.Show(result: any)
 				HUD.Toast(("💰 +%s MemeCoins"):format(Util.formatNumber(r.Earned or 0)), "Success")
 				UIKit.playSound("Coins")
 			else
-				HUD.Toast("🐠 ¡Al acuario! Ya genera MemeCoins", "Success")
+				HUD.Toast("🏠 ¡Llévalo a un pedestal de tu parcela!", "Success")
 			end
 			close()
 		else
 			HUD.Toast(r.err or "No se pudo", "Error")
 		end
 	end
-	action("🐠 Acuario", T.Accent, 1, function()
-		run("PlaceInAquarium", catch.Id)
+	action("🏠 Llevar", T.Accent, 1, function()
+		run("CarryCatch", catch.Id)
 	end)
 	action("💰 " .. Util.formatNumber(catch.Value), T.Primary, 2, function()
 		run("SellCatch", catch.Id)

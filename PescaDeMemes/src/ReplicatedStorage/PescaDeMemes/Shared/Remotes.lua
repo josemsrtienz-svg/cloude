@@ -27,8 +27,9 @@ Remotes.Definitions = {
 	-- Mochila, acuario y tienda
 	SellCatch = "RemoteFunction",
 	SellAll = "RemoteFunction",
-	PlaceInAquarium = "RemoteFunction",
-	RemoveFromAquarium = "RemoteFunction",
+	CarryCatch = "RemoteFunction", -- (catchId) llevar un meme sobre la cabeza hasta tu parcela
+	DropCarry = "RemoteFunction", -- dejar de llevarlo (vuelve a la mochila)
+	GoHome = "RemoteFunction", -- teletransporte a tu parcela
 	BuyRod = "RemoteFunction",
 	EquipRod = "RemoteFunction",
 	BuyItem = "RemoteFunction",

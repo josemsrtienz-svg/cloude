@@ -574,6 +574,11 @@ local function startCharging()
 	if phase ~= "Idle" or CatchCard.IsOpen() then
 		return
 	end
+	local carrying = player:GetAttribute("Carrying")
+	if type(carrying) == "string" and carrying ~= "" then
+		HUD.Toast("🏠 Primero lleva el meme a tu parcela (o guárdalo en la mochila)", "Warning")
+		return
+	end
 	local _, _, hrp = getCharacter()
 	if not hrp then
 		return
