@@ -237,7 +237,7 @@ function HUD.Init()
 		chip(id, Boosts.List[id].Color, i)
 	end
 	local freeChip = chip("Free", T.Coin, 99)
-	freeChip.Size = UDim2.fromOffset(260, 36)
+	freeChip.Size = UDim2.fromOffset(330, 36)
 	task.spawn(function()
 		while gui.Parent do
 			-- hora del SERVIDOR (los boosts caducan según el reloj del servidor, no el del PC)
@@ -252,12 +252,11 @@ function HUD.Init()
 					c.Text = ("%s %s %d:%02d"):format(Boosts.List[id].Emoji, string.match(Boosts.List[id].Name, "×[%d%.]+") or "", left // 60, left % 60)
 				end
 			end
-			local freeId = player:GetAttribute("FreeBoost")
-			local freeUntil = player:GetAttribute("FreeBoostUntil")
-			freeChip.Visible = Boosts.Get(freeId) ~= nil
+			local available, free, endsAt = Boosts.FreeAvailable(data)
+			freeChip.Visible = available == true
 			if freeChip.Visible then
-				local left = math.max(0, (if type(freeUntil) == "number" then freeUntil else now) - now)
-				freeChip.Text = ("🎁 Boost gratis en la TIENDA %d:%02d"):format(left // 60, left % 60)
+				local left = math.max(0, endsAt - now)
+				freeChip.Text = ("🎁 %s GRATIS en la tienda · %d:%02d"):format(free.Name, left // 60, left % 60)
 				freeChip.TextColor3 = if now % 2 == 0 then T.Coin else T.Text
 			end
 			task.wait(1)

@@ -7,8 +7,8 @@
 	  · Al cobrar tu parcela, una lluvia de monedas sale del cobrador.
 	  · VIDA EN EL RÍO: peces de colores que saltan, delfines que hacen piruetas, una familia de patos
 	    que pasea y gaviotas volando en círculos. Solo cerca de la cámara.
-	  · GRAN TIENDA: el tendero saluda y, si tienes un boost gratis, el regalo gira, brilla y un rastro
-	    verde te lleva hasta él.
+	  · GRAN TIENDA: el tendero saluda, el TABLÓN enseña el boost gratis de la ronda (cambia cada 15 min)
+	    y, si aún no lo has recogido, el regalo gira y brilla.
 ]]
 
 local Players = game:GetService("Players")
@@ -20,9 +20,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local GameConfig = require(Root.Config.GameConfig)
+local Boosts = require(Root.Config.Boosts)
 
 local Controllers = script.Parent
 local UIKit = require(Controllers.UIKit)
+local State = require(Controllers.State)
 
 local Ambience = {}
 
@@ -324,36 +326,15 @@ local function startShop()
 		UIKit.label({ Text = "🎁 ¡TU BOOST GRATIS!", Size = UDim2.fromScale(1, 1), Font = UIKit.Theme.FontTitle, TextColor3 = UIKit.Theme.Success,
 			Parent = tag }, { Stroke = 3 })
 	end
-	-- rastro verde desde el jugador hasta el regalo mientras haya uno esperando
-	local beam: Beam? = nil
-	local beamAtts: { Attachment } = {}
-	local function setGuide(on: boolean)
-		if beam then
-			beam:Destroy()
-			beam = nil
-		end
-		for _, a in ipairs(beamAtts) do
-			a:Destroy()
-		end
-		table.clear(beamAtts)
-		local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-		if on and hrp and pedestal then
-			local a0 = UIKit.new("Attachment", { Position = Vector3.new(0, -2.5, 0), Parent = hrp })
-			local a1 = UIKit.new("Attachment", { Position = Vector3.new(0, 1, 0), Parent = pedestal })
-			beamAtts = { a0, a1 }
-			beam = UIKit.new("Beam", { Attachment0 = a0, Attachment1 = a1, Width0 = 1, Width1 = 1, FaceCamera = true, LightInfluence = 0,
-				Color = ColorSequence.new(UIKit.Theme.Success), Transparency = NumberSequence.new(0.4), Segments = 20, Parent = hrp })
-		end
-	end
+	local boardGui = shop:FindFirstChild("FreeBoard") and (shop :: any).FreeBoard:FindFirstChild("BoardGui", true)
 	local function hasFree(): boolean
-		return player:GetAttribute("FreeBoost") ~= nil
+		return Boosts.FreeAvailable(State.Data) == true
 	end
 	local function refreshFree()
 		local on = hasFree()
 		if tag then
 			tag.Enabled = on
 		end
-		setGuide(on)
 		if not on then
 			for p, base in pairs(giftParts) do
 				p.CFrame = base
@@ -363,7 +344,28 @@ local function startShop()
 			end
 		end
 	end
-	player:GetAttributeChangedSignal("FreeBoost"):Connect(refreshFree)
+	-- el tablón: qué boost toca, cuánto dura, cuándo cambia y si ya lo recogiste (cada segundo)
+	task.spawn(function()
+		local wasFree: boolean? = nil
+		while true do
+			local now = workspace:GetServerTimeNow()
+			local available, boost, endsAt = Boosts.FreeAvailable(State.Data)
+			if boardGui then
+				local left = math.max(0, math.floor(endsAt - now))
+				boardGui.BoostName.Text = boost.Emoji .. " " .. boost.Name
+				boardGui.BoostName.TextColor3 = boost.Color
+				boardGui.Duration.Text = ("Tiempo de uso: %d min"):format(boost.Duration // 60)
+				boardGui.NextIn.Text = ("Nuevo boost en %d:%02d"):format(left // 60, left % 60)
+				boardGui.Status.Text = if available == nil then "Cargando…"
+					elseif available then "👇 ¡Recógelo en el regalo!" else "✅ Ya lo recogiste · espera al siguiente"
+			end
+			if (available == true) ~= wasFree then
+				wasFree = available == true
+				refreshFree()
+			end
+			task.wait(1)
+		end
+	end)
 	player.CharacterAdded:Connect(function()
 		task.wait(0.5)
 		refreshFree()

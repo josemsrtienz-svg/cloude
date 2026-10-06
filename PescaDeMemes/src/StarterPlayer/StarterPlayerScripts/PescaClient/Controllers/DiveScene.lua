@@ -48,6 +48,7 @@ type MemeView = {
 	Height: number,
 	Label: BillboardGui,
 	State: string, -- "free" | "attached" | "gone" | "blocked"
+	Rarity: string,
 	Bob: number,
 	Slot: number,
 }
@@ -89,8 +90,6 @@ end
 
 -- ===== Decorado =====
 
-local WATER_TOP = RGB(70, 190, 230)
-local WATER_DEEP = RGB(10, 40, 95)
 local CORALS = { RGB(255, 110, 170), RGB(190, 90, 255), RGB(255, 200, 60), RGB(255, 140, 90) }
 local WEEDS = { RGB(60, 190, 90), RGB(40, 160, 80), RGB(90, 210, 110) }
 
@@ -138,45 +137,54 @@ local function anchor(parent: Instance, base: Vector3)
 	block(parent, "AnchorFluke", Vector3.new(4, 0.6, 0.6), CFrame.new(base + Vector3.new(0.6, 0.4, 0)) * CFrame.Angles(0, 0, 0.25), c, Enum.Material.Metal)
 end
 
-local function buildDecor(parent: Instance)
+-- Color del agua a una profundidad (m), según las capas de GameConfig.DepthLayers.
+local function waterColor(depth: number): Color3
+	local layer, t = GameConfig.LayerAt(depth)
+	return layer.Top:Lerp(layer.Bottom, t)
+end
+
+-- Planta que brilla (capas con Glow, p. ej. la Fosa Abisal): tallo oscuro y bulbos de neón.
+local function glowPlant(parent: Instance, base: Vector3, color: Color3)
+	local h = rng:NextInteger(3, 6)
+	for k = 0, h - 1 do
+		block(parent, "GlowStem", Vector3.new(0.5, 1, 0.5), CFrame.new(base + Vector3.new(math.sin(k) * 0.3, k + 0.5, 0)), RGB(20, 40, 50))
+	end
+	local bulb = block(parent, "GlowBulb", Vector3.new(1, 1, 1), CFrame.new(base + Vector3.new(0, h + 0.5, 0)), color, Enum.Material.Neon)
+	bulb.Shape = Enum.PartType.Ball
+	if rng:NextNumber() < 0.35 then
+		local light = Instance.new("PointLight")
+		light.Color = color
+		light.Range = 12
+		light.Brightness = 1.5
+		light.Parent = bulb
+	end
+end
+
+-- Lo que no depende de la profundidad: superficie, rayos de luz, fondo de agua por tramos y el suelo final.
+local function buildStatic(parent: Instance)
 	local lane = D.LaneHalfWidth * S
 	local depthStuds = (maxDepth + 2) * S
 	local floorY = ORIGIN.Y - depthStuds
-	-- fondo en franjas: de azul claro a azul marino
-	local bands = 12
-	local bandH = (depthStuds + 30) / bands
-	for k = 0, bands - 1 do
-		local depthFrac = math.clamp((k * bandH) / (60 * S + 30), 0, 1)
-		local color = WATER_TOP:Lerp(WATER_DEEP, depthFrac)
-		block(parent, "Water", Vector3.new(WIDE, bandH + 0.2, 2), CFrame.new(ORIGIN + Vector3.new(0, 10 - (k + 0.5) * bandH, 18)), color)
+	-- fondo de agua en tramos de 25 m con el color de su capa (oscurece al bajar)
+	local step = 25
+	for m = -5, maxDepth + 10, step do
+		block(parent, "Water", Vector3.new(WIDE, step * S + 0.2, 2), CFrame.new(world(0, m + step / 2) + Vector3.new(0, 0, 18)), waterColor(math.max(0, m + step / 2)))
 	end
-	-- superficie vista desde abajo
 	block(parent, "Surface", Vector3.new(WIDE, 1, 70), CFrame.new(ORIGIN + Vector3.new(0, 1.5, -15)), RGB(170, 235, 255), Enum.Material.Glass, 0.25)
-	-- rayos de luz
 	for k = 1, 7 do
 		local x = rng:NextNumber(-lane * 1.6, lane * 1.6)
 		block(parent, "LightRay", Vector3.new(rng:NextNumber(3, 7), 50, 0.2), CFrame.new(ORIGIN + Vector3.new(x, -22, 12 - k * 0.3))
 			* CFrame.Angles(0, 0, math.rad(rng:NextNumber(12, 22))), RGB(220, 250, 255), Enum.Material.Neon, 0.88)
 	end
-	-- suelo de arena
-	block(parent, "Sand", Vector3.new(WIDE, 4, 70), CFrame.new(Vector3.new(ORIGIN.X, floorY - 2, ORIGIN.Z - 15)), RGB(225, 205, 150), Enum.Material.Sand)
-	-- rocas y algas en los laterales, a lo largo de toda la profundidad
-	for _, side in ipairs({ -1, 1 }) do
-		local y = ORIGIN.Y - 4
-		while y > floorY do
-			local w = rng:NextNumber(5, 9)
-			rock(parent, Vector3.new(ORIGIN.X + side * (lane + 3 + w / 2), y, ORIGIN.Z + rng:NextNumber(-2, 6)), Vector3.new(w, rng:NextNumber(4, 7), 6))
-			if rng:NextNumber() < 0.5 then
-				seaweed(parent, Vector3.new(ORIGIN.X + side * (lane + 1.5), y - 2, ORIGIN.Z + 4), rng:NextInteger(3, 6))
-			end
-			y -= rng:NextNumber(5, 8)
-		end
-	end
-	-- fondo: algas, corales, cofre, ancla
+	-- suelo final: arena, plantas, cofre, ancla y burbujas
+	local deepLayer = GameConfig.LayerAt(maxDepth - 0.01) -- la capa que de verdad alcanza esta caña
+	block(parent, "Sand", Vector3.new(WIDE, 4, 70), CFrame.new(Vector3.new(ORIGIN.X, floorY - 2, ORIGIN.Z - 15)),
+		RGB(225, 205, 150):Lerp(RGB(40, 45, 60), math.clamp(maxDepth / D.MaxWorldDepth, 0, 1)), Enum.Material.Sand)
 	for k = 1, 12 do
-		local x = ORIGIN.X + rng:NextNumber(-lane * 1.4, lane * 1.4)
-		local base = Vector3.new(x, floorY, ORIGIN.Z + rng:NextNumber(0, 10))
-		if k % 3 == 0 then
+		local base = Vector3.new(ORIGIN.X + rng:NextNumber(-lane * 1.4, lane * 1.4), floorY, ORIGIN.Z + rng:NextNumber(0, 10))
+		if deepLayer.Glow then
+			glowPlant(parent, base, deepLayer.Glow)
+		elseif k % 3 == 0 then
 			coral(parent, base)
 		else
 			seaweed(parent, base, rng:NextInteger(3, 7))
@@ -184,17 +192,6 @@ local function buildDecor(parent: Instance)
 	end
 	chest(parent, Vector3.new(ORIGIN.X - lane * 0.5, floorY, ORIGIN.Z + 6))
 	anchor(parent, Vector3.new(ORIGIN.X + lane * 0.6, floorY, ORIGIN.Z + 7))
-	-- marcas de profundidad cada 10 m en el fondo
-	for m = 10, maxDepth, 10 do
-		local mark = block(parent, "DepthMark", Vector3.new(lane * 2, 0.15, 0.2), CFrame.new(world(0, m) + Vector3.new(0, 0, 16.8)), RGB(200, 240, 255), Enum.Material.Neon, 0.75)
-		local bb = Instance.new("BillboardGui")
-		bb.Size = UDim2.fromOffset(80, 30)
-		bb.StudsOffsetWorldSpace = Vector3.new(-lane - 2, 0, 0)
-		bb.LightInfluence = 0
-		bb.Parent = mark
-		UIKit.label({ Text = m .. " m", Size = UDim2.fromScale(1, 1), Font = T.FontTitle, TextColor3 = RGB(200, 240, 255), Parent = bb }, { Stroke = 2 })
-	end
-	-- burbujas subiendo
 	for k = 1, 4 do
 		local emitterPart = block(parent, "Bubbles", Vector3.new(1, 1, 1), CFrame.new(Vector3.new(ORIGIN.X + (k - 2.5) * lane * 0.7, floorY + 1, ORIGIN.Z + 4)),
 			Color3.new(1, 1, 1), nil, 1)
@@ -208,6 +205,83 @@ local function buildDecor(parent: Instance)
 		e.LightEmission = 0.4
 		e.EmissionDirection = Enum.NormalId.Top
 		e.Parent = emitterPart
+	end
+end
+
+-- ===== Decorado por tramos (las inmersiones llegan a 600 m: solo se construye lo que está cerca) =====
+local CHUNK = 30 -- m por tramo
+local chunks: { [number]: Folder } = {}
+
+local function buildChunk(parent: Instance, k: number)
+	local f = Instance.new("Folder")
+	f.Name = "Chunk" .. k
+	local lane = D.LaneHalfWidth * S
+	local fromM, toM = k * CHUNK, math.min((k + 1) * CHUNK, maxDepth + 2)
+	-- rocas y plantas a los lados (algas arriba, plantas que brillan en las capas oscuras)
+	for _, side in ipairs({ -1, 1 }) do
+		local m = fromM + rng:NextNumber(0, 3)
+		while m < toM do
+			local layer = GameConfig.LayerAt(m)
+			local y = world(0, m).Y
+			local w = rng:NextNumber(5, 9)
+			rock(f, Vector3.new(ORIGIN.X + side * (lane + 3 + w / 2), y, ORIGIN.Z + rng:NextNumber(-2, 6)), Vector3.new(w, rng:NextNumber(4, 7), 6))
+			if rng:NextNumber() < 0.5 then
+				local base = Vector3.new(ORIGIN.X + side * (lane + 1.5), y - 2, ORIGIN.Z + 4)
+				if layer.Glow then
+					glowPlant(f, base, layer.Glow)
+				else
+					seaweed(f, base, rng:NextInteger(3, 6))
+				end
+			end
+			m += rng:NextNumber(2.5, 4)
+		end
+	end
+	-- marcas de profundidad (cada 10 m si es poco hondo, cada 25 m si es hondo)
+	local every = if maxDepth <= 60 then 10 else 25
+	for m = math.ceil(math.max(fromM, 1) / every) * every, toM, every do
+		local mark = block(f, "DepthMark", Vector3.new(lane * 2, 0.15, 0.2), CFrame.new(world(0, m) + Vector3.new(0, 0, 16.8)), RGB(200, 240, 255), Enum.Material.Neon, 0.75)
+		local bb = Instance.new("BillboardGui")
+		bb.Size = UDim2.fromOffset(80, 30)
+		bb.StudsOffsetWorldSpace = Vector3.new(-lane - 2, 0, 0)
+		bb.LightInfluence = 0
+		bb.Parent = mark
+		UIKit.label({ Text = m .. " m", Size = UDim2.fromScale(1, 1), Font = T.FontTitle, TextColor3 = RGB(200, 240, 255), Parent = bb }, { Stroke = 2 })
+	end
+	-- cartel grande al entrar en una capa nueva
+	for _, layer in ipairs(GameConfig.DepthLayers) do
+		if layer.From > 0 and layer.From >= fromM and layer.From < toM and layer.From < maxDepth then
+			local mark = block(f, "LayerBanner", Vector3.new(lane * 2.6, 0.4, 0.3), CFrame.new(world(0, layer.From) + Vector3.new(0, 0, 16.5)),
+				layer.Glow or RGB(255, 205, 40), Enum.Material.Neon, 0.3)
+			local bb = Instance.new("BillboardGui")
+			bb.Size = UDim2.fromOffset(420, 60)
+			bb.StudsOffsetWorldSpace = Vector3.new(0, 2.5, 0)
+			bb.LightInfluence = 0
+			bb.Parent = mark
+			UIKit.label({ Text = ("🌊 %s · %d m"):format(string.upper(layer.Name), layer.From), Size = UDim2.fromScale(1, 1), Font = T.FontTitle,
+				TextColor3 = layer.Glow or T.Primary, Parent = bb }, { Stroke = 3 })
+		end
+	end
+	f.Parent = parent
+	chunks[k] = f
+end
+
+-- Construye los tramos alrededor de la profundidad actual y quita los que quedaron muy arriba.
+local function ensureChunks(depth: number)
+	if not folder then
+		return
+	end
+	local first = math.max(0, math.floor((depth - 15) / CHUNK))
+	local last = math.floor(math.min(maxDepth + 2, depth + 45) / CHUNK)
+	for k = first, last do
+		if not chunks[k] then
+			buildChunk(folder, k)
+		end
+	end
+	for k, f in pairs(chunks) do
+		if k < first - 2 then
+			f:Destroy()
+			chunks[k] = nil
+		end
 	end
 end
 
@@ -258,7 +332,7 @@ local function labelText(spec: any): (string, Color3)
 	return kg, T.Success
 end
 
-local function buildMeme(parent: Instance, spec: any, index: number): MemeView?
+local function buildMeme(parent: Instance, spec: any, index: number, skip: { [string]: boolean }?): MemeView?
 	if not MemeModels.Has(spec.MemeId) then
 		return nil
 	end
@@ -276,16 +350,22 @@ local function buildMeme(parent: Instance, spec: any, index: number): MemeView?
 	UIKit.label({ Name = "Rarity", Text = (if spec.Golden then "✨ " else "") .. rarity.Name, Size = UDim2.new(1, 0, 0.5, 0),
 		Font = T.FontTitle, TextColor3 = if spec.Golden then T.Coin else rarity.Color, Parent = bb }, { Stroke = 2 })
 	local text, color = labelText(spec)
+	local meme = Memes.Get(spec.MemeId)
+	if skip and meme and skip[meme.Rarity] then
+		-- filtrado: el anzuelo lo atraviesa
+		text, color = "🚫 filtrado", T.TextDim
+	end
 	UIKit.label({ Name = "Weight", Text = text, Size = UDim2.new(1, 0, 0.5, 0), Position = UDim2.fromScale(0, 0.5),
 		Font = T.FontTitle, TextColor3 = color, Parent = bb }, { Stroke = 2 })
 	model.Parent = parent
-	return { Spec = spec, Model = model, Height = height, Label = bb, State = "free", Bob = rng:NextNumber(0, 6), Slot = 0 }
+	return { Spec = spec, Model = model, Height = height, Label = bb, State = "free", Bob = rng:NextNumber(0, 6), Slot = 0,
+		Rarity = if meme then meme.Rarity else "COMMON" }
 end
 
 -- ===== API =====
 
 -- spec = respuesta de Cast (Memes, Capacity, MaxDepth…)
-function DiveScene.Build(spec: any)
+function DiveScene.Build(spec: any, skip: { [string]: boolean }?)
 	DiveScene.Destroy()
 	capacity = spec.Capacity
 	maxDepth = spec.MaxDepth
@@ -293,11 +373,12 @@ function DiveScene.Build(spec: any)
 	local f = Instance.new("Folder")
 	f.Name = "DiveScene"
 	folder = f
-	buildDecor(f)
+	table.clear(chunks)
+	buildStatic(f)
 	hook = buildHook(f)
 	memeViews = {}
 	for i, m in ipairs(spec.Memes) do
-		local view = buildMeme(f, m, i)
+		local view = buildMeme(f, m, i, skip)
 		if view then
 			memeViews[i] = view
 		end
@@ -322,6 +403,13 @@ function DiveScene.Update(t: number, x: number, depth: number)
 		return
 	end
 	local hookPos = world(x, depth)
+	ensureChunks(depth)
+	-- cuanto más hondo, más oscuro (y con el tinte de la capa)
+	if tint then
+		local deep = math.clamp(depth / D.MaxWorldDepth, 0, 1)
+		tint.Brightness = -0.28 * deep
+		tint.TintColor = RGB(200, 235, 255):Lerp(waterColor(depth):Lerp(Color3.new(1, 1, 1), 0.6), deep)
+	end
 	hook:PivotTo(CFrame.new(hookPos) * CFrame.Angles(0, 0, math.sin(t * 2) * 0.08))
 	lineTop.CFrame = CFrame.new(world(x, -1))
 	local now = os.clock()
@@ -353,9 +441,9 @@ function DiveScene.Update(t: number, x: number, depth: number)
 end
 
 -- Meme (índice) que toca el anzuelo en (x, depth), o nil. Ignora los ya probados (`tried`).
-function DiveScene.Touching(t: number, x: number, depth: number, tried: { [number]: boolean }): number?
+function DiveScene.Touching(t: number, x: number, depth: number, tried: { [number]: boolean }, skip: { [string]: boolean }?): number?
 	for i, view in pairs(memeViews) do
-		if view.State == "free" and not tried[i] then
+		if view.State == "free" and not tried[i] and not (skip and skip[view.Rarity]) then
 			local dx = FishMath.SwimX(view.Spec, t) - x
 			local dy = view.Spec.Depth - depth
 			if dx * dx + dy * dy <= D.GrabRadius * D.GrabRadius then

@@ -72,27 +72,27 @@ Memes.List = {
 		Personality = "Heavy", WeightMin = 90, WeightMax = 250,
 		Description = "Casi no se mueve. Tampoco se deja sacar." },
 	{ Id = "GigaChad", Name = "GigaChad", Rarity = "LEGENDARY", Emoji = "💪", Zone = 1,
-		Personality = "Brute", WeightMin = 200, WeightMax = 900, MinDepth = 20,
+		Personality = "Brute", WeightMin = 200, WeightMax = 900, MinDepth = 200,
 		Description = "Zona verde enorme, pero tira con la fuerza de mil gimnasios." },
-	-- ===== MÍTICOS (desde 12 m) =====
+	-- ===== MÍTICOS (desde 100 m: Arrecife Meme) =====
 	{ Id = "GatoPop", Name = "Gato Pop", Rarity = "MYTHIC", Emoji = "😮", Zone = 1,
-		Personality = "Jerky", WeightMin = 40, WeightMax = 180, MinDepth = 12,
+		Personality = "Jerky", WeightMin = 40, WeightMax = 180, MinDepth = 100,
 		Description = "Abre la boca y suelta un ¡POP! que se oye en todo el río." },
 	{ Id = "PlatanoBailarin", Name = "Plátano Bailarín", Rarity = "MYTHIC", Emoji = "🍌", Zone = 1,
-		Personality = "Rhythm", WeightMin = 30, WeightMax = 150, MinDepth = 12,
+		Personality = "Rhythm", WeightMin = 30, WeightMax = 150, MinDepth = 100,
 		Description = "Nunca deja de bailar. Ni siquiera enganchado al anzuelo." },
 	{ Id = "HamsterDramatico", Name = "Hámster Dramático", Rarity = "MYTHIC", Emoji = "🐹", Zone = 1,
-		Personality = "Freeze", WeightMin = 25, WeightMax = 120, MinDepth = 12,
+		Personality = "Freeze", WeightMin = 25, WeightMax = 120, MinDepth = 100,
 		Description = "Se gira despacio, te mira… y suena música de suspense." },
-	-- ===== SECRETOS (desde 30 m, con efectos) =====
+	-- ===== SECRETOS (desde 300 m: Fosa Abisal, con efectos) =====
 	{ Id = "TiburonZapatillero", Name = "Tiburón Zapatillero", Rarity = "SECRET", Emoji = "🦈", Zone = 1,
-		Personality = "Spin", WeightMin = 300, WeightMax = 1500, MinDepth = 30,
+		Personality = "Spin", WeightMin = 300, WeightMax = 1500, MinDepth = 300,
 		Description = "Un tiburón con zapatillas de deporte. Nada a lo loco y deja una estela azul." },
 	{ Id = "CapibaraZen", Name = "Capibara Zen", Rarity = "SECRET", Emoji = "🍊", Zone = 1,
-		Personality = "Calm", WeightMin = 200, WeightMax = 1000, MinDepth = 30,
+		Personality = "Calm", WeightMin = 200, WeightMax = 1000, MinDepth = 300,
 		Description = "Medita con una naranja en la cabeza. Su aura dorada calma el río entero." },
 	{ Id = "CocodriloAviador", Name = "Cocodrilo Aviador", Rarity = "SECRET", Emoji = "🐊", Zone = 1,
-		Personality = "Brute", WeightMin = 400, WeightMax = 2000, MinDepth = 40,
+		Personality = "Brute", WeightMin = 400, WeightMax = 2000, MinDepth = 400,
 		Description = "Medio cocodrilo, medio avioneta. Nadie sabe cómo acabó en el río." },
 }
 
@@ -107,6 +107,19 @@ function Memes.Get(id: any): any?
 		return nil
 	end
 	return byId[id]
+end
+
+-- Limpia un conjunto de rarezas que llega de fuera (cliente o datos guardados): solo [rarityId] = true válidos.
+function Memes.CleanRaritySet(input: any): { [string]: boolean }
+	local set = {}
+	if type(input) == "table" then
+		for id, on in pairs(input) do
+			if type(id) == "string" and on == true and Memes.Rarities[id] then
+				set[id] = true
+			end
+		end
+	end
+	return set
 end
 
 function Memes.GetRarity(id: string): any

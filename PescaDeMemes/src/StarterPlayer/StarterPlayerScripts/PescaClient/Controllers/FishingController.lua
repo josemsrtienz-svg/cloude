@@ -27,6 +27,7 @@ local Rods = require(Root.Config.Rods)
 local Inventory = require(Root.Shared.Inventory)
 local FishMath = require(Root.Shared.FishMath)
 local MemeModels = require(Root.Shared.MemeModels)
+local Util = require(Root.Shared.Util)
 
 local Controllers = script.Parent
 local UIKit = require(Controllers.UIKit)
@@ -45,6 +46,7 @@ local TOOL_NAME = GameConfig.RodToolName
 local STEER_SPEED = D.SteerSpeed -- m/s máximos del anzuelo hacia los lados (el servidor valida lo mismo)
 
 local FishingController = {}
+FishingController.FiltersRequested = Util.Signal() -- el botón ⚙️ Filtros (lo escucha Panels)
 
 -- "Idle" | "Charging" | "Casting" | "Diving" | "Ending"
 local phase: string = "Idle"
@@ -77,6 +79,7 @@ local depthHookLabel: TextLabel
 local depthMax: TextLabel
 local markerHolder: Frame
 local hookCounter: TextLabel
+local layerLabel: TextLabel
 local surfaceButton: TextButton
 local diveHint: TextLabel
 
@@ -321,7 +324,9 @@ type DiveResult = { Summary: any?, How: string, Broke: boolean? }
 
 -- Bucle de la inmersión. Devuelve cómo terminó y el resumen del servidor.
 local function runDive(spec: any, myRun: number, castTime: number): DiveResult
-	DiveScene.Build(spec)
+	local data = State.Data
+	local skip = data and data.Settings and data.Settings.CatchSkip or {}
+	DiveScene.Build(spec, skip)
 	DiveScene.Enter()
 	wipeTo(1, 0.35)
 	setDiveHudVisible(true)
@@ -441,6 +446,8 @@ local function runDive(spec: any, myRun: number, castTime: number): DiveResult
 				if string.find(err, "pesado") then
 					DiveScene.Block(index, "⛔ Muy pesado")
 					blockToast("⛔ ¡Demasiado pesado para tu caña! Mejora tu caña en la tienda")
+				elseif string.find(err, "Filtrado") then
+					DiveScene.Block(index, "🚫 filtrado")
 				elseif string.find(err, "cabe") then
 					DiveScene.Block(index, "🐠 No cabe")
 					blockToast("🐠 No cabe en tu acuario")
@@ -493,6 +500,12 @@ local function runDive(spec: any, myRun: number, castTime: number): DiveResult
 		-- medidor de profundidad
 		depthHook.Position = UDim2.fromScale(0.5, depth / spec.MaxDepth)
 		depthHookLabel.Text = ("%d m"):format(math.floor(depth))
+		local layer = GameConfig.LayerAt(math.min(depth, spec.MaxDepth - 0.01))
+		if layerLabel.Text ~= layer.Name then
+			layerLabel.Text = layer.Name
+			layerLabel.TextColor3 = layer.Glow or T.Primary
+			UIKit.pop(layerLabel, 1.3)
+		end
 		if now - lastMarkers > 0.4 then
 			lastMarkers = now
 			updateMarkers()
@@ -500,7 +513,7 @@ local function runDive(spec: any, myRun: number, castTime: number): DiveResult
 
 		-- ¿toca algún meme?
 		if grabbed < spec.Hooks and now >= diveStart then
-			local index = DiveScene.Touching(t, x, depth, tried)
+			local index = DiveScene.Touching(t, x, depth, tried, skip)
 			if index then
 				tryGrab(index)
 			end
@@ -719,6 +732,13 @@ local function buildUI()
 		TextColor3 = T.Primary, Parent = hint }, { Stroke = 3, MaxSize = 30 })
 	rodChip = UIKit.label({ Text = "", Size = UDim2.new(1, 0, 0, 26), Position = UDim2.fromOffset(0, 44), Font = T.Font,
 		Parent = hint }, { Stroke = 2, MaxSize = 20 })
+	local filtersButton = UIKit.button({ Name = "Filters", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(0, -8, 0, 20),
+		Size = UDim2.fromOffset(110, 44), Parent = hint }, { Color = T.Primary, Text = "⚙️ Filtros", TextSize = 18, Radius = 12 })
+	filtersButton.Activated:Connect(function()
+		if phase == "Idle" then
+			FishingController.FiltersRequested:Fire()
+		end
+	end)
 	reinforcedButton = UIKit.button({ Name = "Reinforced", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(1, 8, 0, 20),
 		Size = UDim2.fromOffset(84, 44), Parent = hint }, { Color = T.PanelLight, Radius = 12 })
 	reinforcedLabel = UIKit.label({ Text = "🧵 0", Size = UDim2.new(1, -8, 1, -8), Position = UDim2.fromOffset(4, 4), Font = T.Font,
@@ -766,6 +786,8 @@ local function buildUI()
 		Font = T.FontTitle, Parent = depthBar }, { Stroke = 2, MaxSize = 16 })
 	depthMax = UIKit.label({ Text = "15 m", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 4), Size = UDim2.fromOffset(60, 20),
 		Font = T.FontTitle, TextColor3 = T.Danger, Parent = depthBar }, { Stroke = 2, MaxSize = 16 })
+	layerLabel = UIKit.label({ Name = "Layer", Text = "", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, 0, 0, -26),
+		Size = UDim2.fromOffset(220, 30), Font = T.FontTitle, TextXAlignment = Enum.TextXAlignment.Right, Parent = depthBar }, { Stroke = 3, MaxSize = 22 })
 	markerHolder = UIKit.new("Frame", { Name = "Markers", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = depthBar })
 	depthHook = UIKit.new("Frame", { Name = "HookMarker", AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(20, 20),
 		BackgroundColor3 = T.Danger, ZIndex = 4, Parent = depthBar })

@@ -191,7 +191,22 @@ local function onBuyItem(player: Player, data: any, itemId: any): any
 	return { ok = true }
 end
 
+-- Filtros: qué rarezas ignora el anzuelo (CatchSkip) y cuáles se venden solas al subir (AutoSell).
+local function onSetFilters(player: Player, data: any, catchSkip: any, autoSell: any): any
+	if type(catchSkip) ~= "table" or type(autoSell) ~= "table" then
+		return fail("Filtros inválidos")
+	end
+	if FishingService.IsFishing(player) then
+		return fail("Termina de pescar para cambiar los filtros")
+	end
+	data.Settings.CatchSkip = Memes.CleanRaritySet(catchSkip)
+	data.Settings.AutoSell = Memes.CleanRaritySet(autoSell)
+	PlayerData.Push(player)
+	return { ok = true }
+end
+
 function EconomyService.Init()
+	Remotes.Get("SetFilters").OnServerInvoke = handler(onSetFilters)
 	Remotes.Get("SellCatch").OnServerInvoke = handler(onSellCatch)
 	Remotes.Get("SellAll").OnServerInvoke = handler(onSellAll)
 	Remotes.Get("BuyRod").OnServerInvoke = handler(onBuyRod)

@@ -7,7 +7,7 @@
 PROJECT:          Pesca de Memes (nombre provisional)
 STATUS:           Prototipo jugable
 CURRENT_PHASE:    FASE 2 — PROTOTIPO (P0)   ← ESTAMOS AQUÍ
-GAME_VERSION:     P0 0.5
+GAME_VERSION:     P0 0.6
 CORE_LOOP_STATUS: Lanzar con click → INMERSIÓN (guiar el anzuelo) → enganchar / pelear → subir → mochila → parcela → dinero
 MAP_STATUS:       Río ancho (80 studs) y largo (360), 8 parcelas con muelle propio, estilo casillas con studs
 SYSTEMS_STATUS:   PlayerData v3 · GearService · FishingService (inmersión) · PlotService · EconomyService · WorldBuilder
@@ -16,7 +16,7 @@ DATA_STATUS:      Schema v3 con session lock y migraciones (v0.4 no cambia los d
 SECURITY_STATUS:  El servidor genera la inmersión y valida cada enganche por tiempo/profundidad, anzuelos y espacio
 QA_STATUS:        v0.4 probada en Studio por el equipo: SIN ERRORES · v0.5: luau-lsp + rojo build OK, pendiente de probar
 KNOWN_BUGS:       — (por descubrir en la prueba)
-NEXT_STEP:        Probar la v0.5 (memes nuevos, Gran Tienda, boosts) y hacer el tutorial corto (cierra la Fase 2)
+NEXT_STEP:        Probar la v0.6 y seguir metiendo ideas en el prototipo (la Fase 2 sigue abierta: aquí se prueba TODO)
 ```
 
 ## Fases
@@ -25,7 +25,7 @@ NEXT_STEP:        Probar la v0.5 (memes nuevos, Gran Tienda, boosts) y hacer el 
 |---|---|---|---|
 | 0 | Validación | Idea, nicho, referencias | ✅ Hecho (concepto A "Pesca de Memes") |
 | 1 | Preproducción | GDD, core loop, sistemas, arquitectura | ✅ Hecho (GDD v0.1 + mecánica peso/capacidad) |
-| 2 | **Prototipo (P0)** | ¿Pescar es divertido 20 veces seguidas? | 🟡 **En curso** — v0.4 lista para probar |
+| 2 | **Prototipo (P0)** | Meter y probar TODAS las ideas para ver cómo queda el juego | 🟡 **En curso, abierta a propósito** (decisión del equipo: es la fase más importante) |
 | 3 | Vertical slice | Zona 1 con calidad casi final: arte, sonido, onboarding | ⬜ Siguiente |
 | 4 | Alpha | Todos los sistemas principales (zonas, eventos, misiones, trading…) | ⬜ |
 | 5 | Beta | Balance, móvil, multijugador, QA, rendimiento | ⬜ |
@@ -40,6 +40,7 @@ NEXT_STEP:        Probar la v0.5 (memes nuevos, Gran Tienda, boosts) y hacer el 
 | Parcelas estilo "steal" con muelle propio, cobrador e ingresos | v0.2 |
 | Mapa con casillas, caña-herramienta, mochila-acuario con kg, caña que se rompe, figuras 3D de bloques | v0.3 |
 | **Inmersión** (cámara bajo el agua, guiar el anzuelo, varios memes por lanzamiento), lanzar con **click**, río más ancho, **fotos 3D** en toda la GUI, **tienda nueva**, más animaciones | v0.4 |
+| **Gran Tienda** al fondo del río (VIP dentro, sin puesto aparte) + **tablón del boost gratis** que cambia cada 15 min (5 min de uso) · **profundidad ×10** (hasta 600 m) con **capas** que oscurecen · **filtros** (el anzuelo ignora rarezas / venta automática) · **cañas con diseño propio y efectos** · **arco nuevo** legible por los dos lados | **v0.6** |
 | Rarezas **Mítico → Legendario → Secreto → Dios** (eventos), **6 memes nuevos con efectos**, capas de profundidad, **Gran Tienda** física (boosts, Robux, regalo gratis aleatorio), fauna del río, árboles y flores, **cara del jugador** en su parcela, **modo prueba** con dinero infinito | **v0.5** |
 
 | Falta para cerrar la fase (P0) | Prioridad |
@@ -50,7 +51,14 @@ NEXT_STEP:        Probar la v0.5 (memes nuevos, Gran Tienda, boosts) y hacer el 
 | Sonidos reales (Config/Assets) | P1 |
 | Configurar los IDs de los Game Passes (Config/Monetization) | P1 |
 
-**Hecho cuando:** 3–5 personas juegan 10 minutos y quieren seguir sin que nadie se lo pida.
+**La fase se cierra cuando el equipo lo decida**, no antes: aquí entran todas las ideas para verlas funcionando.
+
+### Pregunta abierta: ¿para qué sirve el NIVEL?
+Ahora el nivel solo sube con la XP. Propuestas (elegir una o varias):
+1. **Desbloquea capas de profundidad** (Arrecife nivel 5, Abismo nivel 15, Fosa nivel 30) además de la caña.
+2. **Desbloquea huecos de la parcela** (empiezas con 4 y llegas a 8 con niveles).
+3. **Requisito de las cañas** (no puedes equipar la Abisal hasta el nivel X).
+4. **Recompensa por nivel** (cofre con MemeCoins y a veces un boost) → sensación de progreso constante.
 
 ### FASE 3 — Vertical slice (siguiente)
 - Onboarding guiado, sonido y música, efectos de partículas finales.
@@ -106,6 +114,7 @@ y PlotService el multiplicador. Los bonus son pequeños para no romper el balanc
 - [ ] Máximo de jugadores del servidor = 8 (una parcela cada uno).
 
 ## Historial
+- **v0.6** — Gran Tienda rediseñada con VIP dentro y tablón de boost gratis (15 min), profundidad hasta 600 m con 4 capas, filtros de pesca y de venta automática, cañas con diseño y efectos, arco nuevo.
 - **v0.5** — Míticos y secretos con efectos, rareza Dios (eventos), capas de profundidad, Gran Tienda (boosts, Robux, regalo), fauna del río, árboles, cara del jugador en su parcela, modo prueba.
 - **v0.4** — Inmersión estilo Fish an Egg, click para lanzar, río ×2 de ancho, fotos 3D, tienda nueva, animaciones.
 - **v0.3** — Mapa estilo steal, caña-herramienta, mochila-acuario, ruleta, rotura de caña, figuras de bloques.

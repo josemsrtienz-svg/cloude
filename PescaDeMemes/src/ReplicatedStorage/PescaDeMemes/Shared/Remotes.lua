@@ -35,6 +35,7 @@ Remotes.Definitions = {
 	EquipRod = "RemoteFunction",
 	BuyItem = "RemoteFunction",
 	BuyBoost = "RemoteFunction", -- (boostId) solo junto a la tienda física
+	SetFilters = "RemoteFunction", -- (catchSkip, autoSell) filtros de rarezas
 	ClaimFreeBoost = "RemoteFunction", -- recoger el boost gratis (solo junto a la tienda física)
 }
 

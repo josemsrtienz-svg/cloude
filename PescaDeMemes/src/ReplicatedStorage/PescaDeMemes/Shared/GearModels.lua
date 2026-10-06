@@ -39,39 +39,155 @@ local function part(model: Model, props: { [string]: any }): Part
 	return p
 end
 
--- Caña: mango con cinta, carrete con manivela, vara de dos tramos con anillas y punta de color.
+-- ===== Cañas: cada una con su diseño y sus efectos =====
+-- Construcción común: mango (con su material), carrete con manivela, vara en dos tramos, anillas y punta.
+-- Encima, cada caña añade su identidad (DECOR) y sus partículas (FX):
+--   Palo   rama natural con nudos, cordel atado y una hoja · sin efectos (es la humilde)
+--   Fibra  carbono azul brillante con franjas blancas y mango de corcho · destellos azules suaves
+--   Turbo  franjas de peligro amarillo/negro y aletas-rayo junto al mango · chispas eléctricas en la punta
+--   Abisal vara negra-morada con runas que brillan y una esfera abisal en la punta · niebla morada y luz
+
+local ROD_STYLE = {
+	Palo = { Shaft = RGB(130, 90, 55), ShaftMat = Enum.Material.Wood, Grip = RGB(95, 65, 40), GripMat = Enum.Material.Wood, Tip = RGB(90, 160, 60) },
+	Fibra = { Shaft = RGB(40, 110, 220), ShaftMat = Enum.Material.SmoothPlastic, Grip = RGB(205, 165, 115), GripMat = Enum.Material.Fabric, Tip = RGB(255, 255, 255) },
+	Turbo = { Shaft = RGB(255, 205, 40), ShaftMat = Enum.Material.SmoothPlastic, Grip = RGB(30, 30, 35), GripMat = Enum.Material.Fabric, Tip = RGB(255, 240, 120) },
+	Abisal = { Shaft = RGB(40, 20, 60), ShaftMat = Enum.Material.SmoothPlastic, Grip = RGB(25, 15, 35), GripMat = Enum.Material.Fabric, Tip = RGB(140, 255, 235) },
+}
+
+local function rodFx(parent: Instance, props: { [string]: any })
+	local e = Instance.new("ParticleEmitter")
+	e.LightEmission = 1
+	for k, v in pairs(props) do
+		(e :: any)[k] = v
+	end
+	e.Parent = parent
+end
+
+local DECOR: { [string]: (Model, CFrame, number) -> () } = {
+	-- rama: nudos repartidos a lo largo, cordel atado en dos puntos y una hoja cerca de la punta
+	Palo = function(model, axis, length)
+		for i = 1, 4 do
+			part(model, { Name = "Knot", Size = Vector3.new(0.22, 0.22, 0.22), Color = RGB(100, 70, 40), Material = Enum.Material.Wood,
+				CFrame = axis * CFrame.new((i % 2 - 0.5) * 0.12, 0.05, -0.5 - i * length / 5) })
+		end
+		for _, f in ipairs({ 0.15, 0.6 }) do
+			part(model, { Name = "Twine", Size = Vector3.new(0.2, 0.2, 0.14), Color = RGB(225, 210, 170), Material = Enum.Material.Fabric,
+				CFrame = axis * CFrame.new(0, 0, -0.5 - f * length) })
+		end
+		part(model, { Name = "Leaf", Size = Vector3.new(0.5, 0.06, 0.3), Color = RGB(90, 170, 60), Material = Enum.Material.Grass,
+			CFrame = axis * CFrame.new(0.25, 0.08, -0.5 - length * 0.85) * CFrame.Angles(0, 0, 0.4) })
+	end,
+	-- carbono: franjas blancas regulares y un reflejo
+	Fibra = function(model, axis, length)
+		for i = 1, 5 do
+			part(model, { Name = "Stripe", Size = Vector3.new(0.19, 0.19, 0.12), Color = RGB(245, 245, 250),
+				CFrame = axis * CFrame.new(0, 0, -0.5 - i * length / 6) })
+		end
+		part(model, { Name = "Gloss", Size = Vector3.new(0.05, 0.05, length * 0.6), Color = RGB(200, 230, 255), Material = Enum.Material.Neon,
+			CFrame = axis * CFrame.new(0.06, 0.07, -0.5 - length * 0.4) })
+	end,
+	-- turbo: franjas de peligro y dos aletas en forma de rayo
+	Turbo = function(model, axis, length)
+		for i = 1, 6 do
+			part(model, { Name = "Hazard", Size = Vector3.new(0.19, 0.19, 0.15), Color = RGB(25, 25, 30),
+				CFrame = axis * CFrame.new(0, 0, -0.5 - i * length / 7) * CFrame.Angles(0, 0, math.rad(45)) })
+		end
+		for _, side in ipairs({ -1, 1 }) do
+			local fin = Instance.new("WedgePart")
+			fin.Name = "BoltFin"
+			fin.Size = Vector3.new(0.06, 0.5, 0.7)
+			fin.Color = RGB(255, 240, 120)
+			fin.Material = Enum.Material.Neon
+			fin.Anchored = true
+			fin.CanCollide = false
+			fin.CanQuery = false
+			fin.CanTouch = false
+			fin.Massless = true
+			fin.CFrame = axis * CFrame.new(side * 0.14, 0.2, -1.0) * CFrame.Angles(0, 0, side * 0.3)
+			fin.Parent = model
+		end
+	end,
+	-- abisal: runas de neón y una esfera que brilla en la punta
+	Abisal = function(model, axis, length)
+		for i = 1, 4 do
+			part(model, { Name = "Rune", Size = Vector3.new(0.2, 0.2, 0.1), Color = RGB(140, 255, 235), Material = Enum.Material.Neon,
+				CFrame = axis * CFrame.new(0, 0, -0.5 - i * length / 5) })
+		end
+		local orb = part(model, { Name = "AbyssOrb", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.45, Color = RGB(170, 90, 255),
+			Material = Enum.Material.Neon, CFrame = axis * CFrame.new(0, 0, -length - 0.65) })
+		part(model, { Name = "OrbCage", Size = Vector3.new(0.55, 0.08, 0.55), Color = RGB(60, 40, 80), Material = Enum.Material.Metal,
+			CFrame = axis * CFrame.new(0, 0, -length - 0.65) })
+		local light = Instance.new("PointLight")
+		light.Color = RGB(160, 100, 255)
+		light.Range = 8
+		light.Brightness = 1.5
+		light.Parent = orb
+	end,
+}
+
+local FX: { [string]: (Attachment) -> () } = {
+	Fibra = function(att)
+		rodFx(att, { Name = "Glint", Rate = 2, Lifetime = NumberRange.new(0.5, 0.8), Speed = NumberRange.new(0.5, 1),
+			Size = NumberSequence.new(0.15), Color = ColorSequence.new(RGB(150, 210, 255)), SpreadAngle = Vector2.new(180, 180) })
+	end,
+	Turbo = function(att)
+		rodFx(att, { Name = "Sparks", Rate = 10, Lifetime = NumberRange.new(0.2, 0.4), Speed = NumberRange.new(3, 6),
+			Size = NumberSequence.new(0.12), Color = ColorSequence.new(RGB(255, 235, 90)), SpreadAngle = Vector2.new(180, 180) })
+	end,
+	Abisal = function(att)
+		rodFx(att, { Name = "AbyssMist", Rate = 8, Lifetime = NumberRange.new(0.8, 1.4), Speed = NumberRange.new(0.3, 1),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 0.8) }),
+			Color = ColorSequence.new(RGB(170, 90, 255), RGB(110, 255, 230)),
+			Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) }),
+			SpreadAngle = Vector2.new(180, 180) })
+	end,
+}
+
+-- Caña completa. broken = rota (más corta, apagada y sin efectos).
 function GearModels.Rod(rod: any, broken: boolean?): Model
 	local model = Instance.new("Model")
 	model.Name = "Rod"
+	local style = ROD_STYLE[rod.Id] or { Shaft = rod.Color, ShaftMat = Enum.Material.SmoothPlastic, Grip = RGB(40, 32, 30),
+		GripMat = Enum.Material.Fabric, Tip = RGB(255, 75, 75) }
 	local length = GearModels.RodLength * (if broken then 0.5 else 1)
-	local color = if broken then RGB(90, 70, 60) else rod.Color
-	local handle = part(model, { Name = "Handle", Size = Vector3.new(0.35, 0.35, 1.4), Color = RGB(40, 32, 30),
-		Material = Enum.Material.Fabric, CFrame = CFrame.new() })
+	local color = if broken then RGB(90, 70, 60) else style.Shaft
+	local handle = part(model, { Name = "Handle", Size = Vector3.new(0.35, 0.35, 1.4), Color = style.Grip,
+		Material = style.GripMat, CFrame = CFrame.new() })
 	model.PrimaryPart = handle
 	part(model, { Name = "Butt", Size = Vector3.new(0.42, 0.42, 0.25), Color = RGB(25, 20, 18), CFrame = CFrame.new(0, 0, 0.75) })
 	part(model, { Name = "Wrap", Size = Vector3.new(0.38, 0.38, 0.12), Color = color, CFrame = CFrame.new(0, 0, -0.3) })
 	local axis = CFrame.Angles(GearModels.RodTilt, 0, 0)
-	local shaft = part(model, { Name = "Shaft", Size = Vector3.new(0.16, 0.16, length), Color = color,
-		CFrame = axis * CFrame.new(0, 0, -length / 2 - 0.5) })
-	-- segundo tramo, más claro: la vara no es un palo de un solo color
+	local shaft = part(model, { Name = "Shaft", Size = Vector3.new(0.16, 0.16, length), Color = color, Material = style.ShaftMat,
+		Reflectance = if rod.Id == "Fibra" and not broken then 0.15 else 0, CFrame = axis * CFrame.new(0, 0, -length / 2 - 0.5) })
 	part(model, { Name = "Upper", Size = Vector3.new(0.18, 0.18, length * 0.12), Color = color:Lerp(Color3.new(1, 1, 1), 0.35),
 		CFrame = axis * CFrame.new(0, 0, -length * 0.45 - 0.5) })
 	part(model, { Name = "Reel", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.3, 0.6, 0.6), Color = RGB(200, 200, 210),
 		Material = Enum.Material.Metal, CFrame = CFrame.new(0, -0.35, -0.3) })
+	part(model, { Name = "Spool", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.32, 0.4, 0.4), Color = style.Shaft,
+		CFrame = CFrame.new(0, -0.35, -0.3) })
 	part(model, { Name = "Crank", Size = Vector3.new(0.08, 0.35, 0.08), Color = RGB(60, 60, 70), Material = Enum.Material.Metal,
 		CFrame = CFrame.new(0.2, -0.45, -0.3) })
+	part(model, { Name = "CrankKnob", Size = Vector3.new(0.14, 0.14, 0.14), Color = RGB(30, 30, 35), CFrame = CFrame.new(0.2, -0.62, -0.3) })
 	for i = 1, 3 do
 		part(model, { Name = "Guide", Size = Vector3.new(0.22, 0.22, 0.1), Color = RGB(220, 220, 220), Material = Enum.Material.Metal,
 			CFrame = axis * CFrame.new(0, 0.12, -0.5 - i * length / 4) })
 	end
 	if not broken then
-		part(model, { Name = "TipCap", Size = Vector3.new(0.2, 0.2, 0.3), Color = RGB(255, 75, 75), Material = Enum.Material.Neon,
+		part(model, { Name = "TipCap", Size = Vector3.new(0.2, 0.2, 0.3), Color = style.Tip, Material = Enum.Material.Neon,
 			CFrame = axis * CFrame.new(0, 0, -length - 0.5) })
+		local decor = DECOR[rod.Id]
+		if decor then
+			decor(model, axis, length)
+		end
 	end
 	local tip = Instance.new("Attachment")
 	tip.Name = "RodTip"
 	tip.Position = Vector3.new(0, 0, -length / 2)
 	tip.Parent = shaft
+	local fx = not broken and FX[rod.Id]
+	if fx then
+		fx(tip)
+	end
 	return model
 end
 

@@ -124,6 +124,74 @@ local function catchOptions(catch: any)
 	end)
 end
 
+-- ===== Filtros (rarezas) =====
+-- 🎣 El anzuelo IGNORA: esas rarezas no se enganchan (pasas a través).
+-- 💰 Se VENDEN SOLAS al subir: no ocupan sitio en la mochila (los dorados nunca se venden solos).
+function Panels.OpenFilters()
+	local data = State.Data
+	if not data then
+		return
+	end
+	if openName ~= "Aquarium" then
+		Panels.Open("Aquarium")
+	end
+	if openName ~= "Aquarium" then
+		return -- no se pudo abrir (estás pescando)
+	end
+	local panel = panels.Aquarium
+	local old = panel.Frame:FindFirstChild("Options")
+	if old then
+		old:Destroy()
+	end
+	local current = { CatchSkip = table.clone(data.Settings and data.Settings.CatchSkip or {}), AutoSell = table.clone(data.Settings and data.Settings.AutoSell or {}) }
+	local box = UIKit.new("Frame", { Name = "Options", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.55),
+		Size = UDim2.fromOffset(700, 380), BackgroundColor3 = T.PanelDark, ZIndex = 10, Parent = panel.Frame })
+	UIKit.corner(box, 16)
+	UIKit.stroke(box, 4, T.Primary)
+	UIKit.label({ Text = "⚙️ FILTROS DE PESCA", Size = UDim2.new(1, -20, 0, 36), Position = UDim2.fromOffset(10, 8), Font = T.FontTitle,
+		TextColor3 = T.Primary, ZIndex = 11, Parent = box }, { Stroke = 3, MaxSize = 30 })
+	local function section(key: string, title: string, y: number, onColor: Color3)
+		UIKit.label({ Text = title, Size = UDim2.new(1, -20, 0, 26), Position = UDim2.fromOffset(10, y), Font = T.Font, ZIndex = 11,
+			TextXAlignment = Enum.TextXAlignment.Left, Parent = box }, { MaxSize = 20 })
+		local row = UIKit.new("Frame", { Size = UDim2.new(1, -20, 0, 84), Position = UDim2.fromOffset(10, y + 30), BackgroundTransparency = 1, ZIndex = 11, Parent = box })
+		UIKit.new("UIGridLayout", { CellSize = UDim2.fromOffset(160, 38), CellPadding = UDim2.fromOffset(8, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = row })
+		for i, id in ipairs(Memes.RarityOrder) do
+			local rarity = Memes.Rarities[id]
+			if rarity.Odds > 0 then
+				local chip = UIKit.button({ LayoutOrder = i, ZIndex = 12, Parent = row }, { Text = rarity.Name, TextSize = 16, Radius = 10 })
+				local function paint()
+					local on = current[key][id] == true
+					chip.BackgroundColor3 = if on then onColor else T.PanelLight
+					local label = chip:FindFirstChild("Label") :: TextLabel?
+					if label then
+						label.Text = (if on then "✔ " else "") .. rarity.Name
+						label.TextColor3 = if on then T.Text else rarity.Color
+					end
+				end
+				paint()
+				chip.Activated:Connect(function()
+					current[key][id] = if current[key][id] then nil else true
+					paint()
+				end)
+			end
+		end
+	end
+	section("CatchSkip", "🎣 Mi anzuelo IGNORA estas rarezas (no se enganchan):", 50, T.Danger)
+	section("AutoSell", "💰 Se VENDEN SOLAS al pescarlas (los dorados nunca):", 170, T.Success)
+	local save = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 90, 1, -12), Size = UDim2.fromOffset(170, 50), ZIndex = 12,
+		Parent = box }, { Color = T.Success, Text = "💾 Guardar", TextSize = 24 })
+	local cancel = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, -90, 1, -12), Size = UDim2.fromOffset(170, 50), ZIndex = 12,
+		Parent = box }, { Color = T.PanelLight, Text = "Cancelar", TextSize = 24 })
+	save.Activated:Connect(function()
+		if call("SetFilters", "⚙️ Filtros guardados", current.CatchSkip, current.AutoSell).ok then
+			box:Destroy()
+		end
+	end)
+	cancel.Activated:Connect(function()
+		box:Destroy()
+	end)
+end
+
 -- ===== Mochila-acuario =====
 local function renderAquarium()
 	local p = panels.Aquarium
@@ -310,10 +378,8 @@ local function shopEntries(data: any): { ShopEntry }
 			end },
 		})
 	elseif shopTab == "Boosts" then
-		local player = Players.LocalPlayer
-		local freeId = player:GetAttribute("FreeBoost")
-		local free = Boosts.Get(freeId)
-		if free then
+		local available, free = Boosts.FreeAvailable(data)
+		if available == true then
 			table.insert(list, {
 				Name = "🎁 " .. free.Name .. " GRATIS", Color = free.Color, Desc = "¡Tu regalo! También lo recoges en el pedestal del regalo. " .. free.Description,
 				Model = function()
@@ -611,7 +677,7 @@ function Panels.Signature(name: string): string
 			table.insert(affordable, if type(untilTime) == "number" and untilTime > workspace:GetServerTimeNow() then "A" else "-")
 		end
 		return table.concat(rods, ",") .. "|" .. data.EquippedRod .. "|" .. tostring(data.Items.SedalReforzado) .. "|" .. table.concat(affordable)
-			.. "|" .. table.concat(broken, ",") .. "|" .. tostring(data.AquariumTier) .. "|" .. tostring(Players.LocalPlayer:GetAttribute("FreeBoost"))
+			.. "|" .. table.concat(broken, ",") .. "|" .. tostring(data.AquariumTier) .. "|" .. tostring(data.FreeRound) .. "|" .. tostring(workspace:GetAttribute("FreeRound"))
 	elseif name == "Bestiary" then
 		local parts = {}
 		for id, entry in pairs(data.Discovered) do
@@ -676,6 +742,9 @@ function Panels.Init()
 	makePanel("Aquarium", "🐠 TU ACUARIO", RGB(255, 140, 40), Vector2.new(140, 150), renderAquarium, function(content)
 		local sellAll = UIKit.button({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, -2), Size = UDim2.fromOffset(190, 36),
 			Parent = content }, { Color = T.Success, Text = "💰 Vender comunes–raros", TextSize = 18 })
+		local filters = UIKit.button({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -200, 0, -2), Size = UDim2.fromOffset(130, 36),
+			Parent = content }, { Color = T.Primary, Text = "⚙️ Filtros", TextSize = 18 })
+		filters.Activated:Connect(Panels.OpenFilters)
 		sellAll.Activated:Connect(function()
 			local r = call("SellAll", nil)
 			if r.ok then
@@ -695,6 +764,7 @@ function Panels.Init()
 	makePanel("Shop", "🛒 TIENDA", RGB(60, 200, 80), nil, renderShop, nil, Vector2.new(900, 560))
 	makePanel("Bestiary", "📖 ÍNDICE", RGB(40, 170, 255), Vector2.new(330, 140), renderBestiary)
 
+	require(Controllers.FishingController).FiltersRequested:Connect(Panels.OpenFilters)
 	HUD.ButtonPressed:Connect(function(name)
 		if name == "Shop" then
 			Panels.OpenShop(false)
@@ -703,7 +773,7 @@ function Panels.Init()
 		end
 	end)
 	Players.LocalPlayer.AttributeChanged:Connect(function(attr)
-		if openName == "Shop" and (attr == "FreeBoost" or string.sub(attr, 1, 5) == "Pass_") then
+		if openName == "Shop" and string.sub(attr, 1, 5) == "Pass_" then
 			panels.Shop.Render()
 		end
 	end)

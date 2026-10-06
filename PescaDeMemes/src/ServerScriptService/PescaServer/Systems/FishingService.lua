@@ -211,12 +211,12 @@ end
 local function generateDive(rod: any, power: number, perfect: boolean, capacity: number, luckBoost: number): { DiveMeme }
 	local list: { DiveMeme } = {}
 	local span = rod.MaxDepth - D.StartDepth - 0.5
-	local count = math.clamp(math.floor(span * D.MemesPerMeter), 4, D.MaxMemes)
+	local count = math.clamp(math.floor(rod.MaxDepth / rod.DiveSpeed * D.MemesPerSecond), 6, D.MaxMemes)
 	local baseLuck = rod.Luck * (1 + 0.4 * power) * (if perfect then 1.1 else 1)
 	for i = 1, count do
 		-- muestreo estratificado: repartidos por toda la profundidad, sin huecos enormes
 		local depth = D.StartDepth + span * (i - rng:NextNumber(0.1, 0.9)) / count
-		local luck = baseLuck * (1 + D.DepthLuck * (depth / 60) ^ 2)
+		local luck = baseLuck * (1 + D.DepthLuck * depth / D.MaxWorldDepth)
 		local meme = pickMeme(rollRarity(luck, depth, luckBoost), depth)
 		local weight = rollWeight(meme)
 		local lane = D.LaneHalfWidth - 1
@@ -250,6 +250,7 @@ local function surface(player: Player): any
 	local totalXP = 0
 	local leveled = false
 	local soldValue = 0
+	local autoSoldValue = 0
 	for _, index in ipairs(session.Grabbed) do
 		local spec = session.Memes[index]
 		local meme = spec.Meme
@@ -265,7 +266,14 @@ local function surface(player: Player): any
 		}
 		-- Grab ya comprobó el sitio; si mientras tanto se llenó (no debería), se vende solo
 		local sold = false
-		if catch.Size <= Inventory.Free(data) then
+		local autoSell = data.Settings.AutoSell[meme.Rarity] == true and not catch.Golden -- los dorados nunca se venden solos
+		if autoSell then
+			-- filtro de venta automática: se vende al subir (con el multiplicador de dinero)
+			local earned = math.floor(catch.Value * BoostService.Money(player))
+			data.MemeCoin += earned
+			autoSoldValue += earned
+			sold = true
+		elseif catch.Size <= Inventory.Free(data) then
 			data.Catches[catch.Id] = catch
 		else
 			soldValue += catch.Value
@@ -292,6 +300,7 @@ local function surface(player: Player): any
 		leveled = addXP(data, xp) or leveled
 		local copy = Util.deepCopy(catch)
 		copy.Sold = sold -- la tarjeta no ofrece "Vender" para lo que ya se vendió solo
+		copy.AutoSold = autoSell
 		table.insert(catches, copy)
 
 		-- aviso a todo el servidor en capturas épicas
@@ -311,6 +320,9 @@ local function surface(player: Player): any
 	if soldValue > 0 then
 		data.MemeCoin += soldValue
 		PlayerData.Notify(player, ("💰 No cabía en tu acuario: se vendió solo por %d MemeCoins"):format(soldValue), "Info")
+	end
+	if autoSoldValue > 0 then
+		PlayerData.Notify(player, ("💰 Venta automática: +%s MemeCoins"):format(Util.formatShort(autoSoldValue)), "Success")
 	end
 	if #catches > 0 then
 		PlayerData.Push(player)
@@ -350,7 +362,8 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 	if data.BrokenRods[data.EquippedRod] then
 		return fail("💥 Tu caña está rota: repárala en la tienda o equipa otra")
 	end
-	if Inventory.Free(data) < 1 then
+	-- con el acuario lleno solo se puede pescar si hay rarezas que se venden solas (no ocupan sitio)
+	if Inventory.Free(data) < 1 and next(data.Settings.AutoSell) == nil then
 		return fail("🐠 Tu acuario está lleno: vuelve a tu parcela para descargarlo")
 	end
 	lastCast[player] = now
@@ -367,6 +380,7 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 	local capacity = rod.Capacity * (if reinforced then 1 + Rods.Items.SedalReforzado.CapacityBonus else 1)
 	local memes = generateDive(rod, power, perfect, capacity, BoostService.Luck(player))
 	local hooks = rod.Hooks + BoostService.ExtraHooks(player)
+	local speed = rod.DiveSpeed * BoostService.Speed(player)
 
 	sessions[player] = {
 		State = "Diving",
@@ -378,7 +392,7 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 		Capacity = capacity,
 		Hooks = hooks,
 		MaxDepth = rod.MaxDepth,
-		Speed = rod.DiveSpeed,
+		Speed = speed,
 		Memes = memes,
 		Grabbed = {},
 		UsedSize = 0,
@@ -406,7 +420,7 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 		Capacity = capacity,
 		Hooks = hooks,
 		MaxDepth = rod.MaxDepth,
-		Speed = rod.DiveSpeed,
+		Speed = speed,
 		IntroTime = D.IntroTime,
 		Free = Inventory.Free(data),
 		Memes = visible,
@@ -461,13 +475,18 @@ local function onGrab(player: Player, index: any, hookX: any): any
 	if spec.Ratio > F.MaxOverload then
 		return fail("⛔ Demasiado pesado para tu caña")
 	end
-	if spec.Size > Inventory.Free(data) - session.UsedSize then
+	if data.Settings.CatchSkip[spec.Meme.Rarity] then
+		return fail("🚫 Filtrado: tu anzuelo ignora esa rareza")
+	end
+	-- lo que se vende solo al subir no ocupa sitio en el acuario (los dorados nunca se venden solos)
+	local autoSell = data.Settings.AutoSell[spec.Meme.Rarity] == true and not spec.Golden
+	if not autoSell and spec.Size > Inventory.Free(data) - session.UsedSize then
 		return fail("🐠 No cabe en tu acuario")
 	end
 
 	if spec.Ratio <= 1 then
 		spec.Taken = true
-		session.UsedSize += spec.Size
+		session.UsedSize += if autoSell then 0 else spec.Size
 		table.insert(session.Grabbed, index)
 		return { ok = true, Grabbed = true, Count = #session.Grabbed }
 	end
@@ -598,7 +617,9 @@ local function onFinish(player: Player, success: any): any
 		resume(session, now)
 		return fail("Se cansó de esperar y se fue")
 	end
-	session.UsedSize += spec.Size
+	local data = PlayerData.Get(player)
+	local autoSell = data ~= nil and data.Settings.AutoSell[spec.Meme.Rarity] == true and not spec.Golden
+	session.UsedSize += if autoSell then 0 else spec.Size
 	table.insert(session.Grabbed, session.Current)
 	resume(session, now)
 	return { ok = true, Grabbed = true, Count = #session.Grabbed }

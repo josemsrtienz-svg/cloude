@@ -77,7 +77,7 @@ local function tile(parent: Instance, catch: any, isNew: boolean, order: number)
 	if catch.Sold then
 		-- no cabía en la mochila: el servidor ya lo vendió solo
 		UIKit.label({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -10), Size = UDim2.new(1, -16, 0, 30),
-			Text = "VENDIDO (no cabía)", Font = T.FontTitle, TextColor3 = T.Coin, Parent = frame }, { Stroke = 2, MaxSize = 16 })
+			Text = if catch.AutoSold then "VENDIDO (auto)" else "VENDIDO (no cabía)", Font = T.FontTitle, TextColor3 = T.Coin, Parent = frame }, { Stroke = 2, MaxSize = 16 })
 		return
 	end
 	local sell = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -8), Size = UDim2.new(1, -16, 0, 36),

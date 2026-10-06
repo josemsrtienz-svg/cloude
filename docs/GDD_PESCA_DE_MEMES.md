@@ -4,7 +4,7 @@
 PROJECT: Pesca de Memes (nombre provisional)
 STATUS: Prototipo
 CURRENT_PHASE: FASE 2 — PROTOTIPO (P0)
-GAME_VERSION: P0 0.5 (carpeta PescaDeMemes/) — estado detallado y fases en GAME_STATE.md
+GAME_VERSION: P0 0.6 (carpeta PescaDeMemes/) — estado detallado y fases en GAME_STATE.md
 CORE_LOOP_STATUS: Implementado (click → inmersión guiando el anzuelo → peso/capacidad + tirones → mochila → parcela); falta probar con jugadores
 MAP_STATUS: Mapa "en fila" estilo steal: río central ancho (80 studs), 4 parcelas por lado con muelle propio, casillas con studs
 SYSTEMS_STATUS: PlayerData (schema v3), GearService, FishingService, PlotService, EconomyService
@@ -172,6 +172,21 @@ Inspirado en el principio de Steal a Egg ("tu base es tuya y se ve"), con aplica
 - **Mapa con vida:** peces que saltan, delfines, patos, gaviotas, árboles de bloques, flores, bancos.
 - **Cara del jugador** (avatar) sobre el cartel de su parcela.
 - **Modo prueba** (solo Studio): dinero infinito y no se guarda. Se apaga antes de publicar.
+
+## 5f. Cambios v0.6
+- **Fase 2 abierta:** el prototipo es donde se meten y prueban TODAS las ideas.
+- **Gran Tienda** al fondo del eje del río (el arco la enmarca): mercado grande con columnas, tejado a rayas,
+  bombillas, tendero, estanterías y **rincón VIP (Robux) dentro**. Fuera, el **tablón del boost gratis**:
+  cambia cada 15 min (igual para todo el servidor), se recoge una vez por ronda y dura 5 min.
+- **Boosts:** Dinero ×2, Suerte ×2, Anzuelo ×1.5 (baja más rápido), +1 Anzuelo.
+- **Profundidad ×10:** Palo 50 m · Fibra 150 m · Turbo 300 m · Abisal 600 m. **Capas** (Charca, Arrecife Meme,
+  Abismo Brainrot, Fosa Abisal) con su color, más oscuras al bajar; la Fosa brilla. Para eventos (p. ej. tóxico)
+  basta con cambiar los colores de una capa en `GameConfig.DepthLayers`.
+- **Filtros** (en el acuario o con ⚙️ junto a la caña): el anzuelo **ignora** rarezas y/o se **venden solas** al subir
+  (no ocupan sitio; los dorados nunca se venden solos).
+- **Cañas con identidad:** Palo (rama con nudos y hoja), Fibra (carbono azul), Turbo (rayos y chispas),
+  Abisal (runas y esfera que brilla con niebla morada).
+- **Arco "PESCA DE MEMES"** de piedra, cartel por las dos caras, bombillas y un pez gigante encima.
 
 ## 6. Pescadores Furtivos (el toque social)
 Para tener tensión social **sin** convertirlo en un clon de "steal":

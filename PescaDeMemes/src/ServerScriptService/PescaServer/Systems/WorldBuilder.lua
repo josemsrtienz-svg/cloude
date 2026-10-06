@@ -25,6 +25,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local GameConfig = require(Root.Config.GameConfig)
+local GearModels = require(Root.Shared.GearModels)
 
 local WorldBuilder = {}
 
@@ -403,10 +404,54 @@ end
 
 -- ===== Entrada: spawn, arco y tienda =====
 
+-- Cartel legible por las DOS caras (el del arco se ve desde la entrada y desde el río).
+local function doubleSign(parent: Instance, name: string, size: Vector3, cf: CFrame, text: string, bg: Color3, fg: Color3, stroke: Color3?): Part
+	local board = part(parent, name, size, cf, bg, Enum.Material.SmoothPlastic)
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local gui = new("SurfaceGui", { Face = face, SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud, PixelsPerStud = 40,
+			LightInfluence = 0, Parent = board })
+		new("UIGradient", { Color = ColorSequence.new(bg:Lerp(Color3.new(1, 1, 1), 0.2), bg:Lerp(Color3.new(0, 0, 0), 0.25)), Rotation = 90, Parent = gui })
+		local label = new("TextLabel", { Name = "Label", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = text,
+			Font = Enum.Font.LuckiestGuy, TextScaled = true, TextColor3 = fg, Parent = gui })
+		new("UIStroke", { Thickness = 6, Color = stroke or RGB(40, 25, 15), Parent = label })
+		new("UIPadding", { PaddingLeft = UDim.new(0.04, 0), PaddingRight = UDim.new(0.04, 0),
+			PaddingTop = UDim.new(0.1, 0), PaddingBottom = UDim.new(0.1, 0), Parent = label })
+	end
+	return board
+end
+
+-- Fila de bombillas de colores (marquesina de feria) entre dos puntos.
+local function bulbs(parent: Instance, a: Vector3, b: Vector3, count: number)
+	local colors = { PALETTE.Brand, PALETTE.Pink, RGB(70, 200, 255), RGB(90, 230, 110) }
+	for i = 0, count - 1 do
+		local p = a:Lerp(b, i / math.max(1, count - 1))
+		ball(parent, "Bulb", 0.7, p, colors[i % #colors + 1], Enum.Material.Neon)
+	end
+end
+
+-- Pez de bloques gigante para lo alto del arco.
+local function bigFish(parent: Instance, cf: CFrame)
+	local f = folder(parent, "ArchFish")
+	local body, belly, fin = RGB(255, 140, 40), RGB(255, 225, 160), RGB(230, 90, 30)
+	part(f, "Body", Vector3.new(2.6, 3.4, 6), cf, body)
+	part(f, "Belly", Vector3.new(2.2, 1.2, 4.8), cf * CFrame.new(0, -1.3, 0), belly)
+	for k = -1, 1 do
+		part(f, "Stripe", Vector3.new(2.65, 3.45, 0.4), cf * CFrame.new(0, 0, k * 1.5), RGB(250, 250, 250))
+	end
+	part(f, "Tail", Vector3.new(0.5, 3.2, 1.6), cf * CFrame.new(0, 0.9, 3.6) * CFrame.Angles(math.rad(-30), 0, 0), fin)
+	part(f, "Tail", Vector3.new(0.5, 3.2, 1.6), cf * CFrame.new(0, -0.9, 3.6) * CFrame.Angles(math.rad(30), 0, 0), fin)
+	part(f, "Dorsal", Vector3.new(0.4, 1.4, 2.4), cf * CFrame.new(0, 2.2, 0.4), fin)
+	for _, x in ipairs({ -1.32, 1.32 }) do
+		part(f, "Eye", Vector3.new(0.12, 0.9, 0.9), cf * CFrame.new(x, 0.6, -2.2), RGB(250, 250, 250))
+		part(f, "Pupil", Vector3.new(0.14, 0.5, 0.5), cf * CFrame.new(x * 1.01, 0.55, -2.35), RGB(20, 20, 25))
+	end
+	part(f, "Mouth", Vector3.new(1.4, 0.3, 0.2), cf * CFrame.new(0, -0.4, -3.05), RGB(120, 30, 40))
+end
+
 local function buildHub(map: Instance)
 	local hub = folder(map, "Hub")
 	local r = GameConfig.River
-	local spawnZ = r.MaxZ + 30
+	local spawnZ = r.MaxZ + 24
 	local spawnLoc = new("SpawnLocation", {
 		Name = "Spawn", Size = Vector3.new(12, 1, 12), CFrame = CFrame.new(0, 0.5, spawnZ),
 		Color = PALETTE.Brand, Material = Enum.Material.Plastic, TopSurface = Enum.SurfaceType.Studs,
@@ -417,119 +462,202 @@ local function buildHub(map: Instance)
 		decal:Destroy()
 	end
 
-	-- arco de entrada
-	for _, x in ipairs({ -14, 14 }) do
-		studded(hub, "ArchPillar", Vector3.new(3, 14, 3), CFrame.new(x, 7, r.MaxZ + 12), DIRT[1])
+	-- ===== ARCO "PESCA DE MEMES" =====
+	-- Pilares de piedra en bloques con base y remate, viga gruesa, cartel legible por las dos caras,
+	-- marquesina de bombillas y un pez gigante encima: la primera imagen del juego.
+	local arch = folder(hub, "Arch")
+	local archZ = r.MaxZ + 10
+	local stone, stoneDark = RGB(180, 170, 160), RGB(140, 130, 120)
+	for _, x in ipairs({ -22, 22 }) do
+		studded(arch, "PillarBase", Vector3.new(6, 2, 6), CFrame.new(x, 1, archZ), stoneDark)
+		for k = 0, 5 do
+			studded(arch, "PillarBlock", Vector3.new(4.4, 3, 4.4), CFrame.new(x, 3.5 + k * 3, archZ) * CFrame.Angles(0, (k % 2) * math.rad(6), 0),
+				if k % 2 == 0 then stone else stoneDark)
+		end
+		studded(arch, "PillarCap", Vector3.new(6, 1.4, 6), CFrame.new(x, 20.7, archZ), stoneDark)
+		ball(arch, "Orb", 2.4, Vector3.new(x, 22.6, archZ), PALETTE.Brand, Enum.Material.Neon)
+		lantern(arch, Vector3.new(x + (if x > 0 then -4 else 4), 0, archZ - 3), 6)
 	end
-	studded(hub, "ArchBeam", Vector3.new(32, 2, 3.4), CFrame.new(0, 15, r.MaxZ + 12), DIRT[2])
-	sign(hub, "ArchSign", Vector3.new(24, 4.5, 0.6), CFrame.new(0, 11.5, r.MaxZ + 10.4) * CFrame.Angles(0, math.rad(180), 0),
-		"🎣 PESCA DE MEMES", PALETTE.Brand, PALETTE.White)
+	studded(arch, "Beam", Vector3.new(50, 3, 4.6), CFrame.new(0, 21, archZ), DIRT[2])
+	studded(arch, "BeamTrim", Vector3.new(50.4, 0.8, 5), CFrame.new(0, 19.3, archZ), PALETTE.Pink)
+	doubleSign(arch, "ArchSign", Vector3.new(36, 7, 0.8), CFrame.new(0, 15, archZ), "🎣 PESCA DE MEMES", RGB(40, 150, 220), PALETTE.Brand)
+	part(arch, "SignFrame", Vector3.new(37.6, 0.8, 1), CFrame.new(0, 18.9, archZ), PALETTE.Brand)
+	part(arch, "SignFrame", Vector3.new(37.6, 0.8, 1), CFrame.new(0, 11.1, archZ), PALETTE.Brand)
+	for _, x in ipairs({ -18.4, 18.4 }) do
+		part(arch, "SignFrame", Vector3.new(0.8, 8.6, 1), CFrame.new(x, 15, archZ), PALETTE.Brand)
+	end
+	for _, dz in ipairs({ -0.7, 0.7 }) do
+		bulbs(arch, Vector3.new(-17.5, 19.5, archZ + dz), Vector3.new(17.5, 19.5, archZ + dz), 15)
+		bulbs(arch, Vector3.new(-17.5, 10.5, archZ + dz), Vector3.new(17.5, 10.5, archZ + dz), 15)
+	end
+	bigFish(arch, CFrame.new(0, 26, archZ) * CFrame.Angles(0, math.rad(90), math.rad(-12)))
+	-- anzuelos colgando del arco
+	for _, x in ipairs({ -12, 12 }) do
+		part(arch, "HookLine", Vector3.new(0.15, 6, 0.15), CFrame.new(x, 8.5, archZ), RGB(240, 240, 240))
+		part(arch, "Hook", Vector3.new(0.3, 1.4, 0.3), CFrame.new(x, 5.2, archZ), RGB(200, 205, 215), Enum.Material.Metal)
+		part(arch, "HookBend", Vector3.new(1, 0.3, 0.3), CFrame.new(x + 0.4, 4.6, archZ), RGB(200, 205, 215), Enum.Material.Metal)
+	end
 
-	-- GRAN TIENDA (destino del mapa): mostrador con tendero, estanterías, puesto VIP de Robux y pedestal
-	-- del boost gratis. La tienda del HUD solo vende lo básico; aquí está todo (boosts, Robux, muelles).
+	-- ===== GRAN TIENDA =====
+	-- Al FONDO del eje del río: se ve desde todas las parcelas y el arco la enmarca. Mercado de madera con
+	-- columnas de color, tejado a rayas, marquesina de bombillas, mostrador con tendero, estanterías,
+	-- RINCÓN VIP (Robux) DENTRO de la tienda, y fuera el TABLÓN del boost gratis (cambia cada 15 min).
 	local shop = folder(hub, "Shop")
-	local o = CFrame.lookAt(Vector3.new(38, 0, spawnZ - 2), Vector3.new(0, 0, spawnZ - 2))
-	local function at(x: number, yy: number, z: number): CFrame
-		return o * CFrame.new(x, yy, z)
+	local shopZ = r.MaxZ + 46
+	local o = CFrame.lookAt(Vector3.new(0, 0, shopZ), Vector3.new(0, 0, shopZ - 1))
+	local function at(x: number, y: number, z: number): CFrame
+		return o * CFrame.new(x, y, z)
 	end
-	-- suelo de casillas de madera y arena
+	local W, Dp, H = 38, 18, 12 -- ancho, fondo, alto de pared
 	for ix = -6, 6 do
-		for iz = -3, 3 do
-			studded(shop, "Floor", Vector3.new(2, 0.6, 2), at(ix * 2, 0.3, iz * 2), if (ix + iz) % 2 == 0 then SAND[1] else SAND[2])
+		for iz = -3, 2 do
+			studded(shop, "Floor", Vector3.new(3, 0.6, 3), at(ix * 3, 0.3, iz * 3 + 1.5), if (ix + iz) % 2 == 0 then SAND[1] else SAND[2])
 		end
 	end
-	local counter = part(shop, "Counter", Vector3.new(12, 3.4, 2.4), at(0, 2.3, -2.5), PALETTE.WoodLight, Enum.Material.WoodPlanks)
-	part(shop, "CounterTop", Vector3.new(12.6, 0.4, 2.8), at(0, 4.1, -2.5), PALETTE.WoodDark, Enum.Material.Wood)
+	-- escalón de entrada
+	studded(shop, "Step", Vector3.new(W, 0.4, 3), at(0, 0.2, -10.5), PALETTE.WoodLight)
+	-- pared del fondo y laterales con ventanas
+	part(shop, "BackWall", Vector3.new(W, H, 1), at(0, H / 2, Dp / 2), PALETTE.WoodLight, Enum.Material.WoodPlanks)
+	for _, side in ipairs({ -1, 1 }) do
+		part(shop, "SideWall", Vector3.new(1, H, Dp), at(side * W / 2, H / 2, 0), PALETTE.WoodLight, Enum.Material.WoodPlanks)
+		part(shop, "Window", Vector3.new(1.1, 4, 6), at(side * W / 2, 6, 1), PALETTE.Glass, Enum.Material.Glass, { Transparency = 0.4 })
+		part(shop, "WindowFrame", Vector3.new(1.2, 0.5, 6.6), at(side * W / 2, 8.2, 1), PALETTE.WoodDark, Enum.Material.Wood)
+		part(shop, "WindowFrame", Vector3.new(1.2, 0.5, 6.6), at(side * W / 2, 3.8, 1), PALETTE.WoodDark, Enum.Material.Wood)
+	end
+	-- columnas de colores en la fachada
+	local colColors = { PALETTE.Pink, PALETTE.Brand, RGB(70, 200, 255), PALETTE.Brand, PALETTE.Pink }
+	for i, x in ipairs({ -W / 2, -W / 4, 0, W / 4, W / 2 }) do
+		if x ~= 0 then
+			studded(shop, "Column", Vector3.new(1.6, H + 2, 1.6), at(x, (H + 2) / 2, -Dp / 2), colColors[i])
+			studded(shop, "ColumnCap", Vector3.new(2.2, 0.8, 2.2), at(x, H + 2.2, -Dp / 2), PALETTE.White)
+		end
+	end
+	-- cabecera con el cartel grande
+	studded(shop, "Header", Vector3.new(W + 2, 3.2, 1.4), at(0, H + 2.6, -Dp / 2), RGB(60, 200, 80))
+	sign(shop, "ShopSign", Vector3.new(26, 4.6, 0.6), at(0, H + 5.6, -Dp / 2 - 0.2), "🛒 GRAN TIENDA", RGB(60, 200, 80), PALETTE.White)
+	bulbs(shop, at(-13, H + 8.3, -Dp / 2 - 0.6).Position, at(13, H + 8.3, -Dp / 2 - 0.6).Position, 14)
+	bulbs(shop, at(-W / 2, H + 0.6, -Dp / 2 - 0.9).Position, at(W / 2, H + 0.6, -Dp / 2 - 0.9).Position, 20)
+	-- tejado a rayas en dos aguas
+	for k = 0, 9 do
+		local x = -W / 2 - 1 + (k + 0.5) * (W + 2) / 10
+		local color = if k % 2 == 0 then RGB(230, 70, 70) else PALETTE.White
+		for _, side in ipairs({ -1, 1 }) do
+			part(shop, "Roof", Vector3.new((W + 2) / 10, 0.5, Dp / 2 + 2), at(x, H + 2.5, side * (Dp / 4 + 0.5)) * CFrame.Angles(math.rad(side * 18), 0, 0),
+				color, Enum.Material.Fabric)
+		end
+	end
+	-- mostrador central con caja registradora
+	local counter = part(shop, "Counter", Vector3.new(14, 3.4, 2.4), at(0, 2.3, 1), PALETTE.WoodLight, Enum.Material.WoodPlanks)
+	part(shop, "CounterTop", Vector3.new(14.6, 0.4, 2.8), at(0, 4.1, 1), PALETTE.WoodDark, Enum.Material.Wood)
 	for k = -2, 2 do
-		part(shop, "CounterPanel", Vector3.new(1.8, 2.4, 0.15), at(k * 2.3, 2.1, -3.75), PALETTE.Wood, Enum.Material.WoodPlanks)
+		part(shop, "CounterPanel", Vector3.new(2.2, 2.4, 0.15), at(k * 2.7, 2.1, -0.25), PALETTE.Wood, Enum.Material.WoodPlanks)
 	end
-	part(shop, "Register", Vector3.new(1.4, 1, 1), at(3.5, 4.8, -2.4), RGB(70, 70, 80), Enum.Material.Metal)
-	part(shop, "RegisterScreen", Vector3.new(1, 0.6, 0.1), at(3.5, 5.3, -2.95), RGB(90, 255, 120), Enum.Material.Neon)
-	for _, x in ipairs({ -6, 6 }) do
-		for _, z in ipairs({ -3.5, 4 }) do
-			part(shop, "Pole", Vector3.new(0.6, 9, 0.6), at(x, 4.8, z), RGB(230, 230, 235), Enum.Material.Metal)
-		end
+	part(shop, "Register", Vector3.new(1.4, 1, 1), at(4.5, 4.8, 1.1), RGB(70, 70, 80), Enum.Material.Metal)
+	part(shop, "RegisterScreen", Vector3.new(1, 0.6, 0.1), at(4.5, 5.3, 0.55), RGB(90, 255, 120), Enum.Material.Neon)
+	new("ProximityPrompt", { Name = "ShopPrompt", ActionText = "Abrir la tienda", ObjectText = "Gran Tienda",
+		HoldDuration = 0, MaxActivationDistance = 14, RequiresLineOfSight = false, Parent = counter })
+	-- estanterías del fondo con cañas y peceras
+	for _, y in ipairs({ 2.6, 5.2, 7.8 }) do
+		part(shop, "Shelf", Vector3.new(16, 0.3, 1.6), at(0, y, Dp / 2 - 1.3), PALETTE.WoodDark, Enum.Material.Wood)
 	end
-	for k = 0, 6 do
-		local color = if k % 2 == 0 then PALETTE.Brand else PALETTE.White
-		part(shop, "Awning", Vector3.new(2, 0.3, 9.5), at(-6 + k * 2, 9.4, 0.2) * CFrame.Angles(math.rad(-8), 0, 0), color, Enum.Material.Fabric)
-	end
-	sign(shop, "ShopSign", Vector3.new(12, 2.4, 0.4), at(0, 7.4, -3.8), "🛒 GRAN TIENDA", RGB(60, 200, 80), PALETTE.White)
-	-- estanterías al fondo con cañas y peceras de muestra
-	for _, y in ipairs({ 2.2, 4.2 }) do
-		part(shop, "Shelf", Vector3.new(11, 0.3, 1.4), at(0, y, 4.6), PALETTE.WoodDark, Enum.Material.Wood)
-	end
-	part(shop, "ShelfBack", Vector3.new(11, 5, 0.3), at(0, 3.1, 5.3), PALETTE.Wood, Enum.Material.WoodPlanks)
-	for k, color in ipairs({ RGB(150, 105, 60), RGB(70, 170, 255), RGB(255, 205, 40), RGB(120, 60, 200) }) do
-		local rod = part(shop, "DisplayRod", Vector3.new(4, 0.2, 0.2), at(-4.5 + (k - 1) * 3, 4.6, 4.6) * CFrame.Angles(0, 0, math.rad(80)),
+	for k, color in ipairs({ RGB(150, 105, 60), RGB(40, 110, 220), RGB(255, 205, 40), RGB(60, 30, 90) }) do
+		local rod = part(shop, "DisplayRod", Vector3.new(5, 0.22, 0.22), at(-6 + (k - 1) * 4, 7.9, Dp / 2 - 1.3) * CFrame.Angles(0, 0, math.rad(80)),
 			color, Enum.Material.SmoothPlastic)
 		rod.Shape = Enum.PartType.Cylinder
 	end
-	for k, color in ipairs({ RGB(150, 220, 255), RGB(90, 210, 110), RGB(185, 90, 255) }) do
-		local tank = part(shop, "DisplayTank", Vector3.new(1.4, 1.4, 1), at(-3 + (k - 1) * 3, 3.05, 4.6), PALETTE.Glass, Enum.Material.Glass)
+	for k, color in ipairs({ RGB(150, 220, 255), RGB(90, 210, 110), RGB(70, 160, 255), RGB(185, 90, 255) }) do
+		local tank = part(shop, "DisplayTank", Vector3.new(1.6, 1.6, 1.1), at(-6 + (k - 1) * 4, 3.6, Dp / 2 - 1.3), PALETTE.Glass, Enum.Material.Glass)
 		tank.Transparency = 0.5
-		part(shop, "DisplayTankLid", Vector3.new(1.5, 0.2, 1.1), at(-3 + (k - 1) * 3, 3.8, 4.6), color)
+		part(shop, "DisplayTankLid", Vector3.new(1.7, 0.2, 1.2), at(-6 + (k - 1) * 4, 4.5, Dp / 2 - 1.3), color)
 	end
 
-	-- el tendero (el cliente le hace saludar): mismo estilo de bloques que los memes
+	-- el tendero (el cliente le hace saludar)
 	local keeper = new("Model", { Name = "Shopkeeper", Parent = shop })
 	local skin, shirt, apron = RGB(245, 205, 160), RGB(70, 170, 255), RGB(250, 250, 245)
 	for _, x in ipairs({ -0.5, 0.5 }) do
-		part(keeper, "Leg", Vector3.new(0.95, 2, 0.95), at(x, 1.6, 1.2), RGB(60, 60, 80))
+		part(keeper, "Leg", Vector3.new(0.95, 2, 0.95), at(x, 1.6, 3.6), RGB(60, 60, 80))
 	end
-	part(keeper, "Torso", Vector3.new(2, 2, 1), at(0, 3.6, 1.2), shirt)
-	part(keeper, "Apron", Vector3.new(1.6, 2.2, 0.1), at(0, 3.3, 0.65), apron)
-	part(keeper, "ArmL", Vector3.new(0.95, 2, 0.95), at(-1.5, 3.6, 1.2), skin)
-	part(keeper, "ArmR", Vector3.new(0.95, 2, 0.95), at(1.5, 3.6, 1.2), skin)
-	part(keeper, "Head", Vector3.new(1.6, 1.6, 1.6), at(0, 5.4, 1.2), skin)
-	part(keeper, "Moustache", Vector3.new(1, 0.25, 0.1), at(0, 5.1, 0.38), RGB(90, 60, 40))
+	part(keeper, "Torso", Vector3.new(2, 2, 1), at(0, 3.6, 3.6), shirt)
+	part(keeper, "Apron", Vector3.new(1.6, 2.2, 0.1), at(0, 3.3, 3.05), apron)
+	part(keeper, "ArmL", Vector3.new(0.95, 2, 0.95), at(-1.5, 3.6, 3.6), skin)
+	part(keeper, "ArmR", Vector3.new(0.95, 2, 0.95), at(1.5, 3.6, 3.6), skin)
+	part(keeper, "Head", Vector3.new(1.6, 1.6, 1.6), at(0, 5.4, 3.6), skin)
+	part(keeper, "Moustache", Vector3.new(1, 0.25, 0.1), at(0, 5.1, 2.78), RGB(90, 60, 40))
 	for _, x in ipairs({ -0.35, 0.35 }) do
-		part(keeper, "Eye", Vector3.new(0.25, 0.3, 0.1), at(x, 5.6, 0.38), RGB(30, 30, 35))
+		part(keeper, "Eye", Vector3.new(0.25, 0.3, 0.1), at(x, 5.6, 2.78), RGB(30, 30, 35))
 	end
-	part(keeper, "Cap", Vector3.new(1.8, 0.5, 1.8), at(0, 6.4, 1.2), RGB(255, 90, 150))
-	part(keeper, "CapBrim", Vector3.new(1.8, 0.15, 0.9), at(0, 6.2, 0.1), RGB(255, 90, 150))
-	part(keeper, "Root", Vector3.new(1, 1, 1), at(0, 0.5, 1.2), Color3.new(1, 1, 1), nil, { Transparency = 1, CanCollide = false })
-	keeper.PrimaryPart = keeper:FindFirstChild("Root") :: BasePart
-	new("ProximityPrompt", { Name = "ShopPrompt", ActionText = "Abrir la tienda", ObjectText = "Gran Tienda",
-		HoldDuration = 0, MaxActivationDistance = 12, RequiresLineOfSight = false, Parent = counter })
+	part(keeper, "Cap", Vector3.new(1.8, 0.5, 1.8), at(0, 6.4, 3.6), PALETTE.Pink)
+	part(keeper, "CapBrim", Vector3.new(1.8, 0.15, 0.9), at(0, 6.2, 2.5), PALETTE.Pink)
+	local root = part(keeper, "Root", Vector3.new(1, 1, 1), at(0, 0.5, 3.6), Color3.new(1, 1, 1), nil, { Transparency = 1, CanCollide = false })
+	keeper.PrimaryPart = root
 
-	-- puesto VIP (Robux): morado y dorado, a un lado
-	local vip = folder(shop, "VipKiosk")
-	studded(vip, "Base", Vector3.new(6, 0.4, 6), at(-11, 0.75, -1), RGB(120, 60, 200)) -- por encima del suelo de casillas
-	local vipCounter = part(vip, "Counter", Vector3.new(5, 3, 1.6), at(-11, 1.9, -2.6), RGB(150, 90, 230), Enum.Material.SmoothPlastic)
-	part(vip, "Trim", Vector3.new(5.2, 0.3, 1.8), at(-11, 3.5, -2.6), PALETTE.Brand, Enum.Material.SmoothPlastic)
-	for _, x in ipairs({ -13.6, -8.4 }) do
-		part(vip, "Pillar", Vector3.new(0.6, 7, 0.6), at(x, 3.8, -2.6), PALETTE.Brand, Enum.Material.SmoothPlastic)
+	-- rincón VIP (Robux) DENTRO de la tienda: alfombra morada, cordón dorado y podio con la corona
+	local vip = folder(shop, "VipCorner")
+	part(vip, "Carpet", Vector3.new(9, 0.1, 8), at(-13, 0.65, 3), RGB(120, 60, 200), Enum.Material.Fabric)
+	for _, p in ipairs({ { -17, -1 }, { -9, -1 }, { -9, 7 } }) do
+		post(vip, "RopePost", 0.4, 2.4, at(p[1], 0.6, p[2]).Position, PALETTE.Brand, Enum.Material.SmoothPlastic)
 	end
-	part(vip, "Roof", Vector3.new(6.4, 0.6, 5), at(-11, 7.5, -1), RGB(120, 60, 200), Enum.Material.SmoothPlastic)
-	sign(vip, "VipSign", Vector3.new(5.4, 1.6, 0.3), at(-11, 6.2, -2.9), "💎 VIP · ROBUX", RGB(120, 60, 200), PALETTE.Brand)
-	ball(vip, "Gem", 1.1, at(-11, 4.4, -2.6).Position, RGB(90, 220, 255), Enum.Material.Neon)
-	new("ProximityPrompt", { Name = "VipPrompt", ActionText = "Ver pases VIP", ObjectText = "Robux",
-		HoldDuration = 0, MaxActivationDistance = 10, RequiresLineOfSight = false, Parent = vipCounter })
+	part(vip, "Rope", Vector3.new(8, 0.15, 0.15), at(-13, 2.6, -1), RGB(200, 40, 60), Enum.Material.Fabric)
+	part(vip, "Rope", Vector3.new(0.15, 0.15, 8), at(-9, 2.6, 3), RGB(200, 40, 60), Enum.Material.Fabric)
+	local podium = post(vip, "Podium", 3, 2.4, at(-13, 0.6, 3).Position, PALETTE.White, Enum.Material.Marble)
+	local crown = GearModels.Crown()
+	crown:ScaleTo(1.3)
+	crown:PivotTo(at(-13, 4, 3))
+	crown.Parent = vip
+	local gemLight = new("PointLight", { Color = RGB(255, 210, 90), Range = 14, Brightness = 1.2, Parent = podium })
+	gemLight.Name = "VipGlow"
+	new("ProximityPrompt", { Name = "VipPrompt", ActionText = "Ver pases (Robux)", ObjectText = "VIP",
+		HoldDuration = 0, MaxActivationDistance = 12, RequiresLineOfSight = false, Parent = podium })
 
-	-- pedestal del BOOST GRATIS (brilla solo para quien tiene uno esperando: lo hace el cliente)
+	-- ===== TABLÓN DEL BOOST GRATIS (fuera, a la derecha de la entrada) =====
+	-- Estante con un cartel grande que el cliente actualiza: qué boost toca, cuánto dura y cuándo cambia.
+	local board = folder(shop, "FreeBoard")
+	local bx, bz = W / 2 + 8, -Dp / 2 - 4
+	for _, dx in ipairs({ -6.5, 6.5 }) do
+		studded(board, "BoardPost", Vector3.new(1.2, 14, 1.2), at(bx + dx, 7, bz), PALETTE.WoodDark)
+	end
+	studded(board, "BoardTop", Vector3.new(15, 1.2, 2), at(bx, 14.6, bz), RGB(60, 200, 80))
+	local panel = part(board, "Panel", Vector3.new(12, 8, 0.6), at(bx, 9, bz), RGB(20, 52, 72), Enum.Material.SmoothPlastic)
+	local gui = new("SurfaceGui", { Name = "BoardGui", Face = Enum.NormalId.Front, SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
+		PixelsPerStud = 40, LightInfluence = 0, Parent = panel })
+	local function boardLabel(name: string, text: string, y: number, h: number, color: Color3)
+		local lbl = new("TextLabel", { Name = name, Size = UDim2.fromScale(0.94, h), Position = UDim2.fromScale(0.03, y), BackgroundTransparency = 1,
+			Text = text, Font = Enum.Font.LuckiestGuy, TextScaled = true, TextColor3 = color, Parent = gui })
+		new("UIStroke", { Thickness = 4, Color = RGB(10, 20, 30), Parent = lbl })
+	end
+	boardLabel("Title", "🎁 ¡BOOST GRATIS!", 0.04, 0.2, PALETTE.Brand)
+	boardLabel("BoostName", "…", 0.27, 0.22, RGB(90, 255, 120))
+	boardLabel("Duration", "Tiempo de uso: 5 min", 0.52, 0.13, RGB(255, 255, 255))
+	boardLabel("NextIn", "Nuevo en 15:00", 0.68, 0.13, RGB(170, 220, 255))
+	boardLabel("Status", "Recógelo en el regalo 👇", 0.84, 0.12, RGB(255, 205, 40))
+	bulbs(board, at(bx - 6, 13.5, bz - 0.5).Position, at(bx + 6, 13.5, bz - 0.5).Position, 9)
+	-- el estante con el regalo (aquí se recoge)
 	local gift = folder(shop, "GiftPedestal")
-	local pedestal = disc(gift, "Pedestal", 3.4, 1.2, at(9, 0.9, -6).Position, RGB(240, 240, 245), Enum.Material.Marble)
-	disc(gift, "Ring", 4, 0.2, at(9, 0.72, -6).Position, RGB(90, 255, 120), Enum.Material.Neon).Transparency = 0.5
-	part(gift, "Box", Vector3.new(1.6, 1.6, 1.6), at(9, 2.3, -6), RGB(230, 60, 70), Enum.Material.SmoothPlastic)
-	part(gift, "RibbonA", Vector3.new(1.65, 1.65, 0.3), at(9, 2.3, -6), PALETTE.Brand, Enum.Material.SmoothPlastic)
-	part(gift, "RibbonB", Vector3.new(0.3, 1.65, 1.65), at(9, 2.3, -6), PALETTE.Brand, Enum.Material.SmoothPlastic)
-	part(gift, "Bow", Vector3.new(0.9, 0.5, 0.9), at(9, 3.3, -6) * CFrame.Angles(0, math.rad(45), 0), PALETTE.Brand, Enum.Material.SmoothPlastic)
+	part(gift, "ShelfBase", Vector3.new(12, 0.6, 3), at(bx, 3, bz - 1.2), PALETTE.Wood, Enum.Material.WoodPlanks)
+	local pedestal = disc(gift, "Pedestal", 3.2, 1, at(bx, 3.8, bz - 1.2).Position, RGB(240, 240, 245), Enum.Material.Marble)
+	disc(gift, "Ring", 3.8, 0.2, at(bx, 3.35, bz - 1.2).Position, RGB(90, 255, 120), Enum.Material.Neon).Transparency = 0.5
+	part(gift, "Box", Vector3.new(1.6, 1.6, 1.6), at(bx, 5.1, bz - 1.2), RGB(230, 60, 70), Enum.Material.SmoothPlastic)
+	part(gift, "RibbonA", Vector3.new(1.65, 1.65, 0.3), at(bx, 5.1, bz - 1.2), PALETTE.Brand, Enum.Material.SmoothPlastic)
+	part(gift, "RibbonB", Vector3.new(0.3, 1.65, 1.65), at(bx, 5.1, bz - 1.2), PALETTE.Brand, Enum.Material.SmoothPlastic)
+	part(gift, "Bow", Vector3.new(0.9, 0.5, 0.9), at(bx, 6.1, bz - 1.2) * CFrame.Angles(0, math.rad(45), 0), PALETTE.Brand, Enum.Material.SmoothPlastic)
+	for _, dx in ipairs({ -5.5, 5.5 }) do
+		post(gift, "ShelfLeg", 0.6, 2.7, at(bx + dx, 0, bz - 1.2).Position, PALETTE.WoodDark)
+	end
 	new("ProximityPrompt", { Name = "GiftPrompt", ActionText = "Recoger boost gratis", ObjectText = "Regalo",
-		HoldDuration = 0.4, MaxActivationDistance = 10, RequiresLineOfSight = false, Parent = pedestal })
+		HoldDuration = 0.4, MaxActivationDistance = 12, RequiresLineOfSight = false, Parent = pedestal })
 
-	post(shop, "Barrel", 2.2, 2.8, at(12, 0, 3).Position, PALETTE.Wood)
-	part(shop, "Crate", Vector3.new(2, 2, 2), at(12, 1, 5.5) * CFrame.Angles(0, math.rad(15), 0), PALETTE.WoodLight, Enum.Material.WoodPlanks)
-
-	-- plaza: bancos y farolas entre el arco y la tienda
-	for _, x in ipairs({ -20, 20 }) do
+	-- decoración de la plaza: barriles, cajas, bancos y farolas
+	post(shop, "Barrel", 2.2, 2.8, at(-W / 2 - 3, 0, -6).Position, PALETTE.Wood)
+	part(shop, "Crate", Vector3.new(2, 2, 2), at(-W / 2 - 3, 1, -3) * CFrame.Angles(0, math.rad(15), 0), PALETTE.WoodLight, Enum.Material.WoodPlanks)
+	part(shop, "Crate", Vector3.new(1.6, 1.6, 1.6), at(-W / 2 - 3, 2.8, -3.2) * CFrame.Angles(0, math.rad(-10), 0), PALETTE.Wood, Enum.Material.WoodPlanks)
+	for _, x in ipairs({ -30, 30 }) do
 		local bench = folder(hub, "Bench")
-		part(bench, "Seat", Vector3.new(5, 0.4, 1.6), CFrame.new(x, 1.4, spawnZ + 10), PALETTE.Wood, Enum.Material.WoodPlanks)
-		part(bench, "Back", Vector3.new(5, 1.4, 0.3), CFrame.new(x, 2.3, spawnZ + 10.7), PALETTE.Wood, Enum.Material.WoodPlanks)
+		part(bench, "Seat", Vector3.new(5, 0.4, 1.6), CFrame.new(x, 1.4, spawnZ), PALETTE.Wood, Enum.Material.WoodPlanks)
+		part(bench, "Back", Vector3.new(5, 1.4, 0.3), CFrame.new(x, 2.3, spawnZ + 0.7), PALETTE.Wood, Enum.Material.WoodPlanks)
 		for _, dx in ipairs({ -2, 2 }) do
-			part(bench, "Leg", Vector3.new(0.4, 1.2, 1.4), CFrame.new(x + dx, 0.6, spawnZ + 10), PALETTE.WoodDark, Enum.Material.Wood)
+			part(bench, "Leg", Vector3.new(0.4, 1.2, 1.4), CFrame.new(x + dx, 0.6, spawnZ), PALETTE.WoodDark, Enum.Material.Wood)
 		end
-		lantern(hub, Vector3.new(x + 4, 0, spawnZ + 10), 7)
+		lantern(hub, Vector3.new(x + 4, 0, spawnZ), 7)
 	end
 end
 

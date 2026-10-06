@@ -24,18 +24,18 @@ local Rods = {}
 local RGB = Color3.fromRGB
 
 Rods.List = {
-	{ Id = "Palo", Name = "Caña de Palo", Emoji = "🪵", Price = 0, RepairCost = 0, Capacity = 12, Hooks = 1, MaxDepth = 15, DiveSpeed = 3,
+	{ Id = "Palo", Name = "Caña de Palo", Emoji = "🪵", Price = 0, RepairCost = 0, Capacity = 12, Hooks = 1, MaxDepth = 50, DiveSpeed = 6,
 		GreenWidth = 1.0, FillSpeed = 1.0, Luck = 1.0, RedTolerance = 0.5,
-		Color = RGB(150, 105, 60), Description = "Un palo con hilo. 1 anzuelo y poca profundidad, pero nunca se rompe." },
-	{ Id = "Fibra", Name = "Caña de Fibra", Emoji = "🎣", Price = 600, RepairCost = 150, Capacity = 50, Hooks = 2, MaxDepth = 25, DiveSpeed = 3.5,
+		Color = RGB(150, 105, 60), Description = "Un palo con hilo. 1 anzuelo y 50 m, pero nunca se rompe." },
+	{ Id = "Fibra", Name = "Caña de Fibra", Emoji = "🎣", Price = 600, RepairCost = 150, Capacity = 50, Hooks = 2, MaxDepth = 150, DiveSpeed = 10,
 		GreenWidth = 1.2, FillSpeed = 1.0, Luck = 1.05, RedTolerance = 0.55,
-		Color = RGB(70, 170, 255), Description = "2 anzuelos y baja a 25 m. Zona verde más ancha." },
-	{ Id = "Turbo", Name = "Caña Turbo", Emoji = "⚡", Price = 4000, RepairCost = 1000, Capacity = 150, Hooks = 3, MaxDepth = 40, DiveSpeed = 4.5,
+		Color = RGB(70, 170, 255), Description = "2 anzuelos y baja a 150 m (Arrecife Meme). Zona verde más ancha." },
+	{ Id = "Turbo", Name = "Caña Turbo", Emoji = "⚡", Price = 4000, RepairCost = 1000, Capacity = 150, Hooks = 3, MaxDepth = 300, DiveSpeed = 16,
 		GreenWidth = 1.2, FillSpeed = 1.3, Luck = 1.1, RedTolerance = 0.6,
-		Color = RGB(255, 205, 40), Description = "3 anzuelos y baja a 40 m. El progreso sube mucho más rápido." },
-	{ Id = "Abisal", Name = "Caña Abisal", Emoji = "🌊", Price = 25000, RepairCost = 6000, Capacity = 400, Hooks = 4, MaxDepth = 60, DiveSpeed = 5.5,
+		Color = RGB(255, 205, 40), Description = "3 anzuelos y baja a 300 m (Abismo Brainrot). El progreso sube mucho más rápido." },
+	{ Id = "Abisal", Name = "Caña Abisal", Emoji = "🌊", Price = 25000, RepairCost = 6000, Capacity = 400, Hooks = 4, MaxDepth = 600, DiveSpeed = 25,
 		GreenWidth = 1.3, FillSpeed = 1.3, Luck = 1.2, RedTolerance = 0.8,
-		Color = RGB(120, 60, 200), Description = "4 anzuelos y baja a 60 m, donde viven las bestias." },
+		Color = RGB(120, 60, 200), Description = "4 anzuelos y baja a 600 m: la Fosa Abisal, donde viven los secretos." },
 }
 
 Rods.Aquariums = {

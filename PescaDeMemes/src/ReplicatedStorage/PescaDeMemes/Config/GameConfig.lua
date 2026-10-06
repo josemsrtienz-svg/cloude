@@ -10,7 +10,7 @@
 local GameConfig = {}
 
 GameConfig.GameName = "PESCA DE MEMES"
-GameConfig.Version = "P0 0.5"
+GameConfig.Version = "P0 0.6"
 
 -- ===== Moneda =====
 GameConfig.CurrencyName = "MemeCoin"
@@ -103,7 +103,7 @@ GameConfig.Fishing = {
 GameConfig.Dive = {
 	IntroTime = 1.4, -- s desde el lanzamiento hasta que el anzuelo empieza a bajar (vuelo + chapuzón)
 	StartDepth = 2, -- m: los memes empiezan a esta profundidad
-	MemesPerMeter = 0.6, -- densidad de memes en la columna de agua
+	MemesPerSecond = 1.6, -- memes por segundo de bajada (así una inmersión honda no se queda vacía)
 	LaneHalfWidth = 9, -- m: el anzuelo y los memes se mueven entre -9 y 9
 	GrabRadius = 1.7, -- m: distancia a la que el anzuelo engancha un meme
 	GrabSlack = 2.5, -- m de margen del servidor al validar la x (latencia + nado del meme)
@@ -112,10 +112,35 @@ GameConfig.Dive = {
 	GrabLate = 2, -- s de margen por la latencia (después ya lo has pasado)
 	BottomWait = 1.2, -- s en el fondo antes de subir solo
 	Timeout = 150, -- s máximos de una inmersión (contando peleas)
-	DepthLuck = 0.6, -- suerte extra según la profundidad: ×(1 + DepthLuck·(m/60)²) — las rarezas altas viven abajo
-	MaxMemes = 28, -- tope de memes por inmersión (rendimiento)
+	DepthLuck = 1, -- suerte extra según la profundidad: ×(1 + DepthLuck·m/MaxWorldDepth) — ×1.25 a 150 m, ×2 a 600 m
+	MaxWorldDepth = 600, -- m: el fondo del río por ahora (se ampliará con nuevas capas en actualizaciones)
+	MaxMemes = 40, -- tope de memes por inmersión (rendimiento)
 	StudsPerMeter = 2,
 }
+
+-- Capas de profundidad: cada una tiene nombre y su color de agua (de arriba a abajo de la capa).
+-- Cuanto más hondo, más oscuro; la última brilla (bioluminiscencia). Para un EVENTO (p. ej. "modo tóxico")
+-- basta con cambiar los colores de una capa o añadir otra más abajo.
+local RGB = Color3.fromRGB
+GameConfig.DepthLayers = {
+	{ From = 0, Name = "Charca del Noob", Top = RGB(80, 195, 235), Bottom = RGB(45, 150, 210) },
+	{ From = 50, Name = "Arrecife Meme", Top = RGB(45, 150, 210), Bottom = RGB(25, 95, 170) },
+	{ From = 150, Name = "Abismo Brainrot", Top = RGB(25, 95, 170), Bottom = RGB(15, 45, 110) },
+	{ From = 300, Name = "Fosa Abisal", Top = RGB(15, 45, 110), Bottom = RGB(5, 10, 35), Glow = RGB(120, 255, 220) },
+}
+
+-- Capa en la que está una profundidad (m) y cuánto se ha avanzado dentro de ella (0–1).
+function GameConfig.LayerAt(depth: number): (any, number)
+	local layers = GameConfig.DepthLayers
+	for i = #layers, 1, -1 do
+		local layer = layers[i]
+		if depth >= layer.From then
+			local nextFrom = if layers[i + 1] then layers[i + 1].From else GameConfig.Dive.MaxWorldDepth
+			return layer, math.clamp((depth - layer.From) / math.max(1, nextFrom - layer.From), 0, 1)
+		end
+	end
+	return layers[1], 0
+end
 
 -- ===== Modo prueba (SOLO en Roblox Studio) =====
 -- Con Enabled = true, al darle a Play en Studio empiezas con dinero "infinito" para probar todas las cañas,
@@ -146,6 +171,9 @@ GameConfig.StartingData = {
 	EquippedRod = "Palo",
 	Items = { SedalReforzado = 0 },
 	Boosts = {}, -- [boostId] = os.time() en que caduca (Config/Boosts)
+	-- filtros (rarezas): CatchSkip = el anzuelo las ignora · AutoSell = se venden solas al subir
+	Settings = { CatchSkip = {}, AutoSell = {} },
+	FreeRound = 0, -- última ronda del tablón de la Gran Tienda cuyo boost gratis ya recogió
 	-- [memeId] = { Count, Heaviest }
 	Discovered = {},
 	LastSeen = 0,

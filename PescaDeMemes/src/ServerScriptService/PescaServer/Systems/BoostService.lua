@@ -6,10 +6,11 @@
 	  BoostService.Money(player)      → multiplicador de dinero (ventas y parcela)
 	  BoostService.Luck(player)       → multiplicador de suerte (inmersión)
 	  BoostService.ExtraHooks(player) → anzuelos extra
+	  BoostService.Speed(player)      → multiplicador de la bajada del anzuelo
 	Los boosts activos se guardan en data.Boosts = { [id] = os.time() en que caducan }.
-	BOOST GRATIS: cada jugador tiene su propio reloj aleatorio; cuando toca, el atributo "FreeBoost" dice cuál
-	es y hay que ir a la TIENDA FÍSICA a recogerlo (ClaimFreeBoost). Comprar boosts también exige estar allí.
-	Atributos para el cliente: FreeBoost (string) · FreeBoostUntil (os.time) · Pass_<Key> (bool).
+	BOOST GRATIS DEL TABLÓN: cada 15 min cambia (Boosts.FreeRound, igual para todos). Cada jugador lo recoge
+	UNA vez por ronda en la GRAN TIENDA (data.FreeRound guarda la última ronda recogida).
+	Comprar boosts también exige estar junto al mostrador. Atributos: Pass_<Key> (bool).
 ]]
 
 local Players = game:GetService("Players")
@@ -27,9 +28,7 @@ local PlayerData = require(script.Parent.PlayerData)
 local BoostService = {}
 
 local passes: { [Player]: { [string]: boolean } } = {}
-local nextFree: { [Player]: number } = {}
 local lastAction: { [Player]: number } = {}
-local rng = Random.new()
 
 local function fail(err: string): any
 	return { ok = false, err = err }
@@ -72,7 +71,11 @@ function BoostService.Luck(player: Player): number
 end
 
 function BoostService.ExtraHooks(player: Player): number
-	return passValue(player, "ExtraHooks", 0, add)
+	return passValue(player, "ExtraHooks", 0, add) + (if active(player, "Hook") then 1 else 0)
+end
+
+function BoostService.Speed(player: Player): number
+	return if active(player, "Speed") then Boosts.List.Speed.Multiplier else 1
 end
 
 -- Suma `seconds` al boost (si ya estaba activo, se alarga).
@@ -95,10 +98,18 @@ local function nearShop(player: Player): boolean
 	local hub = map and map:FindFirstChild("Hub")
 	local shop = hub and hub:FindFirstChild("Shop")
 	local counter = shop and shop:FindFirstChild("Counter") :: BasePart?
-	if not hrp or not counter then
+	local gift = shop and shop:FindFirstChild("GiftPedestal")
+	local pedestal = gift and gift:FindFirstChild("Pedestal") :: BasePart?
+	if not hrp then
 		return false
 	end
-	return (hrp.Position - counter.Position).Magnitude <= Boosts.ShopRange
+	-- vale estar junto al mostrador o junto al regalo del tablón
+	for _, spot in ipairs({ counter, pedestal }) do
+		if spot and (hrp.Position - spot.Position).Magnitude <= Boosts.ShopRange then
+			return true
+		end
+	end
+	return false
 end
 
 local function rateLimited(player: Player): boolean
@@ -108,12 +119,6 @@ local function rateLimited(player: Player): boolean
 	end
 	lastAction[player] = now
 	return false
-end
-
-local function scheduleFree(player: Player)
-	nextFree[player] = os.time() + rng:NextInteger(Boosts.Free.MinDelay, Boosts.Free.MaxDelay)
-	player:SetAttribute("FreeBoost", nil)
-	player:SetAttribute("FreeBoostUntil", nil)
 end
 
 -- ===== Remotes =====
@@ -142,21 +147,19 @@ local function onClaimFree(player: Player): any
 	if rateLimited(player) then
 		return fail("Más despacio")
 	end
-	local id = player:GetAttribute("FreeBoost")
-	local claimUntil = player:GetAttribute("FreeBoostUntil")
-	local boost = Boosts.Get(id)
-	if not boost then
-		return fail("Ahora mismo no tienes ningún boost gratis")
+	local data = PlayerData.Get(player)
+	if not data then
+		return fail("Cargando datos…")
 	end
-	if type(claimUntil) ~= "number" or os.time() > claimUntil then
-		scheduleFree(player)
-		return fail("Ese boost gratis ya caducó. ¡Saldrá otro!")
+	local round, boost = Boosts.FreeRound(os.time())
+	if data.FreeRound == round then
+		return fail("Ya recogiste el boost gratis de esta ronda. ¡Mira el tablón para el siguiente!")
 	end
 	if not nearShop(player) then
-		return fail("🛒 Ve a la TIENDA para recogerlo")
+		return fail("🛒 Ve a la GRAN TIENDA para recogerlo")
 	end
+	data.FreeRound = round
 	BoostService.Grant(player, boost.Id, boost.Duration)
-	scheduleFree(player)
 	return { ok = true, Name = boost.Name }
 end
 
@@ -181,7 +184,6 @@ function BoostService.Init()
 	Remotes.Get("ClaimFreeBoost").OnServerInvoke = onClaimFree
 
 	local function onPlayer(player: Player)
-		scheduleFree(player)
 		task.spawn(refreshPasses, player)
 	end
 	Players.PlayerAdded:Connect(onPlayer)
@@ -190,7 +192,6 @@ function BoostService.Init()
 	end
 	Players.PlayerRemoving:Connect(function(player)
 		passes[player] = nil
-		nextFree[player] = nil
 		lastAction[player] = nil
 	end)
 	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
@@ -207,24 +208,19 @@ function BoostService.Init()
 		end
 	end)
 
-	-- reloj del boost gratis de cada jugador
+	-- la ronda actual del tablón la publica el SERVIDOR (atributo de Workspace): así el cliente nunca
+	-- dice "disponible" con un reloj distinto. Aviso a todos cuando cambia.
+	Workspace:SetAttribute("FreeRound", (Boosts.FreeRound(os.time())))
 	task.spawn(function()
+		local lastRound = Boosts.FreeRound(os.time())
 		while true do
-			task.wait(5)
-			local now = os.time()
-			for _, player in ipairs(Players:GetPlayers()) do
-				local pending = player:GetAttribute("FreeBoost")
-				local claimUntil = player:GetAttribute("FreeBoostUntil")
-				if pending then
-					if type(claimUntil) == "number" and now > claimUntil then
-						scheduleFree(player)
-					end
-				elseif nextFree[player] and now >= nextFree[player] and PlayerData.IsLoaded(player) then
-					local id = Boosts.Order[rng:NextInteger(1, #Boosts.Order)]
-					local boost = Boosts.List[id]
-					player:SetAttribute("FreeBoost", id)
-					player:SetAttribute("FreeBoostUntil", now + Boosts.Free.ClaimWindow)
-					PlayerData.Notify(player, ("🎁 ¡BOOST GRATIS (%s %s) esperándote en la TIENDA! Tienes 5 min"):format(boost.Emoji, boost.Name), "Success")
+			task.wait(1)
+			local round, boost = Boosts.FreeRound(os.time())
+			Workspace:SetAttribute("FreeRound", round)
+			if round ~= lastRound then
+				lastRound = round
+				for _, player in ipairs(Players:GetPlayers()) do
+					PlayerData.Notify(player, ("🎁 ¡NUEVO boost gratis en el tablón de la GRAN TIENDA: %s %s (5 min)!"):format(boost.Emoji, boost.Name), "Success")
 				end
 			end
 		end

@@ -181,6 +181,11 @@ local function sanitize(data: any): any
 		end
 	end
 	data.Boosts = boosts
+	data.FreeRound = math.max(0, math.floor(tonumber(data.FreeRound) or 0))
+
+	-- filtros: solo rarezas que existen, guardadas como [rarityId] = true
+	local settings = if type(data.Settings) == "table" then data.Settings else {}
+	data.Settings = { CatchSkip = Memes.CleanRaritySet(settings.CatchSkip), AutoSell = Memes.CleanRaritySet(settings.AutoSell) }
 	return data
 end
 
