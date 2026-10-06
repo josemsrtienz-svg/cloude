@@ -5,8 +5,8 @@ PROJECT: Nuevo juego (nombre por decidir)
 STATUS: Ideación
 CURRENT_PHASE: FASE 0 — VALIDACIÓN
 DECISIONS: Plataforma Roblox (Rojo + Luau), mobile-first, reutilizar lo que ya existe en el repo cuando aporte
-OPEN_QUESTIONS: ¿Qué concepto elegimos? ¿Partimos de MEME WARRIORS o empezamos uno nuevo?
-NEXT_STEP: Elegir 1 concepto → core loop detallado → GDD corto
+DECISIONS_2: Elegido el concepto A (Pesca de Memes) → ver GDD_PESCA_DE_MEMES.md
+NEXT_STEP: Prototipo P0 (ver GDD)
 ```
 
 ## 1. Investigación (octubre 2026)
