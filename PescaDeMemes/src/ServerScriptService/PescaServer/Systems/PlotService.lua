@@ -28,6 +28,7 @@ local MemeModels = require(Root.Shared.MemeModels)
 local Util = require(Root.Shared.Util)
 
 local PlayerData = require(script.Parent.PlayerData)
+local MissionService = require(script.Parent.MissionService)
 local FishingService = require(script.Parent.FishingService)
 local BoostService = require(script.Parent.BoostService)
 
@@ -316,6 +317,7 @@ local function collect(player: Player)
 	local amount = data.PlotBank
 	data.PlotBank = 0
 	data.MemeCoin += amount
+	MissionService.Progress(player, "Collect", amount)
 	player:SetAttribute("PlotBank", 0)
 	PlayerData.Push(player)
 	setBankLabel(index, 0)

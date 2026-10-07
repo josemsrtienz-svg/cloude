@@ -41,6 +41,8 @@ rojo build default.project.json -o PescaDeMemes.rbxlx
 8. **Tienda:** el botón del HUD vende cañas, mochilas y objetos. La **GRAN TIENDA** (entrada del mapa) tiene además
    **⚡ boosts** (Dinero ×2, Suerte ×2, Anzuelo ×1.5, +1 Anzuelo), **💎 pases de Robux** y el **🎁 boost gratis** del tablón (cambia cada 15 min).
 9. **Objetos:** en la pestaña Objetos eliges qué llevas en tus **huecos** (1 al empezar): Sedal, Linterna, Imán, Red Dorada.
+10. **Misiones (📜):** 3 misiones al día y un regalo diario con racha de 7 días.
+11. **Mercader (🧳):** cada hora amarra su barca junto al puente 10 min con un meme raro, un objeto al 50 % y un boost rebajado.
 
 > 🎓 **Tutorial:** los jugadores nuevos lo ven al entrar (6 pasos con flecha). En Studio sale en cada Play
 > mientras `GameConfig.DevMode.Tutorial = true`; ponlo en false para empezar con él hecho.

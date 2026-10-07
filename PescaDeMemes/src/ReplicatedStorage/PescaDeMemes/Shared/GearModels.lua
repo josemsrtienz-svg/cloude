@@ -52,7 +52,54 @@ local ROD_STYLE = {
 	Fibra = { Shaft = RGB(40, 110, 220), ShaftMat = Enum.Material.SmoothPlastic, Grip = RGB(205, 165, 115), GripMat = Enum.Material.Fabric, Tip = RGB(255, 255, 255) },
 	Turbo = { Shaft = RGB(255, 205, 40), ShaftMat = Enum.Material.SmoothPlastic, Grip = RGB(30, 30, 35), GripMat = Enum.Material.Fabric, Tip = RGB(255, 240, 120) },
 	Abisal = { Shaft = RGB(40, 20, 60), ShaftMat = Enum.Material.SmoothPlastic, Grip = RGB(25, 15, 35), GripMat = Enum.Material.Fabric, Tip = RGB(140, 255, 235) },
+	Bambu = { Shaft = RGB(140, 200, 90), ShaftMat = Enum.Material.Wood, Grip = RGB(120, 165, 70), GripMat = Enum.Material.Wood, Tip = RGB(110, 195, 70) },
+	Pirata = { Shaft = RGB(85, 55, 35), ShaftMat = Enum.Material.Wood, Grip = RGB(70, 45, 28), GripMat = Enum.Material.Wood, Tip = RGB(255, 200, 60) },
+	Coral = { Shaft = RGB(255, 130, 120), ShaftMat = Enum.Material.Slate, Grip = RGB(245, 230, 210), GripMat = Enum.Material.Marble, Tip = RGB(255, 200, 220) },
+	Glaciar = { Shaft = RGB(170, 225, 255), ShaftMat = Enum.Material.Ice, Grip = RGB(60, 90, 130), GripMat = Enum.Material.Fabric, Tip = RGB(235, 250, 255) },
+	Volcanica = { Shaft = RGB(45, 35, 33), ShaftMat = Enum.Material.Basalt, Grip = RGB(60, 40, 35), GripMat = Enum.Material.Slate, Tip = RGB(255, 120, 30) },
+	CyberNeon = { Shaft = RGB(30, 30, 42), ShaftMat = Enum.Material.Metal, Grip = RGB(15, 15, 20), GripMat = Enum.Material.Fabric, Tip = RGB(60, 240, 255) },
+	Dragon = { Shaft = RGB(170, 25, 35), ShaftMat = Enum.Material.SmoothPlastic, Grip = RGB(60, 20, 20), GripMat = Enum.Material.Fabric, Tip = RGB(255, 200, 60) },
+	Galactica = { Shaft = RGB(30, 22, 85), ShaftMat = Enum.Material.SmoothPlastic, Grip = RGB(20, 15, 40), GripMat = Enum.Material.Fabric, Tip = RGB(240, 240, 255) },
+	Arcoiris = { Shaft = RGB(255, 255, 255), ShaftMat = Enum.Material.SmoothPlastic, Grip = RGB(250, 250, 255), GripMat = Enum.Material.Fabric, Tip = RGB(255, 255, 255) },
+	Diamante = { Shaft = RGB(200, 240, 255), ShaftMat = Enum.Material.Glass, Grip = RGB(225, 228, 238), GripMat = Enum.Material.Metal, Tip = RGB(220, 250, 255) },
+	Brainrot = { Shaft = RGB(255, 110, 180), ShaftMat = Enum.Material.SmoothPlastic, Grip = RGB(80, 200, 255), GripMat = Enum.Material.Fabric, Tip = RGB(255, 140, 185) },
+	Divina = { Shaft = RGB(250, 248, 240), ShaftMat = Enum.Material.Marble, Grip = RGB(235, 190, 70), GripMat = Enum.Material.Metal, Tip = RGB(255, 245, 200) },
 }
+
+-- Ayudas para decorar a lo largo de la vara (f = 0 junto al mango, 1 en la punta).
+local function along(axis: CFrame, length: number, f: number, x: number?, y: number?): CFrame
+	return axis * CFrame.new(x or 0, y or 0, -0.5 - f * length)
+end
+
+-- Termina una pieza creada a mano (WedgePart…) igual que part(): anclada, sin colisión ni sombra.
+local function bakePart(p: BasePart, model: Model)
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	p.CastShadow = false
+	p.Parent = model
+end
+
+local function ballPart(model: Model, name: string, d: number, cf: CFrame, color: Color3, material: Enum.Material?, transparency: number?): Part
+	return part(model, { Name = name, Shape = Enum.PartType.Ball, Size = Vector3.one * d, Color = color,
+		Material = material or Enum.Material.SmoothPlastic, Transparency = transparency or 0, CFrame = cf })
+end
+
+-- Cilindro (el eje del cilindro de Roblox es X: gira cf para orientarlo).
+local function cylinderPart(model: Model, name: string, thickness: number, d: number, cf: CFrame, color: Color3, material: Enum.Material?, transparency: number?): Part
+	return part(model, { Name = name, Shape = Enum.PartType.Cylinder, Size = Vector3.new(thickness, d, d), Color = color,
+		Material = material or Enum.Material.SmoothPlastic, Transparency = transparency or 0, CFrame = cf })
+end
+
+local function light(parent: Instance, color: Color3, range: number)
+	local l = Instance.new("PointLight")
+	l.Color = color
+	l.Range = range
+	l.Brightness = 1.4
+	l.Parent = parent
+end
 
 local function rodFx(parent: Instance, props: { [string]: any })
 	local e = Instance.new("ParticleEmitter")
@@ -117,11 +164,268 @@ local DECOR: { [string]: (Model, CFrame, number) -> () } = {
 			Material = Enum.Material.Neon, CFrame = axis * CFrame.new(0, 0, -length - 0.65) })
 		part(model, { Name = "OrbCage", Size = Vector3.new(0.55, 0.08, 0.55), Color = RGB(60, 40, 80), Material = Enum.Material.Metal,
 			CFrame = axis * CFrame.new(0, 0, -length - 0.65) })
-		local light = Instance.new("PointLight")
-		light.Color = RGB(160, 100, 255)
-		light.Range = 8
-		light.Brightness = 1.5
-		light.Parent = orb
+		light(orb, RGB(160, 100, 255), 8)
+	end,
+	-- ===== v0.9: 12 cañas nuevas =====
+	-- bambú: nudos (anillos más oscuros) en cada tramo, cordel en el mango y dos hojas en la punta
+	Bambu = function(model, axis, length)
+		for i = 1, 6 do
+			local shade = RGB(90 + i * 3, 145 + (i % 2) * 10, 55)
+			part(model, { Name = "Node", Size = Vector3.new(0.22, 0.22, 0.07), Color = shade, Material = Enum.Material.Wood,
+				CFrame = along(axis, length, i / 7) })
+		end
+		for _, z in ipairs({ -0.45, -0.05, 0.35 }) do
+			part(model, { Name = "Twine", Size = Vector3.new(0.39, 0.39, 0.07), Color = RGB(215, 195, 145), Material = Enum.Material.Fabric,
+				CFrame = CFrame.new(0, 0, z) })
+		end
+		part(model, { Name = "Twig", Size = Vector3.new(0.05, 0.05, 0.35), Color = RGB(100, 150, 60), Material = Enum.Material.Wood,
+			CFrame = along(axis, length, 0.9, 0.12, 0.1) * CFrame.Angles(0, 0.5, 0) })
+		for _, side in ipairs({ -1, 1 }) do
+			part(model, { Name = "Leaf", Size = Vector3.new(0.34, 0.04, 0.6), Color = RGB(110, 195, 70), Material = Enum.Material.Grass,
+				CFrame = along(axis, length, 0.92, side * 0.2, 0.12) * CFrame.Angles(0, side * 0.6, side * 0.4) })
+		end
+	end,
+	-- pirata: madera oscura con aros de latón, cuerda en el mango, doblón en el talón y bandera con calavera
+	Pirata = function(model, axis, length)
+		for _, f in ipairs({ 0.22, 0.48, 0.74 }) do
+			part(model, { Name = "BrassBand", Size = Vector3.new(0.21, 0.21, 0.1), Color = RGB(205, 160, 60), Material = Enum.Material.Metal,
+				CFrame = along(axis, length, f) })
+		end
+		for i = 0, 4 do
+			part(model, { Name = "Rope", Size = Vector3.new(0.4, 0.4, 0.06), Color = RGB(180 - i * 4, 145, 95), Material = Enum.Material.Fabric,
+				CFrame = CFrame.new(0, 0, -0.5 + i * 0.22) * CFrame.Angles(0, 0, i * 0.4) })
+		end
+		cylinderPart(model, "Doubloon", 0.06, 0.38, CFrame.new(0, 0, 0.9) * CFrame.Angles(0, math.rad(90), 0), RGB(255, 200, 60), Enum.Material.Metal)
+		local pole = along(axis, length, 0.86, 0, 0.3)
+		part(model, { Name = "FlagPole", Size = Vector3.new(0.05, 0.6, 0.05), Color = RGB(70, 45, 25), Material = Enum.Material.Wood, CFrame = pole })
+		local flag = pole * CFrame.new(0, 0.15, 0.27)
+		part(model, { Name = "Flag", Size = Vector3.new(0.03, 0.32, 0.5), Color = RGB(20, 20, 25), Material = Enum.Material.Fabric, CFrame = flag })
+		part(model, { Name = "Skull", Size = Vector3.new(0.05, 0.12, 0.12), Color = RGB(240, 240, 230), CFrame = flag * CFrame.new(0, 0.04, 0) })
+		for _, a in ipairs({ -0.7, 0.7 }) do
+			part(model, { Name = "Bone", Size = Vector3.new(0.05, 0.03, 0.22), Color = RGB(240, 240, 230),
+				CFrame = flag * CFrame.new(0, -0.07, 0) * CFrame.Angles(a, 0, 0) })
+		end
+	end,
+	-- coral: ramas de coral que salen de la vara (de varios tonos, con puntas redondas), concha y perla
+	Coral = function(model, axis, length)
+		local tones = { RGB(255, 120, 120), RGB(255, 160, 90), RGB(240, 90, 150), RGB(255, 140, 170) }
+		for i = 1, 4 do
+			local side = if i % 2 == 0 then 1 else -1
+			local base = along(axis, length, 0.18 + i * 0.17) * CFrame.Angles(0, 0, side * 0.9)
+			local color = tones[i]
+			part(model, { Name = "Branch", Size = Vector3.new(0.08, 0.38, 0.08), Color = color, Material = Enum.Material.Slate,
+				CFrame = base * CFrame.new(0, 0.22, 0) })
+			part(model, { Name = "Twig", Size = Vector3.new(0.06, 0.22, 0.06), Color = color, Material = Enum.Material.Slate,
+				CFrame = base * CFrame.new(0, 0.3, 0) * CFrame.Angles(0.6, 0, 0) * CFrame.new(0, 0.1, 0) })
+			ballPart(model, "Polyp", 0.12, base * CFrame.new(0, 0.42, 0), color:Lerp(Color3.new(1, 1, 1), 0.3))
+		end
+		for _, side in ipairs({ -1, 1 }) do
+			local shell = Instance.new("WedgePart")
+			shell.Name = "Shell"
+			shell.Size = Vector3.new(0.05, 0.26, 0.3)
+			shell.Color = RGB(250, 225, 200)
+			shell.Material = Enum.Material.Marble
+			shell.CFrame = CFrame.new(side * 0.21, 0.05, 0.2) * CFrame.Angles(0, 0, side * 0.2)
+			bakePart(shell, model)
+		end
+		ballPart(model, "Pearl", 0.32, axis * CFrame.new(0, 0, -length - 0.7), RGB(250, 245, 255), Enum.Material.Glass).Reflectance = 0.3
+	end,
+	-- glaciar: vara de hielo translúcida con un núcleo que brilla, pinchos de hielo y un copo de nieve en la punta
+	Glaciar = function(model, axis, length)
+		part(model, { Name = "FrostCore", Size = Vector3.new(0.06, 0.06, length * 0.95), Color = RGB(210, 245, 255), Material = Enum.Material.Neon,
+			CFrame = axis * CFrame.new(0, 0, -length / 2 - 0.5) })
+		for i = 1, 6 do
+			local side = if i % 2 == 0 then 1 else -1
+			local spike = Instance.new("WedgePart")
+			spike.Name = "IceSpike"
+			spike.Size = Vector3.new(0.08, 0.2 + (i % 3) * 0.06, 0.32)
+			spike.Color = RGB(190, 235, 255)
+			spike.Material = Enum.Material.Glass
+			spike.Transparency = 0.3
+			spike.CFrame = along(axis, length, i / 7.5, side * 0.1, 0.12) * CFrame.Angles(0, 0, side * 0.5)
+			bakePart(spike, model)
+		end
+		local flake = axis * CFrame.new(0, 0, -length - 0.8)
+		for k = 0, 2 do
+			part(model, { Name = "Snowflake", Size = Vector3.new(0.05, 0.6, 0.05), Color = RGB(235, 250, 255), Material = Enum.Material.Neon,
+				CFrame = flake * CFrame.Angles(0, 0, k * math.rad(60)) })
+		end
+	end,
+	-- volcánica: basalto con grietas de lava zigzagueando, rocas pegadas y un orbe de magma con luz
+	Volcanica = function(model, axis, length)
+		for i = 1, 7 do
+			local x = if i % 2 == 0 then 0.06 else -0.06
+			part(model, { Name = "LavaCrack", Size = Vector3.new(0.035, 0.035, length / 7.5), Color = RGB(255, 110 + i * 8, 20),
+				Material = Enum.Material.Neon, CFrame = along(axis, length, (i - 0.5) / 7, x, 0.075) * CFrame.Angles(0, x * 4, 0) })
+		end
+		for i, f in ipairs({ 0.2, 0.47, 0.71 }) do
+			part(model, { Name = "Rock", Size = Vector3.new(0.24, 0.2, 0.26), Color = RGB(55 + i * 6, 45, 42), Material = Enum.Material.Basalt,
+				CFrame = along(axis, length, f, (i % 2 - 0.5) * 0.12, -0.04) * CFrame.Angles(i, i * 0.7, 0.3) })
+		end
+		local orb = ballPart(model, "MagmaOrb", 0.42, axis * CFrame.new(0, 0, -length - 0.7), RGB(255, 100, 20), Enum.Material.Neon)
+		part(model, { Name = "OrbCrust", Size = Vector3.new(0.5, 0.12, 0.5), Color = RGB(40, 30, 28), Material = Enum.Material.Basalt,
+			CFrame = axis * CFrame.new(0, -0.12, -length - 0.7) * CFrame.Angles(0, 0.4, 0) })
+		light(orb, RGB(255, 120, 40), 8)
+	end,
+	-- cyber neón: metal oscuro con pistas de circuito cian/magenta, anillos holográficos y pantalla LED
+	CyberNeon = function(model, axis, length)
+		part(model, { Name = "TraceTop", Size = Vector3.new(0.03, 0.03, length * 0.9), Color = RGB(60, 240, 255), Material = Enum.Material.Neon,
+			CFrame = axis * CFrame.new(0, 0.085, -length / 2 - 0.5) })
+		part(model, { Name = "TraceSide", Size = Vector3.new(0.03, 0.03, length * 0.7), Color = RGB(255, 60, 220), Material = Enum.Material.Neon,
+			CFrame = axis * CFrame.new(0.085, 0, -length * 0.4 - 0.5) })
+		for i = 1, 5 do
+			part(model, { Name = "Chip", Size = Vector3.new(0.1, 0.06, 0.1), Color = if i % 2 == 0 then RGB(60, 240, 255) else RGB(255, 60, 220),
+				Material = Enum.Material.Neon, CFrame = along(axis, length, i / 6, 0, 0.1) })
+		end
+		for _, f in ipairs({ 0.42, 0.72 }) do
+			cylinderPart(model, "HoloRing", 0.04, 0.55, along(axis, length, f) * CFrame.Angles(0, math.rad(90), 0), RGB(80, 230, 255),
+				Enum.Material.Neon, 0.55)
+		end
+		part(model, { Name = "Screen", Size = Vector3.new(0.3, 0.22, 0.4), Color = RGB(15, 15, 20), Material = Enum.Material.Metal,
+			CFrame = CFrame.new(0, 0.28, -0.1) })
+		part(model, { Name = "ScreenGlow", Size = Vector3.new(0.24, 0.02, 0.32), Color = RGB(60, 240, 255), Material = Enum.Material.Neon,
+			CFrame = CFrame.new(0, 0.4, -0.1) })
+		local tip = part(model, { Name = "Scanner", Size = Vector3.new(0.28, 0.12, 0.12), Color = RGB(60, 240, 255), Material = Enum.Material.Neon,
+			CFrame = axis * CFrame.new(0, 0, -length - 0.7) })
+		light(tip, RGB(80, 240, 255), 10)
+	end,
+	-- dragón: escamas por el lomo, alas junto al mango y una cabeza de dragón con cuernos y ojos en la punta
+	Dragon = function(model, axis, length)
+		for i = 1, 9 do
+			local scale = Instance.new("WedgePart")
+			scale.Name = "Scale"
+			scale.Size = Vector3.new(0.14, 0.1, 0.22)
+			scale.Color = RGB(120 + (i % 3) * 15, 15, 25)
+			scale.Material = Enum.Material.SmoothPlastic
+			scale.CFrame = along(axis, length, i / 10.5, 0, 0.11)
+			bakePart(scale, model)
+		end
+		for _, side in ipairs({ -1, 1 }) do
+			local wing = CFrame.new(side * 0.35, 0.25, -0.3) * CFrame.Angles(0, side * 0.3, side * 0.5)
+			part(model, { Name = "WingBone", Size = Vector3.new(0.6, 0.05, 0.05), Color = RGB(90, 20, 25), CFrame = wing })
+			local membrane = Instance.new("WedgePart")
+			membrane.Name = "WingMembrane"
+			membrane.Size = Vector3.new(0.03, 0.4, 0.55)
+			membrane.Color = RGB(230, 120, 40)
+			membrane.Material = Enum.Material.Fabric
+			membrane.CFrame = wing * CFrame.new(0, -0.2, 0.2) * CFrame.Angles(0, math.rad(90), 0)
+			bakePart(membrane, model)
+		end
+		local head = axis * CFrame.new(0, 0, -length - 0.75)
+		part(model, { Name = "DragonHead", Size = Vector3.new(0.4, 0.36, 0.5), Color = RGB(170, 25, 35), CFrame = head })
+		part(model, { Name = "Snout", Size = Vector3.new(0.3, 0.2, 0.32), Color = RGB(150, 20, 30), CFrame = head * CFrame.new(0, -0.04, -0.38) })
+		part(model, { Name = "Jaw", Size = Vector3.new(0.26, 0.07, 0.36), Color = RGB(90, 15, 20), CFrame = head * CFrame.new(0, -0.17, -0.34) })
+		for _, side in ipairs({ -1, 1 }) do
+			part(model, { Name = "Eye", Size = Vector3.new(0.07, 0.07, 0.07), Color = RGB(255, 230, 60), Material = Enum.Material.Neon,
+				CFrame = head * CFrame.new(side * 0.17, 0.08, -0.18) })
+			local horn = Instance.new("WedgePart")
+			horn.Name = "Horn"
+			horn.Size = Vector3.new(0.07, 0.3, 0.16)
+			horn.Color = RGB(240, 200, 90)
+			horn.Material = Enum.Material.Metal
+			horn.CFrame = head * CFrame.new(side * 0.13, 0.3, 0.12) * CFrame.Angles(-0.5, 0, side * 0.2)
+			bakePart(horn, model)
+		end
+	end,
+	-- galáctica: vara azul noche con estrellas, un planeta con anillo en la punta y una luna pequeña
+	Galactica = function(model, axis, length)
+		for i = 1, 11 do
+			local x = math.sin(i * 2.3) * 0.085
+			local y = math.cos(i * 1.7) * 0.085
+			part(model, { Name = "Star", Size = Vector3.one * (0.035 + (i % 3) * 0.012), Color = if i % 4 == 0 then RGB(255, 220, 140) else RGB(240, 240, 255),
+				Material = Enum.Material.Neon, CFrame = along(axis, length, i / 12, x, y) })
+		end
+		local planetCf = axis * CFrame.new(0, 0, -length - 0.8)
+		local planet = ballPart(model, "Planet", 0.5, planetCf, RGB(150, 90, 230), Enum.Material.SmoothPlastic)
+		ballPart(model, "PlanetBand", 0.52, planetCf * CFrame.new(0, 0.05, 0), RGB(255, 170, 90), Enum.Material.SmoothPlastic, 0.55)
+		cylinderPart(model, "PlanetRing", 0.03, 0.95, planetCf * CFrame.Angles(0.4, 0, math.rad(90)), RGB(230, 200, 255),
+			Enum.Material.Neon, 0.35)
+		ballPart(model, "Moon", 0.14, planetCf * CFrame.new(0.45, 0.3, 0.1), RGB(220, 220, 230), Enum.Material.Slate)
+		light(planet, RGB(170, 120, 255), 9)
+	end,
+	-- arcoíris: la vara está hecha de franjas de colores, con una nube en la punta y una moneda en el talón
+	Arcoiris = function(model, axis, length)
+		local colors = { RGB(255, 70, 70), RGB(255, 150, 40), RGB(255, 230, 60), RGB(80, 220, 100), RGB(70, 160, 255), RGB(170, 90, 255) }
+		for i, c in ipairs(colors) do
+			part(model, { Name = "Band", Size = Vector3.new(0.17, 0.17, length / 6), Color = c,
+				CFrame = along(axis, length, (i - 0.5) / 6) })
+		end
+		local cloud = axis * CFrame.new(0, 0.05, -length - 0.75)
+		for k, off in ipairs({ Vector3.new(0, 0, 0), Vector3.new(0.22, -0.05, 0.08), Vector3.new(-0.22, -0.05, 0.05), Vector3.new(0, 0.12, 0.15) }) do
+			ballPart(model, "Cloud", 0.34 - (k % 2) * 0.06, cloud * CFrame.new(off), RGB(255, 255, 255), Enum.Material.SmoothPlastic)
+		end
+		cylinderPart(model, "GoldCoin", 0.06, 0.34, CFrame.new(0, 0, 0.9) * CFrame.Angles(0, math.rad(90), 0), RGB(255, 205, 60), Enum.Material.Metal)
+	end,
+	-- diamante: vara de cristal con engastes de platino, gemas talladas y un gran diamante en la punta
+	Diamante = function(model, axis, length)
+		for i = 1, 5 do
+			local f = i / 6
+			part(model, { Name = "Setting", Size = Vector3.new(0.22, 0.22, 0.08), Color = RGB(225, 228, 238), Material = Enum.Material.Metal,
+				CFrame = along(axis, length, f) })
+			local gem = part(model, { Name = "Gem", Size = Vector3.one * (0.13 + (i % 2) * 0.04), Color = RGB(150, 230, 255),
+				Material = Enum.Material.Glass, Transparency = 0.15, CFrame = along(axis, length, f, 0, 0.14) * CFrame.Angles(math.rad(45), math.rad(45), 0) })
+			gem.Reflectance = 0.35
+		end
+		local top = axis * CFrame.new(0, 0, -length - 0.8)
+		local diamond = part(model, { Name = "Diamond", Size = Vector3.new(0.36, 0.36, 0.36), Color = RGB(200, 245, 255), Material = Enum.Material.Glass,
+			Transparency = 0.1, CFrame = top * CFrame.Angles(math.rad(45), 0, math.rad(45)) })
+		diamond.Reflectance = 0.45
+		part(model, { Name = "Prongs", Size = Vector3.new(0.3, 0.3, 0.1), Color = RGB(225, 228, 238), Material = Enum.Material.Metal,
+			CFrame = top * CFrame.new(0, 0, 0.24) })
+		light(diamond, RGB(200, 240, 255), 7)
+	end,
+	-- brainrot: vara a cuadros de colores meme, zapatilla en el mango y un CEREBRO con ojos saltones y corona
+	Brainrot = function(model, axis, length)
+		for i = 1, 8 do
+			part(model, { Name = "Check", Size = Vector3.new(0.175, 0.175, length / 9), Color = if i % 2 == 0 then RGB(80, 220, 255) else RGB(255, 225, 60),
+				CFrame = along(axis, length, (i - 0.5) / 8.5) * CFrame.Angles(0, 0, i * 0.4) })
+		end
+		part(model, { Name = "SneakerSole", Size = Vector3.new(0.42, 0.12, 0.7), Color = RGB(245, 245, 245), CFrame = CFrame.new(0, -0.25, 0.25) })
+		part(model, { Name = "SneakerSwoosh", Size = Vector3.new(0.44, 0.05, 0.3), Color = RGB(255, 60, 120), CFrame = CFrame.new(0, -0.17, 0.2) })
+		local brain = axis * CFrame.new(0, 0.05, -length - 0.85)
+		ballPart(model, "Brain", 0.7, brain, RGB(255, 140, 185), Enum.Material.SmoothPlastic)
+		for k = -1, 1 do
+			part(model, { Name = "Fold", Size = Vector3.new(0.05, 0.05, 0.6), Color = RGB(220, 95, 145),
+				CFrame = brain * CFrame.new(k * 0.15, 0.3 - math.abs(k) * 0.05, 0) * CFrame.Angles(0, 0, k * 0.3) })
+		end
+		part(model, { Name = "Fissure", Size = Vector3.new(0.04, 0.08, 0.66), Color = RGB(200, 80, 130), CFrame = brain * CFrame.new(0, 0.3, 0) })
+		for _, side in ipairs({ -1, 1 }) do
+			local eye = brain * CFrame.new(side * 0.15, 0.02, -0.3)
+			ballPart(model, "EyeWhite", 0.2, eye, RGB(255, 255, 255), Enum.Material.SmoothPlastic)
+			ballPart(model, "Pupil", 0.09, eye * CFrame.new(side * 0.02, -0.03, -0.07), RGB(20, 20, 25), Enum.Material.SmoothPlastic)
+		end
+		for k = -1, 1 do
+			local spike = Instance.new("WedgePart")
+			spike.Name = "Crown"
+			spike.Size = Vector3.new(0.06, 0.18, 0.12)
+			spike.Color = RGB(255, 205, 60)
+			spike.Material = Enum.Material.Metal
+			spike.CFrame = brain * CFrame.new(k * 0.12, 0.45, 0.05)
+			bakePart(spike, model)
+		end
+	end,
+	-- divina: mármol blanco con filigrana de oro, alas de ángel de plumas en el mango y un halo en la punta
+	Divina = function(model, axis, length)
+		for _, f in ipairs({ 0.2, 0.5, 0.8 }) do
+			part(model, { Name = "GoldBand", Size = Vector3.new(0.21, 0.21, 0.09), Color = RGB(240, 195, 70), Material = Enum.Material.Metal,
+				CFrame = along(axis, length, f) })
+			part(model, { Name = "BandGem", Size = Vector3.one * 0.07, Color = RGB(120, 220, 255), Material = Enum.Material.Neon,
+				CFrame = along(axis, length, f, 0, 0.11) })
+		end
+		for _, side in ipairs({ -1, 1 }) do
+			for k = 1, 3 do
+				part(model, { Name = "Feather", Size = Vector3.new(0.75 - k * 0.15, 0.05, 0.16), Color = RGB(255, 255, 255 - k * 8),
+					CFrame = CFrame.new(side * (0.3 + (3 - k) * 0.06), 0.15 + k * 0.08, -0.2 + k * 0.1) * CFrame.Angles(0, side * 0.25, side * (0.35 + k * 0.12)) })
+			end
+		end
+		local haloCf = axis * CFrame.new(0, 0, -length - 0.85)
+		for k = 0, 9 do
+			local a = k / 10 * math.pi * 2
+			part(model, { Name = "Halo", Size = Vector3.new(0.1, 0.1, 0.2), Color = RGB(255, 230, 120), Material = Enum.Material.Neon,
+				CFrame = haloCf * CFrame.new(math.cos(a) * 0.32, math.sin(a) * 0.32, 0) * CFrame.Angles(0, 0, a) })
+		end
+		local core = ballPart(model, "HolyLight", 0.22, haloCf, RGB(255, 250, 220), Enum.Material.Neon)
+		light(core, RGB(255, 235, 170), 10)
 	end,
 }
 
@@ -139,6 +443,70 @@ local FX: { [string]: (Attachment) -> () } = {
 			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 0.8) }),
 			Color = ColorSequence.new(RGB(170, 90, 255), RGB(110, 255, 230)),
 			Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) }),
+			SpreadAngle = Vector2.new(180, 180) })
+	end,
+	Bambu = function(att)
+		rodFx(att, { Name = "Leaves", Rate = 0.6, Lifetime = NumberRange.new(1.2, 1.8), Speed = NumberRange.new(0.3, 0.8), LightEmission = 0,
+			Size = NumberSequence.new(0.12), Color = ColorSequence.new(RGB(120, 200, 80)), Acceleration = Vector3.new(0, -1, 0),
+			SpreadAngle = Vector2.new(180, 180) })
+	end,
+	Pirata = function(att)
+		rodFx(att, { Name = "GoldGlint", Rate = 2, Lifetime = NumberRange.new(0.5, 0.9), Speed = NumberRange.new(0.3, 0.8),
+			Size = NumberSequence.new(0.14), Color = ColorSequence.new(RGB(255, 210, 70)), SpreadAngle = Vector2.new(180, 180) })
+	end,
+	Coral = function(att)
+		rodFx(att, { Name = "Bubbles", Rate = 3, Lifetime = NumberRange.new(1, 1.6), Speed = NumberRange.new(0.6, 1.2), LightEmission = 0.3,
+			Size = NumberSequence.new(0.12), Color = ColorSequence.new(RGB(200, 240, 255)), Transparency = NumberSequence.new(0.4),
+			Acceleration = Vector3.new(0, 1.5, 0), SpreadAngle = Vector2.new(40, 40) })
+	end,
+	Glaciar = function(att)
+		rodFx(att, { Name = "Snow", Rate = 4, Lifetime = NumberRange.new(1, 1.6), Speed = NumberRange.new(0.3, 0.7),
+			Size = NumberSequence.new(0.1), Color = ColorSequence.new(RGB(235, 250, 255)), Acceleration = Vector3.new(0, -0.8, 0),
+			SpreadAngle = Vector2.new(180, 180) })
+	end,
+	Volcanica = function(att)
+		rodFx(att, { Name = "Embers", Rate = 9, Lifetime = NumberRange.new(0.5, 0.9), Speed = NumberRange.new(1, 2.5),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.18), NumberSequenceKeypoint.new(1, 0) }),
+			Color = ColorSequence.new(RGB(255, 200, 60), RGB(255, 60, 20)), Acceleration = Vector3.new(0, 3, 0), SpreadAngle = Vector2.new(30, 30) })
+	end,
+	CyberNeon = function(att)
+		rodFx(att, { Name = "Pixels", Rate = 6, Lifetime = NumberRange.new(0.4, 0.7), Speed = NumberRange.new(1, 2),
+			Size = NumberSequence.new(0.12), Color = ColorSequence.new(RGB(60, 240, 255), RGB(255, 60, 220)), SpreadAngle = Vector2.new(180, 180) })
+	end,
+	Dragon = function(att)
+		rodFx(att, { Name = "DragonFire", Rate = 12, Lifetime = NumberRange.new(0.3, 0.6), Speed = NumberRange.new(2, 4),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(1, 0.05) }),
+			Color = ColorSequence.new(RGB(255, 230, 80), RGB(255, 50, 20)), Acceleration = Vector3.new(0, 2, 0), SpreadAngle = Vector2.new(20, 20) })
+	end,
+	Galactica = function(att)
+		rodFx(att, { Name = "Nebula", Rate = 6, Lifetime = NumberRange.new(1, 1.6), Speed = NumberRange.new(0.2, 0.6),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.15), NumberSequenceKeypoint.new(1, 0.5) }),
+			Color = ColorSequence.new(RGB(120, 90, 255), RGB(255, 120, 220)),
+			Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) }),
+			SpreadAngle = Vector2.new(180, 180) })
+	end,
+	Arcoiris = function(att)
+		rodFx(att, { Name = "Rainbow", Rate = 10, Lifetime = NumberRange.new(0.6, 1), Speed = NumberRange.new(0.5, 1.2),
+			Size = NumberSequence.new(0.15), SpreadAngle = Vector2.new(180, 180),
+			Color = ColorSequence.new({ ColorSequenceKeypoint.new(0, RGB(255, 70, 70)), ColorSequenceKeypoint.new(0.33, RGB(255, 230, 60)),
+				ColorSequenceKeypoint.new(0.66, RGB(80, 220, 100)), ColorSequenceKeypoint.new(1, RGB(170, 90, 255)) }) })
+	end,
+	Diamante = function(att)
+		rodFx(att, { Name = "Sparkle", Rate = 7, Lifetime = NumberRange.new(0.3, 0.6), Speed = NumberRange.new(0.5, 1.5),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 0) }),
+			Color = ColorSequence.new(RGB(220, 250, 255)), SpreadAngle = Vector2.new(180, 180) })
+	end,
+	Brainrot = function(att)
+		rodFx(att, { Name = "BrainWaves", Rate = 6, Lifetime = NumberRange.new(0.6, 1), Speed = NumberRange.new(0.8, 1.5),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 0.35) }),
+			Color = ColorSequence.new(RGB(255, 110, 180), RGB(80, 220, 255)),
+			Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) }),
+			RotSpeed = NumberRange.new(-180, 180), SpreadAngle = Vector2.new(180, 180) })
+	end,
+	Divina = function(att)
+		rodFx(att, { Name = "HolyRays", Rate = 8, Lifetime = NumberRange.new(0.8, 1.2), Speed = NumberRange.new(0.3, 0.8),
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25), NumberSequenceKeypoint.new(1, 0) }),
+			Color = ColorSequence.new(RGB(255, 245, 200), RGB(255, 210, 90)), Acceleration = Vector3.new(0, 1, 0),
 			SpreadAngle = Vector2.new(180, 180) })
 	end,
 }

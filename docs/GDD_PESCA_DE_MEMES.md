@@ -222,6 +222,46 @@ Inspirado en el principio de Steal a Egg ("tu base es tuya y se ve"), con aplica
 - Premio: **250 MemeCoins** al terminarlo (solo si pescó de verdad; saltarlo no da premio).
 - Modo prueba: `GameConfig.DevMode.Tutorial` (true = lo ves en cada Play de Studio).
 
+## 5i. Cambios v0.9 — Cañas, misiones y mercader
+**16 cañas.** Cada una tiene su diseño 3D, sus partículas y, desde la Pirata, una ventaja (perk). Así una caña nueva cambia cómo juegas, no solo los números.
+
+| Caña | Precio | kg | Anzuelos | Metros | Ventaja |
+|---|---|---|---|---|---|
+| Palo | 0 | 12 | 1 | 50 | Irrompible |
+| Bambú | 400 | 25 | 1 | 80 | — |
+| Fibra | 1,5K | 50 | 2 | 150 | Zona verde ancha |
+| Pirata | 5K | 90 | 2 | 200 | Dorados ×2 |
+| Turbo | 15K | 150 | 3 | 300 | Progreso rápido |
+| Coral | 40K | 250 | 3 | 400 | +0,8 m de enganche |
+| Abisal | 150K | 400 | 4 | 600 | — |
+| Glaciar | 450K | 700 | 4 | 600 | Pelea fácil (zona verde enorme) |
+| Volcánica | 1,3M | 1.100 | 5 | 600 | Gigantes ×1,5 |
+| Cyber Neón | 3,5M | 1.700 | 5 | 600 | Ve en lo oscuro |
+| Dragón | 9M | 2.500 | 6 | 600 | Gigantes ×2,5 |
+| Galáctica | 22M | 3.500 | 6 | 600 | Ve en lo oscuro, +0,6 m |
+| Arcoíris | 55M | 5.000 | 7 | 600 | Dorados ×2,5 |
+| Diamante | 140M | 7.000 | 7 | 600 | Dorados ×3, +1 m |
+| Brainrot Suprema | 350M | 10.000 | 8 | 600 | Ve en lo oscuro, gigantes ×2, +1 m |
+| Divina | 900M | 15.000 | 8 | 600 | Todo: dorados ×3, gigantes ×3, ve en lo oscuro, +1,5 m |
+
+**Misiones diarias.**
+- Cada día salen 3 misiones: pescar memes, pescar raros, sumar kg, hacer inmersiones, vender o cobrar en la parcela. Son las mismas en cualquier servidor.
+- Los objetivos y los premios crecen con el nivel.
+- Completar las 3 da 🍀 Suerte ×2 durante 5 min.
+
+**Regalo de racha.**
+- Se recoge una vez al día.
+- 7 días de racha; el día 7 da además 💰 Dinero ×2.
+- Si fallas un día, vuelve al día 1.
+
+**Mercader ambulante.**
+- Su barca-tienda amarra junto al puente 10 min cada hora.
+- Cada visita trae las mismas ofertas en todos los servidores:
+  - Un meme Épico, Mítico o Legendario a 3 veces su valor. **Nunca secretos.**
+  - Un objeto al 50 %.
+  - Un boost rebajado.
+- Hay un límite de compras por jugador. Es el gasto de dinero que salió del debate de la v0.7.
+
 ## 6. Pescadores Furtivos (el toque social)
 Para tener tensión social **sin** convertirlo en un clon de "steal":
 

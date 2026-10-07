@@ -10,7 +10,7 @@
 local GameConfig = {}
 
 GameConfig.GameName = "PESCA DE MEMES"
-GameConfig.Version = "P0 0.8"
+GameConfig.Version = "P0 0.9"
 
 -- ===== Moneda =====
 GameConfig.CurrencyName = "MemeCoin"
@@ -177,6 +177,7 @@ GameConfig.DevMode = {
 	Money = 1e12,
 	Level = 30, -- para probar todas las capas de profundidad desde el principio
 	Tutorial = true, -- enseñar el tutorial en modo prueba (false = empiezas con él hecho)
+	MerchantAlways = true, -- el mercader ambulante está siempre en el puente (para probarlo)
 }
 
 -- ===== Tutorial (primeros 60 s, jugando) =====
@@ -216,6 +217,11 @@ GameConfig.StartingData = {
 	LastSeen = 0,
 	Stats = { TotalCatches = 0, Impossible = 0, Heaviest = 0 },
 	TutorialDone = false,
+	-- misiones diarias y racha (Config/Missions): Day = día de las misiones, LastGift = último día del regalo
+	Daily = { Day = 0, Missions = {}, Bonus = false, Streak = 0, LastGift = 0 },
+	-- mercader ambulante (Config/Merchant): compras de la visita actual, por oferta ("1", "2", "3")
+	MerchantVisit = 0,
+	MerchantBought = {},
 }
 
 return GameConfig

@@ -7,16 +7,16 @@
 PROJECT:          Pesca de Memes (nombre provisional)
 STATUS:           Prototipo jugable
 CURRENT_PHASE:    FASE 2 — PROTOTIPO (P0)   ← ESTAMOS AQUÍ
-GAME_VERSION:     P0 0.8
+GAME_VERSION:     P0 0.9
 CORE_LOOP_STATUS: Lanzar con click → INMERSIÓN (guiar el anzuelo) → enganchar / pelear → subir → mochila → parcela → dinero
 MAP_STATUS:       Río ancho (80 studs) y largo (360), 8 parcelas con muelle propio, estilo casillas con studs
-SYSTEMS_STATUS:   PlayerData v5 · GearService · FishingService (inmersión) · PlotService · EconomyService · WorldBuilder
+SYSTEMS_STATUS:   PlayerData v5 · GearService · FishingService (inmersión) · PlotService · EconomyService · BoostService · MissionService · MerchantService · WorldBuilder
 UI_STATUS:        HUD con iconos 3D · escena submarina + medidor de profundidad · pelea · resultados · tienda nueva · índice
 DATA_STATUS:      Schema v5 con session lock y migraciones (v4 recalcula valores; v5 marca el tutorial como hecho a los jugadores antiguos)
 SECURITY_STATUS:  El servidor genera la inmersión y valida cada enganche por tiempo/profundidad, anzuelos y espacio
 QA_STATUS:        v0.4 probada en Studio por el equipo: SIN ERRORES · v0.5: luau-lsp + rojo build OK, pendiente de probar
 KNOWN_BUGS:       — (por descubrir en la prueba)
-NEXT_STEP:        Probar la v0.8 (tutorial) y luego meter más ideas y seguir metiendo ideas en el prototipo (la Fase 2 sigue abierta: aquí se prueba TODO)
+NEXT_STEP:        Probar la v0.9 (16 cañas, misiones, mercader) · siguiente idea: sonidos o cebos y seguir metiendo ideas en el prototipo (la Fase 2 sigue abierta: aquí se prueba TODO)
 ```
 
 ## Fases
@@ -41,6 +41,7 @@ NEXT_STEP:        Probar la v0.8 (tutorial) y luego meter más ideas y seguir me
 | Mapa con casillas, caña-herramienta, mochila-acuario con kg, caña que se rompe, figuras 3D de bloques | v0.3 |
 | **Inmersión** (cámara bajo el agua, guiar el anzuelo, varios memes por lanzamiento), lanzar con **click**, río más ancho, **fotos 3D** en toda la GUI, **tienda nueva**, más animaciones | v0.4 |
 | **Gran Tienda** al fondo del río (VIP dentro, sin puesto aparte) + **tablón del boost gratis** que cambia cada 15 min (5 min de uso) · **profundidad ×10** (hasta 600 m) con **capas** que oscurecen · **filtros** (el anzuelo ignora rarezas / venta automática) · **cañas con diseño propio y efectos** · **arco nuevo** legible por los dos lados | **v0.6** |
+| **16 cañas** (12 nuevas con diseño 3D, partículas y PERKS: dorados, gigantes, ver en lo oscuro, enganche) · **misiones diarias + racha de 7 días** · **mercader ambulante** en su barca junto al puente | **v0.9** |
 | **Tutorial jugando** (6 pasos con flecha y rastro, primer meme asegurado, premio 250 🪙, botón Saltar) | **v0.8** |
 | **Freno** del anzuelo · **economía nueva** (peso y rareza, ×10 más dinero) · **gigantes y colosales** · **12 mochilas** con diseño propio · **objetos con huecos** (Linterna para capas oscuras, Imán, Red Dorada, Sedal) | **v0.7** |
 | Rarezas **Mítico → Legendario → Secreto → Dios** (eventos), **6 memes nuevos con efectos**, capas de profundidad, **Gran Tienda** física (boosts, Robux, regalo gratis aleatorio), fauna del río, árboles y flores, **cara del jugador** en su parcela, **modo prueba** con dinero infinito | **v0.5** |
@@ -63,7 +64,8 @@ NEXT_STEP:        Probar la v0.8 (tutorial) y luego meter más ideas y seguir me
 - En modo prueba empiezas en el nivel 30 para probar todas las capas.
 
 ### FASE 3 — Vertical slice (siguiente)
-- Onboarding guiado, sonido y música, efectos de partículas finales.
+- ~~Onboarding guiado~~ ✅ (tutorial v0.8) · ~~misiones diarias~~ ✅ (v0.9, adelantadas al prototipo).
+- Sonido y música, efectos de partículas finales.
 - 1–2 ideas de la lista de abajo (las que elijas) bien hechas.
 - Modelos de memes revisados en Blender (skill detailed-3d-modeling) si hace falta más detalle.
 
@@ -80,7 +82,7 @@ NEXT_STEP:        Probar la v0.8 (tutorial) y luego meter más ideas y seguir me
 | 🗺️ Zonas nuevas | 🔁 Cambiado a **capas de profundidad** | Hecho en v0.5: los memes tienen `MinDepth` (míticos desde 12 m, secretos desde 30–40 m). Más capas con su fondo y sus memes más adelante | 3–4 |
 | 🐾 Mascotas | ✅ Sí, junto con **intercambio (trading)** | Mascotas = **brainrots propios** hechos con nuestros modelos de bloques (diseños originales inspirados en la cultura meme, no copias) | 4–5 |
 | 🧪 Caldero de fusión | — | Sin decidir | — |
-| 📜 Misiones diarias + racha | ✅ Sí | Obligatorio | 3 |
+| 📜 Misiones diarias + racha | ✅ **Hecho (v0.9)** | 3 misiones al día según tu nivel + regalo de racha (7 días) | 3 |
 | 🏆 Torneo semanal | ✅ Sí | | 5 |
 | ♻️ Renacer | ✅ Sí | Agranda la parcela y da 2–3 huecos de objetos | 5 |
 
@@ -88,7 +90,7 @@ NEXT_STEP:        Probar la v0.8 (tutorial) y luego meter más ideas y seguir me
 | Idea | Decisión | Diseño |
 |---|---|---|
 | **Stock rotativo** | ✅ Para **monetizar**: un stock con MemeCoins y otro con Robux | Rotan cada X min, cantidades limitadas | 
-| **Mercader ambulante** cada hora | ✅ Sí | Aparece en el puente con objetos raros |
+| **Mercader ambulante** cada hora | ✅ **Hecho (v0.9)** | Barca-tienda junto al puente, 10 min cada hora: 1 meme raro (nunca secretos), 1 objeto al 50 %, 1 boost rebajado |
 | **Mejorar la caña por niveles** | ✅ Con tope | Cada caña sube de nivel (+kg, +suerte…), pero **una caña al máximo nunca iguala a la siguiente** (tope ≈ 85–90 % del salto hasta la siguiente; la última caña, +25 % como máximo). Así comprar la siguiente siempre merece la pena |
 | **Tendero animado** | ✅ Hecho (v0.5) | El tendero de la Gran Tienda saluda |
 | **Boost gratis** | ✅ Hecho (v0.5) | Reloj aleatorio por jugador (9–20 min), se recoge en la Gran Tienda en 5 min |
@@ -112,10 +114,12 @@ y PlotService el multiplicador. Los bonus son pequeños para no romper el balanc
 
 ## Antes de publicar (Fase 6) — no olvidar
 - [ ] `GameConfig.DevMode.Enabled = false` (el dinero infinito solo funciona en Studio, pero se apaga igual).
+  Con eso también se apagan `DevMode.Tutorial` y `DevMode.MerchantAlways` (mercader siempre presente).
 - [ ] IDs reales de los Game Passes en `Config/Monetization` y precios iguales que en el Dashboard.
 - [ ] Máximo de jugadores del servidor = 8 (una parcela cada uno).
 
 ## Historial
+- **v0.9** — 12 cañas nuevas (16 en total) con perks, misiones diarias y racha, mercader ambulante.
 - **v0.8** — Tutorial jugando: muelle → caña → lanzar → meme asegurado → parcela → cobrar. Datos v5.
 - **v0.7** — Freno del anzuelo, economía por peso y rareza (migración v4), gigantes/colosales, 12 mochilas, objetos con huecos (Linterna, Imán, Red Dorada) y debate de comprar memes.
 - **v0.6.1** — El nivel desbloquea capas (5/15/30) y da un cofre con MemeCoins y boosts al subir.

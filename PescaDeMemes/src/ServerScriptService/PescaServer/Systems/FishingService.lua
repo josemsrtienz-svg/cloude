@@ -34,6 +34,7 @@ local Inventory = require(Root.Shared.Inventory)
 local Boosts = require(Root.Config.Boosts)
 
 local PlayerData = require(script.Parent.PlayerData)
+local MissionService = require(script.Parent.MissionService)
 local GearService = require(script.Parent.GearService)
 local BoostService = require(script.Parent.BoostService)
 
@@ -147,9 +148,9 @@ local function pickMeme(rarityId: string, depth: number): any
 	return Memes.List[1]
 end
 
-local function rollWeight(meme: any): number
-	-- a veces sale un ejemplar GIGANTE o COLOSAL, muy por encima de su peso máximo
-	if rng:NextNumber() < F.GiantChance then
+local function rollWeight(meme: any, giantMult: number?): number
+	-- a veces sale un ejemplar GIGANTE o COLOSAL, muy por encima de su peso máximo (algunas cañas lo multiplican)
+	if rng:NextNumber() < F.GiantChance * (giantMult or 1) then
 		local w = meme.WeightMax * (F.GiantMin + (F.GiantMax - F.GiantMin) * rng:NextNumber() ^ 2)
 		return math.floor(w * 10 + 0.5) / 10
 	end
@@ -251,12 +252,12 @@ local function generateDive(rod: any, maxDepth: number, power: number, perfect: 
 		local depth = D.StartDepth + span * (i - rng:NextNumber(0.1, 0.9)) / count
 		local luck = baseLuck * (1 + D.DepthLuck * depth / D.MaxWorldDepth)
 		local meme = pickMeme(rollRarity(luck, depth, luckBoost), depth)
-		local weight = rollWeight(meme)
+		local weight = rollWeight(meme, rod.GiantMult)
 		local lane = D.LaneHalfWidth - 1
 		table.insert(list, {
 			Meme = meme,
 			Weight = weight,
-			Golden = rng:NextNumber() < F.GoldenChance,
+			Golden = rng:NextNumber() < F.GoldenChance * (rod.GoldenMult or 1),
 			Depth = math.floor(depth * 10 + 0.5) / 10,
 			X = rng:NextNumber(-lane, lane),
 			Amp = rng:NextNumber(0, 2.5),
@@ -278,6 +279,7 @@ local function surface(player: Player): any
 	if not session or not data then
 		return { ok = true, Catches = {}, NewIds = {}, XP = 0 }
 	end
+	MissionService.Progress(player, "Dives", 1)
 	local catches = {}
 	local newIds = {}
 	local totalXP = 0
@@ -306,6 +308,7 @@ local function surface(player: Player): any
 			local earned = math.floor(catch.Value * BoostService.Money(player))
 			data.MemeCoin += earned
 			autoSoldValue += earned
+			MissionService.Progress(player, "Sell", earned)
 			sold = true
 		elseif catch.Size <= Inventory.Free(data) then
 			data.Catches[catch.Id] = catch
@@ -323,6 +326,11 @@ local function surface(player: Player): any
 		entry.Count += 1
 		entry.Heaviest = math.max(entry.Heaviest, catch.Weight)
 		data.Stats.TotalCatches += 1
+		MissionService.Progress(player, "Catch", 1)
+		MissionService.Progress(player, "Kilos", catch.Weight)
+		if Memes.Rarities[meme.Rarity].Order >= 3 then
+			MissionService.Progress(player, "Rare", 1)
+		end
 		data.Stats.Heaviest = math.max(data.Stats.Heaviest, catch.Weight)
 		if catch.Impossible then
 			data.Stats.Impossible += 1
@@ -353,13 +361,14 @@ local function surface(player: Player): any
 	end
 	if soldValue > 0 then
 		data.MemeCoin += soldValue
+		MissionService.Progress(player, "Sell", soldValue)
 		PlayerData.Notify(player, ("💰 No cabía en tu acuario: se vendió solo por %d MemeCoins"):format(soldValue), "Info")
 	end
 	if autoSoldValue > 0 then
 		PlayerData.Notify(player, ("💰 Venta automática: +%s MemeCoins"):format(Util.formatShort(autoSoldValue)), "Success")
 	end
+	PlayerData.Push(player) -- también si no pescó nada (la misión de inmersiones avanzó)
 	if #catches > 0 then
-		PlayerData.Push(player)
 		-- guardado inmediato si hay algo que duele perder (épico o más, o un IMPOSIBLE)
 		local important = false
 		for _, c in ipairs(catches) do
@@ -414,7 +423,8 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 		reinforced = true
 		PlayerData.Push(player)
 	end
-	local grabRadius = D.GrabRadius + (if BoostService.HasItem(player, "Iman") then Rods.Items.Iman.GrabBonus else 0)
+	-- radio de enganche: base + Imán + perk de la caña (Coral, Galáctica, Diamante…)
+	local grabRadius = D.GrabRadius + (if BoostService.HasItem(player, "Iman") then Rods.Items.Iman.GrabBonus else 0) + (rod.GrabBonus or 0)
 	local perfect = power >= F.PerfectPower.Min and power <= F.PerfectPower.Max
 	local capacity = rod.Capacity * (if reinforced then 1 + Rods.Items.SedalReforzado.CapacityBonus else 1)
 	-- el nivel limita hasta qué capa puedes bajar (aunque la caña llegue más hondo)
@@ -464,7 +474,7 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 
 	-- al cliente solo lo que necesita para dibujar la inmersión
 	-- en las capas OSCURAS sin Linterna, el cliente ni siquiera recibe qué meme es (ni su peso)
-	local lantern = BoostService.HasItem(player, "Linterna")
+	local lantern = BoostService.HasItem(player, "Linterna") or rod.SeeDark == true -- algunas cañas ya iluminan
 	local visible = {}
 	for i, spec in ipairs(memes) do
 		local hidden = GameConfig.LayerAt(spec.Depth).Dark == true and not lantern

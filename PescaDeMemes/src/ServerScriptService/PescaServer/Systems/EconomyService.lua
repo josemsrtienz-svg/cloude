@@ -21,6 +21,7 @@ local Remotes = require(Root.Shared.Remotes)
 local Inventory = require(Root.Shared.Inventory)
 
 local PlayerData = require(script.Parent.PlayerData)
+local MissionService = require(script.Parent.MissionService)
 local GearService = require(script.Parent.GearService)
 local FishingService = require(script.Parent.FishingService)
 local BoostService = require(script.Parent.BoostService)
@@ -72,6 +73,7 @@ local function onSellCatch(player: Player, data: any, catchId: any): any
 	data.Catches[catchId] = nil
 	local earned = math.floor(c.Value * BoostService.Money(player)) -- boost ×2 dinero / pase VIP
 	data.MemeCoin += earned
+	MissionService.Progress(player, "Sell", earned)
 	PlayerData.Push(player)
 	return { ok = true, Earned = earned }
 end
@@ -92,6 +94,7 @@ local function onSellAll(player: Player, data: any): any
 	end
 	earned = math.floor(earned * BoostService.Money(player))
 	data.MemeCoin += earned
+	MissionService.Progress(player, "Sell", earned)
 	PlayerData.Push(player)
 	return { ok = true, Earned = earned, Count = count }
 end

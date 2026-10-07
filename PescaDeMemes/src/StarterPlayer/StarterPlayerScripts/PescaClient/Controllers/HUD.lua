@@ -20,6 +20,7 @@ local Inventory = require(Root.Shared.Inventory)
 local GearModels = require(Root.Shared.GearModels)
 local Rods = require(Root.Config.Rods)
 local Boosts = require(Root.Config.Boosts)
+local Missions = require(Root.Config.Missions)
 
 local Controllers = script.Parent
 local UIKit = require(Controllers.UIKit)
@@ -27,6 +28,7 @@ local State = require(Controllers.State)
 
 local T = UIKit.Theme
 local HUD = {}
+local missionBadge: TextLabel? = nil
 HUD.ButtonPressed = Util.Signal() -- (panelName)
 
 local gui: ScreenGui
@@ -236,15 +238,16 @@ function HUD.Init()
 
 	-- ===== Izquierda: botones grandes rectangulares =====
 	local left = UIKit.new("Frame", { Name = "LeftButtons", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 10, 0.42, 0),
-		Size = UDim2.fromOffset(200, 170), BackgroundTransparency = 1, Parent = gui })
+		Size = UDim2.fromOffset(200, 256), BackgroundTransparency = 1, Parent = gui })
 	UIKit.responsive(left)
 	UIKit.list(left, Enum.FillDirection.Vertical, 12, Enum.HorizontalAlignment.Left)
 	-- iconos 3D en vez de emojis: la caña para la tienda y el libro para el índice
 	local leftButtons = {
 		{ "Shop", function()
-			return GearModels.Rod(Rods.List[3])
+			return GearModels.Rod(Rods.Get("Turbo") or Rods.List[1])
 		end, "Tienda", RGB(60, 200, 80), 60 },
 		{ "Bestiary", GearModels.Book, "Índice", RGB(40, 170, 255), 20 },
+		{ "Missions", GearModels.Chest, "Misiones", RGB(255, 150, 40), 25 },
 	}
 	for i, b in ipairs(leftButtons) do
 		local btn = UIKit.button({ Name = b[1], LayoutOrder = i, Size = UDim2.fromOffset(190, 74), Parent = left },
@@ -256,6 +259,14 @@ function HUD.Init()
 		btn.Activated:Connect(function()
 			HUD.ButtonPressed:Fire(b[1])
 		end)
+		if b[1] == "Missions" then
+			-- aviso rojo cuando hay una misión o el regalo diario por recoger
+			local badge = UIKit.label({ Name = "Badge", Text = "!", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, -6, 0, 6),
+				Size = UDim2.fromOffset(30, 30), BackgroundTransparency = 0, BackgroundColor3 = T.Danger, Font = T.FontTitle, Visible = false,
+				ZIndex = 5, Parent = btn }, { Stroke = 2, MaxSize = 22 })
+			UIKit.corner(badge, 15)
+			missionBadge = badge
+		end
 	end
 
 	-- ===== Derecha: botones cuadrados =====
@@ -332,6 +343,20 @@ function HUD.Init()
 	UIKit.list(toastHolder, Enum.FillDirection.Vertical, 6)
 
 	State.Changed:Connect(refresh)
+	-- aviso de misiones: con datos nuevos y cada 30 s (por si cambia el día)
+	local function updateBadge()
+		local data = State.Data
+		if missionBadge and data then
+			missionBadge.Visible = Missions.HasClaimable(data.Daily, Missions.Today(workspace:GetServerTimeNow()))
+		end
+	end
+	State.Changed:Connect(updateBadge)
+	task.spawn(function()
+		while true do
+			updateBadge()
+			task.wait(30)
+		end
+	end)
 	refresh(State.Data)
 	Remotes.Get("Notify").OnClientEvent:Connect(function(text, kind)
 		HUD.Toast(tostring(text), kind)

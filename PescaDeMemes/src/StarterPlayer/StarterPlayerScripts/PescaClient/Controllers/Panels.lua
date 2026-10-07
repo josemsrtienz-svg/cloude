@@ -20,6 +20,8 @@ local FishMath = require(Root.Shared.FishMath)
 local Util = require(Root.Shared.Util)
 local Inventory = require(Root.Shared.Inventory)
 local Boosts = require(Root.Config.Boosts)
+local Missions = require(Root.Config.Missions)
+local Merchant = require(Root.Config.Merchant)
 local Monetization = require(Root.Config.Monetization)
 local GearModels = require(Root.Shared.GearModels)
 
@@ -276,7 +278,7 @@ local function passModel(key: string): Model
 	if key == "VIP" then
 		return GearModels.Crown()
 	elseif key == "ExtraHook" then
-		return GearModels.Rod(Rods.List[4])
+		return GearModels.Rod(Rods.Get("Abisal") or Rods.List[1])
 	end
 	return GearModels.Potion(RGB(80, 200, 255))
 end
@@ -294,6 +296,9 @@ type ShopEntry = {
 	Stats: { { Name: string, Value: number, Text: string } }?,
 	Action: { Text: string, Color: Color3, Run: (() -> ())? }?,
 }
+
+-- modelo 3D de cada objeto (tienda y mercader)
+local ITEM_MODELS = { SedalReforzado = GearModels.Spool, Linterna = GearModels.Flashlight, Iman = GearModels.Magnet, RedDorada = GearModels.Net }
 
 local function shopEntries(data: any): { ShopEntry }
 	local function can(price: number): Color3
@@ -370,7 +375,6 @@ local function shopEntries(data: any): { ShopEntry }
 		end
 	elseif shopTab == "Items" then
 		-- objetos: comprar y EQUIPAR (huecos limitados: elige qué te llevas)
-		local itemModels = { SedalReforzado = GearModels.Spool, Linterna = GearModels.Flashlight, Iman = GearModels.Magnet, RedDorada = GearModels.Net }
 		local slotsAttr = Players.LocalPlayer:GetAttribute("ItemSlots") -- lo publica el servidor (BoostService)
 		local slots = if type(slotsAttr) == "number" then slotsAttr else Rods.BaseItemSlots
 		for _, id in ipairs(Rods.ItemOrder) do
@@ -395,7 +399,7 @@ local function shopEntries(data: any): { ShopEntry }
 			end
 			local tag = if equipped then "✅ EQUIPADO" elseif gear and owned then "TUYO" elseif count > 0 then ("x%d"):format(count) else nil
 			table.insert(list, {
-				Name = item.Name, Color = item.Color, Model = itemModels[id] or GearModels.Spool,
+				Name = item.Name, Color = item.Color, Model = ITEM_MODELS[id] or GearModels.Spool,
 				Desc = item.Description .. ("  ·  Huecos de objetos: %d/%d"):format(#(data.EquippedItems or {}), slots),
 				Price = if gear and owned then "" else "🪙 " .. Util.formatShort(item.Price), Tag = tag, TagColor = if equipped then T.Success else T.Secondary,
 				Stats = if gear then nil else { { Name = "Tienes", Value = math.min(1, count / 10), Text = tostring(count) } },
@@ -651,6 +655,173 @@ end
 
 -- ===== Infraestructura de paneles =====
 
+-- ===== Misiones diarias + regalo de racha =====
+local function renderMissions()
+	local p = panels.Missions
+	local data = State.Data
+	local body = p.Content:FindFirstChild("Body") :: Frame
+	clear(body)
+	if not data then
+		return
+	end
+	local daily = data.Daily
+	local today = Missions.Today(workspace:GetServerTimeNow())
+	local claimedToday = daily.LastGift == today
+	local streak = Missions.NextStreak(daily, today)
+	local streakDay = Missions.StreakDay(streak)
+	local current = if claimedToday then daily.Streak else streak - 1
+	p.Content.Count.Text = ("🔥 Racha: %d día%s · las misiones cambian cada día"):format(current, if current == 1 then "" else "s")
+
+	-- regalo de racha: 7 días, el que toca hoy resaltado
+	local gift = UIKit.new("Frame", { Name = "Gift", Size = UDim2.new(1, 0, 0, 150), BackgroundColor3 = T.PanelLight, Parent = body })
+	UIKit.corner(gift, 14)
+	UIKit.label({ Text = "🎁 REGALO DIARIO", Size = UDim2.new(1, -200, 0, 30), Position = UDim2.fromOffset(12, 6), Font = T.FontTitle,
+		TextColor3 = T.Primary, TextXAlignment = Enum.TextXAlignment.Left, Parent = gift }, { Stroke = 2, MaxSize = 24 })
+	local days = UIKit.new("Frame", { Size = UDim2.new(1, -24, 0, 92), Position = UDim2.fromOffset(12, 44), BackgroundTransparency = 1, Parent = gift })
+	UIKit.list(days, Enum.FillDirection.Horizontal, 8, Enum.HorizontalAlignment.Left)
+	for d = 1, #Missions.StreakCoins do
+		local isToday = d == streakDay
+		local done = d < streakDay or (isToday and claimedToday)
+		local card = UIKit.new("Frame", { LayoutOrder = d, Size = UDim2.fromOffset(78, 92),
+			BackgroundColor3 = if isToday then T.Primary elseif done then T.Success else T.PanelDark, Parent = days })
+		UIKit.corner(card, 10)
+		UIKit.label({ Text = "Día " .. d, Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 4), Font = T.FontTitle,
+			Parent = card }, { Stroke = 2, MaxSize = 18 })
+		local reward = "🪙 " .. Util.formatShort(Missions.GiftCoins(d, data.Level))
+		UIKit.label({ Text = if done then "✅" elseif d == #Missions.StreakCoins then reward .. "\n+💰×2" else reward,
+			Size = UDim2.new(1, -6, 0, 56), Position = UDim2.fromOffset(3, 30), Font = T.Font, Parent = card }, { Stroke = 2, MaxSize = 16 })
+	end
+	local giftBtn = UIKit.button({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 6), Size = UDim2.fromOffset(180, 34),
+		Parent = gift }, { Color = if claimedToday then T.PanelDark else T.Success, Text = if claimedToday then "Vuelve mañana" else "🎁 Recoger", TextSize = 18 })
+	if not claimedToday then
+		giftBtn.Activated:Connect(function()
+			local r = call("ClaimDailyGift", nil)
+			if r.ok then
+				HUD.Toast(("🎁 ¡Día %d de racha! +%s MemeCoins%s"):format(r.Streak, Util.formatShort(r.Coins),
+					if r.Boost then " y 💰 Dinero ×2 durante 5 min" else ""), "Success")
+				UIKit.playSound("Coins")
+			end
+		end)
+	end
+
+	-- las 3 misiones de hoy
+	if daily.Day ~= today then
+		UIKit.label({ Text = "⏳ Cargando las misiones de hoy…", Size = UDim2.new(1, 0, 0, 40), Position = UDim2.fromOffset(0, 170),
+			Font = T.Font, Parent = body }, { MaxSize = 22 })
+		return
+	end
+	local allClaimed = true
+	for i, m in ipairs(daily.Missions) do
+		allClaimed = allClaimed and m.Claimed
+		local row = UIKit.new("Frame", { Size = UDim2.new(1, 0, 0, 76), Position = UDim2.fromOffset(0, 160 + (i - 1) * 84),
+			BackgroundColor3 = if m.Claimed then T.PanelDark else T.PanelLight, Parent = body })
+		UIKit.corner(row, 12)
+		UIKit.label({ Text = Missions.Describe(m), Size = UDim2.new(1, -230, 0, 30), Position = UDim2.fromOffset(12, 6), Font = T.Font,
+			TextXAlignment = Enum.TextXAlignment.Left, Parent = row }, { MaxSize = 20 })
+		local bar = UIKit.new("Frame", { Size = UDim2.new(1, -230, 0, 22), Position = UDim2.fromOffset(12, 44), BackgroundColor3 = T.PanelDark, Parent = row })
+		UIKit.corner(bar, 11)
+		local fill = UIKit.new("Frame", { Size = UDim2.fromScale(math.clamp(m.Progress / m.Target, 0, 1), 1),
+			BackgroundColor3 = if m.Progress >= m.Target then T.Success else T.Accent, Parent = bar })
+		UIKit.corner(fill, 11)
+		local unit = Missions.Kinds[m.Kind].Unit
+		UIKit.label({ Text = ("%s / %s%s"):format(Util.formatShort(math.floor(m.Progress)), Util.formatShort(m.Target), if unit then " " .. unit else ""),
+			Size = UDim2.fromScale(1, 1), Font = T.FontTitle, ZIndex = 3, Parent = bar }, { Stroke = 2, MaxSize = 16 })
+		local ready = not m.Claimed and m.Progress >= m.Target
+		local btn = UIKit.button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.fromOffset(200, 50),
+			Parent = row }, { Color = if ready then T.Success else T.PanelDark,
+			Text = if m.Claimed then "✅ Recogida" else "🪙 " .. Util.formatShort(m.Reward), TextSize = 20 })
+		if ready then
+			btn.Activated:Connect(function()
+				local r = call("ClaimMission", nil, i)
+				if r.ok then
+					HUD.Toast(("📜 +%s MemeCoins%s"):format(Util.formatShort(r.Reward),
+						if r.Bonus then " · ¡Las 3 hechas! 🍀 Suerte ×2 durante 5 min" else ""), "Success")
+					UIKit.playSound("Coins")
+				end
+			end)
+		end
+	end
+	UIKit.label({ Text = if allClaimed then "🏆 ¡Misiones de hoy completadas! Vuelve mañana" else "🍀 Completa las 3 y ganas Suerte ×2 durante 5 min",
+		Size = UDim2.new(1, 0, 0, 30), Position = UDim2.fromOffset(0, 160 + #daily.Missions * 84), Font = T.Font,
+		TextColor3 = if allClaimed then T.Success else T.TextDim, Parent = body }, { MaxSize = 18 })
+end
+
+-- ===== Mercader ambulante =====
+local function merchantCountdown(): string
+	local open = workspace:GetAttribute("MerchantOpen") == true
+	local nextAt = workspace:GetAttribute("MerchantNext")
+	local left = if type(nextAt) == "number" then math.max(0, nextAt - workspace:GetServerTimeNow()) else 0
+	local clock = ("%d:%02d"):format(math.floor(left / 60), math.floor(left % 60))
+	return if open then "⏳ Se va en " .. clock else "🧳 Se ha ido · vuelve en " .. clock
+end
+
+local function renderMerchant()
+	local p = panels.Merchant
+	local data = State.Data
+	local body = p.Content:FindFirstChild("Body") :: Frame
+	clear(body)
+	p.Content.Count.Text = merchantCountdown()
+	local visit = workspace:GetAttribute("MerchantVisit")
+	if not data or type(visit) ~= "number" or workspace:GetAttribute("MerchantOpen") ~= true then
+		UIKit.label({ Text = "El mercader no está. Llega cada hora y amarra su barca junto al puente.", Size = UDim2.new(1, 0, 0, 60),
+			Position = UDim2.fromOffset(0, 60), Font = T.Font, Parent = body }, { MaxSize = 24 })
+		return
+	end
+	local row = UIKit.new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = body })
+	UIKit.list(row, Enum.FillDirection.Horizontal, 14, Enum.HorizontalAlignment.Center)
+	for i, offer in ipairs(Merchant.Offers(visit)) do
+		local bought = if data.MerchantVisit == visit then (data.MerchantBought[tostring(i)] or 0) else 0
+		local left = offer.Limit - bought
+		-- equipo (Linterna, Imán) que ya tienes: el servidor no te lo vende otra vez
+		local ownedGear = offer.Kind == "Item" and Rods.Items[offer.ItemId].Kind == "Gear" and (data.Items[offer.ItemId] or 0) >= 1
+		if ownedGear then
+			left = 0
+		end
+		local name, desc, color
+		local card = UIKit.new("Frame", { LayoutOrder = i, Size = UDim2.new(0, 230, 1, -10), BackgroundColor3 = T.PanelLight, Parent = row })
+		UIKit.corner(card, 14)
+		local iconProps = { Size = UDim2.new(1, -20, 0, 170), Position = UDim2.fromOffset(10, 10), Parent = card }
+		if offer.Kind == "Meme" then
+			local meme = Memes.Get(offer.MemeId)
+			local rarity = Memes.GetRarity(offer.MemeId)
+			name, color = meme.Name, rarity.Color
+			desc = ("%s · %s · vale %s"):format(rarity.Name, FishMath.FormatWeight(offer.Weight),
+				Util.formatShort(FishMath.Value(meme, offer.Weight, false)))
+			UIKit.memeIcon(offer.MemeId, iconProps, { Spin = 1 })
+		elseif offer.Kind == "Item" then
+			local item = Rods.Items[offer.ItemId]
+			name, color = item.Emoji .. " " .. item.Name, item.Color
+			desc = ("¡A mitad de precio! (antes %s)"):format(Util.formatShort(item.Price))
+			UIKit.modelIcon((ITEM_MODELS[offer.ItemId] or GearModels.Spool)(), color, iconProps, { Spin = 1, Angle = 25 })
+		else
+			local boost = Boosts.List[offer.BoostId]
+			name, color = boost.Emoji .. " " .. boost.Name, boost.Color
+			desc = ("Rebajado (antes %s) · %d min"):format(Util.formatShort(boost.Price), math.floor(boost.Duration / 60))
+			UIKit.modelIcon(GearModels.Potion(boost.Color), color, iconProps, { Spin = 1, Angle = 25 })
+		end
+		UIKit.stroke(card, 4, color)
+		UIKit.label({ Text = name, Size = UDim2.new(1, -16, 0, 30), Position = UDim2.fromOffset(8, 186), Font = T.FontTitle, TextColor3 = color,
+			Parent = card }, { Stroke = 2, MaxSize = 22 })
+		UIKit.label({ Text = desc, Size = UDim2.new(1, -16, 0, 40), Position = UDim2.fromOffset(8, 218), Font = T.FontBody, TextColor3 = T.TextDim,
+			Parent = card }, { Stroke = false, MaxSize = 15 })
+		UIKit.label({ Text = ("Quedan %d"):format(math.max(0, left)), Size = UDim2.new(1, -16, 0, 22), Position = UDim2.fromOffset(8, 262),
+			Font = T.Font, Parent = card }, { MaxSize = 17 })
+		local canBuy = left > 0 and data.MemeCoin >= offer.Price
+		local btn = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -10), Size = UDim2.new(1, -20, 0, 52),
+			Parent = card }, { Color = if canBuy then T.Success else T.PanelDark,
+			Text = if ownedGear then "✅ Ya lo tienes" elseif left <= 0 then "✅ Comprado" else "🪙 " .. Util.formatShort(offer.Price), TextSize = 22 })
+		if left > 0 then
+			btn.Activated:Connect(function()
+				local r = call("BuyMerchant", nil, i)
+				if r.ok then
+					HUD.Toast(r.Text or "🧳 ¡Comprado!", "Success")
+					UIKit.playSound("Coins")
+				end
+			end)
+		end
+	end
+end
+
 local function makePanel(name: string, title: string, color: Color3, cell: Vector2?, render: () -> (), extra: ((Frame) -> ())?, size: Vector2?)
 	local frame, content, close = UIKit.panel(gui, name, title, size or Vector2.new(760, 520), color)
 	UIKit.label({ Name = "Count", Text = "", Size = UDim2.new(1, -200, 0, 30), Position = UDim2.fromOffset(0, 0), Font = T.Font,
@@ -720,6 +891,26 @@ function Panels.Signature(name: string): string
 		end
 		return table.concat(rods, ",") .. "|" .. data.EquippedRod .. "|" .. tostring(data.Items.SedalReforzado) .. "|" .. table.concat(affordable)
 			.. "|" .. table.concat(broken, ",") .. "|" .. tostring(data.AquariumTier) .. "|" .. tostring(data.FreeRound) .. "|" .. tostring(workspace:GetAttribute("FreeRound"))
+	elseif name == "Merchant" then
+		local parts = { tostring(workspace:GetAttribute("MerchantVisit")), tostring(workspace:GetAttribute("MerchantOpen")),
+			tostring(data.MerchantVisit) }
+		for k, v in pairs(data.MerchantBought) do
+			table.insert(parts, k .. "=" .. v)
+		end
+		table.sort(parts)
+		local visit = workspace:GetAttribute("MerchantVisit")
+		if type(visit) == "number" then
+			for _, offer in ipairs(Merchant.Offers(visit)) do
+				table.insert(parts, if data.MemeCoin >= offer.Price then "1" else "0")
+			end
+		end
+		return table.concat(parts, ",")
+	elseif name == "Missions" then
+		local parts = { tostring(data.Daily.Day), tostring(data.Daily.LastGift), tostring(data.Daily.Streak), tostring(data.Level) }
+		for _, m in ipairs(data.Daily.Missions) do
+			table.insert(parts, ("%s:%s:%s"):format(m.Kind, tostring(math.floor(m.Progress)), tostring(m.Claimed)))
+		end
+		return table.concat(parts, ",")
 	elseif name == "Bestiary" then
 		local parts = {}
 		for id, entry in pairs(data.Discovered) do
@@ -732,7 +923,7 @@ function Panels.Signature(name: string): string
 end
 
 function Panels.Open(name: string)
-	if State.Busy and name ~= "Bestiary" then
+	if State.Busy and name ~= "Bestiary" and name ~= "Missions" then
 		HUD.Toast("🎣 Termina de pescar primero", "Warning")
 		return
 	end
@@ -805,6 +996,8 @@ function Panels.Init()
 	end)
 	makePanel("Shop", "🛒 TIENDA", RGB(60, 200, 80), nil, renderShop, nil, Vector2.new(900, 560))
 	makePanel("Bestiary", "📖 ÍNDICE", RGB(40, 170, 255), Vector2.new(330, 140), renderBestiary)
+	makePanel("Merchant", "🧳 MERCADER AMBULANTE", RGB(150, 80, 220), nil, renderMerchant, nil, Vector2.new(800, 470))
+	makePanel("Missions", "📜 MISIONES", RGB(255, 150, 40), nil, renderMissions, nil, Vector2.new(760, 560))
 
 	require(Controllers.FishingController).FiltersRequested:Connect(Panels.OpenFilters)
 	HUD.ButtonPressed:Connect(function(name)
@@ -819,6 +1012,20 @@ function Panels.Init()
 			panels.Shop.Render()
 		end
 	end)
+	-- mercader: cuenta atrás en el panel y redibujo cuando llega o se va
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			if openName == "Merchant" then
+				(panels.Merchant.Content :: any).Count.Text = merchantCountdown()
+			end
+		end
+	end)
+	workspace:GetAttributeChangedSignal("MerchantOpen"):Connect(function()
+		if openName == "Merchant" then
+			panels.Merchant.Render()
+		end
+	end)
 	Players.LocalPlayer:GetAttributeChangedSignal("PlotBank"):Connect(function()
 		if openName == "Plot" then
 			panels.Plot.Render()
@@ -827,6 +1034,8 @@ function Panels.Init()
 	ProximityPromptService.PromptTriggered:Connect(function(prompt)
 		if prompt.Name == "ShopPrompt" then
 			Panels.OpenShop(true)
+		elseif prompt.Name == "MerchantPrompt" then
+			Panels.Open("Merchant")
 		elseif prompt.Name == "VipPrompt" then
 			Panels.OpenShop(true, "Robux")
 		elseif prompt.Name == "GiftPrompt" then

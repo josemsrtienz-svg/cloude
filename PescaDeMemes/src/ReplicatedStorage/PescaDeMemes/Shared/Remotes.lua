@@ -40,6 +40,9 @@ Remotes.Definitions = {
 	EquipItem = "RemoteFunction", -- (itemId, on) equipar/quitar un objeto (huecos limitados)
 	UseNet = "RemoteFunction", -- usar la Red Dorada en la pelea actual: enganchado sin pelear
 	ClaimFreeBoost = "RemoteFunction", -- recoger el boost gratis (solo junto a la tienda física)
+	ClaimMission = "RemoteFunction", -- (index) recoger el premio de una misión diaria completada
+	ClaimDailyGift = "RemoteFunction", -- recoger el regalo diario (racha)
+	BuyMerchant = "RemoteFunction", -- (index) comprar una oferta del mercader ambulante (junto a su barca)
 	FinishTutorial = "RemoteFunction", -- (skipped) terminar o saltar el tutorial; premio solo si lo hizo
 }
 

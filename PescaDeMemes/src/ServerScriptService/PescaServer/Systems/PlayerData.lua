@@ -23,6 +23,7 @@ local GameConfig = require(Root.Config.GameConfig)
 local Memes = require(Root.Config.Memes)
 local Rods = require(Root.Config.Rods)
 local Boosts = require(Root.Config.Boosts)
+local Missions = require(Root.Config.Missions)
 local Remotes = require(Root.Shared.Remotes)
 local Util = require(Root.Shared.Util)
 local Inventory = require(Root.Shared.Inventory)
@@ -217,6 +218,32 @@ local function sanitize(data: any): any
 	-- filtros: solo rarezas que existen, guardadas como [rarityId] = true
 	local settings = if type(data.Settings) == "table" then data.Settings else {}
 	data.Settings = { CatchSkip = Memes.CleanRaritySet(settings.CatchSkip), AutoSell = Memes.CleanRaritySet(settings.AutoSell) }
+	-- mercader: solo contadores numéricos por oferta
+	local bought = {}
+	for k, v in pairs(type(data.MerchantBought) == "table" and data.MerchantBought or {}) do
+		if type(k) == "string" and type(v) == "number" then
+			bought[k] = math.max(0, math.floor(v))
+		end
+	end
+	data.MerchantBought = bought
+	data.MerchantVisit = tonumber(data.MerchantVisit) or 0
+	-- misiones diarias: si algo está roto se regeneran (Day = 0 → MissionService las crea al cargar)
+	local daily = if type(data.Daily) == "table" then data.Daily else {}
+	local missions = {}
+	for _, m in ipairs(type(daily.Missions) == "table" and daily.Missions or {}) do
+		if type(m) == "table" and Missions.Kinds[m.Kind] and type(m.Target) == "number" and m.Target > 0 and type(m.Reward) == "number" then
+			table.insert(missions, { Kind = m.Kind, Target = m.Target, Reward = m.Reward,
+				Progress = math.clamp(tonumber(m.Progress) or 0, 0, m.Target), Claimed = m.Claimed == true })
+		end
+	end
+	local valid = #missions == Missions.PerDay
+	data.Daily = {
+		Day = if valid then tonumber(daily.Day) or 0 else 0,
+		Missions = if valid then missions else {},
+		Bonus = valid and daily.Bonus == true,
+		Streak = math.max(0, math.floor(tonumber(daily.Streak) or 0)),
+		LastGift = tonumber(daily.LastGift) or 0,
+	}
 	return data
 end
 
