@@ -708,8 +708,83 @@ local function goldify(model: Model)
 	end
 end
 
+-- MUTACIONES (clima, Config/Weather): se ven en el propio meme, no solo en el nombre.
+-- (particles = false en iconos y miniaturas: solo la geometría y el brillo, sin partículas ni luces)
+--   Wet      gotas azules que caen + brillo húmedo en la superficie
+--   Electric chispas amarillas rápidas + luz parpadeante + dos rayos de neón en la cabeza
+--   Lunar    destellos morados lentos + luz violeta + una luna creciente flotando encima
+local function addMutationFx(model: Model, memeId: string, s: number, mutation: string, particles: boolean)
+	local root = model.PrimaryPart
+	if not root then
+		return
+	end
+	local h = MemeModels.Height(memeId, s)
+	local att = Instance.new("Attachment")
+	att.Name = "MutationFX"
+	att.Position = Vector3.new(0, h * 0.55, 0)
+	att.Parent = root
+	if mutation == "Wet" then
+		for _, d in ipairs(model:GetDescendants()) do
+			if d:IsA("BasePart") and d.Transparency < 0.5 then
+				d.Reflectance = math.max(d.Reflectance, 0.12)
+			end
+		end
+		if not particles then
+			return
+		end
+		emitter(att, { Name = "Drips", Rate = 10, Lifetime = NumberRange.new(0.5, 0.9), Speed = NumberRange.new(0.5, 1.5),
+			Acceleration = Vector3.new(0, -14 * s, 0), SpreadAngle = Vector2.new(60, 60), Size = NumberSequence.new(0.14 * s),
+			Color = ColorSequence.new(Color3.fromRGB(110, 200, 255)), Transparency = NumberSequence.new(0.2) })
+	elseif mutation == "Electric" then
+		if particles then
+			local light = Instance.new("PointLight")
+			light.Color = Color3.fromRGB(255, 235, 90)
+			light.Range = 9 * s
+			light.Brightness = 1.6
+			light.Parent = root
+			emitter(att, { Name = "Sparks", Rate = 16, Lifetime = NumberRange.new(0.15, 0.35), Speed = NumberRange.new(4 * s, 8 * s),
+				SpreadAngle = Vector2.new(180, 180), Size = NumberSequence.new(0.12 * s),
+				Color = ColorSequence.new(Color3.fromRGB(255, 250, 150), Color3.fromRGB(255, 200, 40)) })
+		end
+		for _, side in ipairs({ -1, 1 }) do
+			local bolt = Instance.new("Part")
+			bolt.Name = "Bolt"
+			bolt.Size = Vector3.new(0.18, 0.9, 0.18) * s
+			bolt.Color = Color3.fromRGB(255, 235, 60)
+			bolt.Material = Enum.Material.Neon
+			bolt.Anchored, bolt.CanCollide, bolt.CanQuery, bolt.CanTouch, bolt.Massless, bolt.CastShadow = true, false, false, false, true, false
+			bolt.CFrame = root.CFrame * CFrame.new(side * 0.6 * s, h * 0.95, 0) * CFrame.Angles(0, 0, side * 0.5)
+			bolt.Parent = model
+		end
+	elseif mutation == "Lunar" then
+		if particles then
+			local light = Instance.new("PointLight")
+			light.Color = Color3.fromRGB(190, 130, 255)
+			light.Range = 11 * s
+			light.Brightness = 1.8
+			light.Parent = root
+			emitter(att, { Name = "MoonDust", Rate = 8, Lifetime = NumberRange.new(1.4, 2.2), Speed = NumberRange.new(0.3, 0.8),
+				SpreadAngle = Vector2.new(180, 180), Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.25 * s), NumberSequenceKeypoint.new(1, 0) }),
+				Color = ColorSequence.new(Color3.fromRGB(210, 170, 255), Color3.fromRGB(140, 90, 255)) })
+		end
+		local moonCf = root.CFrame * CFrame.new(0, h + 1.2 * s, 0)
+		for k, props in ipairs({ { 0.9, Color3.fromRGB(230, 210, 255), Enum.Material.Neon, Vector3.zero },
+			{ 0.8, Color3.fromRGB(35, 25, 70), Enum.Material.SmoothPlastic, Vector3.new(0.28, 0.1, 0.12) } }) do
+			local p = Instance.new("Part")
+			p.Name = if k == 1 then "Moon" else "MoonShadow"
+			p.Shape = Enum.PartType.Ball
+			p.Size = Vector3.one * props[1] * s
+			p.Color = props[2]
+			p.Material = props[3]
+			p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch, p.Massless, p.CastShadow = true, false, false, false, true, false
+			p.CFrame = moonCf * CFrame.new(props[4] * s)
+			p.Parent = model
+		end
+	end
+end
+
 -- fx = false para iconos y miniaturas (las partículas no se ven en un ViewportFrame y en miniatura molestan)
-function MemeModels.Build(memeId: string, scale: number?, golden: boolean?, fx: boolean?): Model
+function MemeModels.Build(memeId: string, scale: number?, golden: boolean?, fx: boolean?, mutation: string?): Model
 	local s = scale or 1
 	local model = Instance.new("Model")
 	model.Name = "Meme_" .. memeId
@@ -731,6 +806,9 @@ function MemeModels.Build(memeId: string, scale: number?, golden: boolean?, fx: 
 	end
 	if fx ~= false then
 		addRarityFx(model, memeId, s)
+	end
+	if mutation then
+		addMutationFx(model, memeId, s, mutation, fx ~= false)
 	end
 	-- rendimiento: los detalles pequeños (ojos, botones, pelo…) no proyectan sombra
 	for _, d in ipairs(model:GetDescendants()) do

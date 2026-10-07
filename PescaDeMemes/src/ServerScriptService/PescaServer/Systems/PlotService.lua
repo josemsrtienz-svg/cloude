@@ -21,6 +21,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local GameConfig = require(Root.Config.GameConfig)
 local Memes = require(Root.Config.Memes)
+local Weather = require(Root.Config.Weather)
 local Remotes = require(Root.Shared.Remotes)
 local FishMath = require(Root.Shared.FishMath)
 local Inventory = require(Root.Shared.Inventory)
@@ -124,7 +125,7 @@ local function buildDisplay(parent: Instance, spot: BasePart, catch: any)
 	local rarity = Memes.Rarities[meme.Rarity]
 	-- el tamaño importa: cuanto más pesa, más grande se ve (con tope)
 	local scale = FishMath.DisplayScale(meme, catch.Weight)
-	local model = MemeModels.Build(meme.Id, scale, catch.Golden)
+	local model = MemeModels.Build(meme.Id, scale, catch.Golden, nil, catch.Mutation)
 	-- mirando hacia el río (el frente de la parcela), de pie sobre el césped
 	model:PivotTo(spot.CFrame * CFrame.new(0, spot.Size.Y / 2, 0))
 	model.Parent = parent
@@ -161,7 +162,7 @@ local function buildDisplay(parent: Instance, spot: BasePart, catch: any)
 	name.TextScaled = true
 	name.TextColor3 = ring.Color
 	name.TextStrokeTransparency = 0
-	name.Text = (if catch.Golden then "✨ " else "") .. meme.Name .. " · " .. FishMath.FormatWeight(catch.Weight)
+	name.Text = (if catch.Golden then "✨ " else "") .. Weather.Tag(catch.Mutation) .. meme.Name .. " · " .. FishMath.FormatWeight(catch.Weight)
 	name.Parent = bb
 	local income = Instance.new("TextLabel")
 	income.BackgroundTransparency = 1

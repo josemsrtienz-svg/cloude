@@ -118,8 +118,17 @@ Rods.Items = {
 		Description = "El anzuelo engancha desde más lejos (+1,2 m). Más fácil coger lo que pasa rápido." },
 	RedDorada = { Id = "RedDorada", Name = "Red Dorada", Emoji = "🥅", Kind = "Consumable", Price = 25000, Color = Color3.fromRGB(255, 200, 50),
 		Description = "Equipada: en una pelea pulsa 🥅 y lo enganchas SIN pelear. No sirve con SECRETOS." },
+	-- ===== CEBOS (Alpha): consumibles; equipados, se gasta 1 de cada en cada lanzamiento =====
+	CeboPicante = { Id = "CeboPicante", Name = "Cebo Picante", Emoji = "🌶️", Kind = "Consumable", Bait = true, Price = 3000, LuckMult = 1.5,
+		Color = Color3.fromRGB(230, 60, 40), Description = "Equipado: +50 % de memes RAROS o mejores en ese lanzamiento." },
+	CeboDorado = { Id = "CeboDorado", Name = "Cebo Dorado", Emoji = "🪙", Kind = "Consumable", Bait = true, Price = 8000, GoldenMult = 3,
+		Color = Color3.fromRGB(255, 200, 50), Description = "Equipado: el TRIPLE de memes dorados en ese lanzamiento." },
+	CeboPesado = { Id = "CeboPesado", Name = "Cebo Pesado", Emoji = "⚓", Kind = "Consumable", Bait = true, Price = 5000, GiantMult = 2.5,
+		Color = Color3.fromRGB(120, 125, 140), Description = "Equipado: ×2,5 de ejemplares GIGANTES y COLOSALES." },
+	CeboLunar = { Id = "CeboLunar", Name = "Cebo Lunar", Emoji = "🌙", Kind = "Consumable", Bait = true, Price = 15000, MutationMult = 2,
+		Color = Color3.fromRGB(170, 110, 255), Description = "Equipado: el DOBLE de mutaciones (💧⚡🌙) con lluvia, tormenta o luna llena." },
 }
-Rods.ItemOrder = { "SedalReforzado", "Linterna", "Iman", "RedDorada" }
+Rods.ItemOrder = { "SedalReforzado", "Linterna", "Iman", "RedDorada", "CeboPicante", "CeboDorado", "CeboPesado", "CeboLunar" }
 Rods.BaseItemSlots = 1
 Rods.MaxItemSlots = 4
 

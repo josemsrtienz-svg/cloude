@@ -10,7 +10,7 @@
 local GameConfig = {}
 
 GameConfig.GameName = "PESCA DE MEMES"
-GameConfig.Version = "VS 0.2"
+GameConfig.Version = "A 0.1"
 
 -- ===== Moneda =====
 GameConfig.CurrencyName = "MemeCoin"
@@ -180,6 +180,7 @@ GameConfig.DevMode = {
 	Level = 30, -- para probar todas las capas de profundidad desde el principio
 	Tutorial = true, -- enseñar el tutorial en modo prueba (false = empiezas con él hecho)
 	MerchantAlways = true, -- el mercader ambulante está siempre en el puente (para probarlo)
+	Weather = nil :: string?, -- forzar un clima para probarlo: "Rain", "Storm" o "Moon" (nil = el normal)
 }
 
 -- ===== Tutorial (primeros 60 s, jugando) =====
@@ -208,7 +209,7 @@ GameConfig.StartingData = {
 	PlotBank = 0, -- monedas acumuladas en el cobrador de la parcela
 	Rods = { Palo = true },
 	EquippedRod = "Palo",
-	Items = { SedalReforzado = 0, Linterna = 0, Iman = 0, RedDorada = 0 }, -- unidades (los "Gear" valen 0 o 1)
+	Items = { SedalReforzado = 0, Linterna = 0, Iman = 0, RedDorada = 0, CeboPicante = 0, CeboDorado = 0, CeboPesado = 0, CeboLunar = 0 }, -- unidades (los "Gear" valen 0 o 1)
 	EquippedItems = {}, -- ids de objetos equipados (en orden; solo cuentan los que caben en tus huecos)
 	Boosts = {}, -- [boostId] = os.time() en que caduca (Config/Boosts)
 	-- filtros (rarezas): CatchSkip = el anzuelo las ignora · AutoSell = se venden solas al subir

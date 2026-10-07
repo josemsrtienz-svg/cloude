@@ -500,7 +500,7 @@ function UIKit.memeIcon(memeId: string, props: { [string]: any }, opts: { [strin
 		UIKit.new("ImageLabel", { Name = "Image", BackgroundTransparency = 1, Image = image, ScaleType = Enum.ScaleType.Fit,
 			Size = UDim2.fromScale(0.9, 0.9), Position = UDim2.fromScale(0.05, 0.05), Parent = frame })
 	elseif MemeModels.Has(memeId) then
-		local model = MemeModels.Build(memeId, 1, o.Golden == true, false)
+		local model = MemeModels.Build(memeId, 1, o.Golden == true, false, o.Mutation)
 		if o.Silhouette then
 			for _, d in ipairs(model:GetDescendants()) do
 				if d:IsA("BasePart") then

@@ -43,6 +43,7 @@ rojo build default.project.json -o PescaDeMemes.rbxlx
 9. **Objetos:** en la pestaña Objetos eliges qué llevas en tus **huecos** (1 al empezar): Sedal, Linterna, Imán, Red Dorada.
 10. **Misiones (📜):** 3 misiones al día y un regalo diario con racha de 7 días.
 11. **Mercader (🧳):** cada hora amarra su barca junto al puente 10 min con un meme raro, un objeto al 50 % y un boost rebajado.
+12. **Clima (arriba a la izquierda):** con 🌧️ lluvia, ⛈️ tormenta o 🌕 luna llena los memes pueden salir 💧×2, ⚡×5 o 🌙×10. Los **cebos** (pestaña Objetos) ayudan.
 
 > 🎵 **Música:** pon IDs de música con licencia (Creator Store, autor Roblox/APM) en `Config/Assets.lua` → `Assets.Music`.
 > Los efectos ya suenan con sonidos que vienen con Roblox. Música y efectos se apagan en ⚙️ Ajustes.

@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local Memes = require(Root.Config.Memes)
+local Weather = require(Root.Config.Weather)
 local FishMath = require(Root.Shared.FishMath)
 local Util = require(Root.Shared.Util)
 
@@ -54,7 +55,7 @@ local function tile(parent: Instance, catch: any, isNew: boolean, order: number)
 	UIKit.corner(frame, 14)
 	UIKit.stroke(frame, 4, if catch.Golden then T.Coin else rarity.Color)
 	local icon = UIKit.memeIcon(catch.MemeId, { Size = UDim2.new(1, -16, 0, 120), Position = UDim2.fromOffset(8, 8), Parent = frame },
-		{ Golden = catch.Golden, Spin = 1 })
+		{ Golden = catch.Golden, Mutation = catch.Mutation, Spin = 1 })
 	UIKit.pop(icon, 0.4)
 	local badges = UIKit.new("Frame", { Size = UDim2.new(1, -12, 0, 20), Position = UDim2.fromOffset(6, 12), BackgroundTransparency = 1,
 		ZIndex = 3, Parent = frame })
@@ -64,6 +65,10 @@ local function tile(parent: Instance, catch: any, isNew: boolean, order: number)
 	end
 	if catch.Golden then
 		badge(badges, "DORADO ×3", T.Coin, 2)
+	end
+	local mutation = Weather.GetMutation(catch.Mutation)
+	if mutation then
+		badge(badges, ("%s %s ×%d"):format(mutation.Emoji, mutation.Name, mutation.Multiplier), mutation.Color, 2)
 	end
 	if catch.Impossible then
 		badge(badges, "🏆 IMPOSIBLE", T.Secondary, 3)
@@ -154,11 +159,18 @@ function CatchCard.ShowResults(summary: any)
 	-- celebración según lo MEJOR del lanzamiento (rareza, dorado, meme nuevo)
 	local best, bestColor, golden = 1, nil, false
 	for _, c in ipairs(catches) do
+		-- un ⚡ o 🌙 se celebra como mínimo como un épico / mítico (con el color de la mutación)
 		local rarity = Memes.GetRarity(c.MemeId)
-		if rarity.Order > best then
-			best, bestColor = rarity.Order, rarity.Color
+		local order, color = rarity.Order, rarity.Color
+		if c.Mutation == "Electric" and order < 4 then
+			order, color = 4, Weather.Mutations.Electric.Color
+		elseif c.Mutation == "Lunar" and order < 5 then
+			order, color = 5, Weather.Mutations.Lunar.Color
 		end
-		golden = golden or c.Golden == true
+		if order > best then
+			best, bestColor = order, color
+		end
+		golden = golden or c.Golden == true or c.Mutation ~= nil
 	end
 	UIKit.celebrate(best, bestColor, golden, #(summary.NewIds or {}) > 0)
 

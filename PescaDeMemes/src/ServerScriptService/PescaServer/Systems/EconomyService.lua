@@ -83,7 +83,7 @@ local function onSellAll(player: Player, data: any): any
 	for id, c in pairs(data.Catches) do
 		local meme = Memes.Get(c.MemeId)
 		local rarity = meme and Memes.Rarities[meme.Rarity]
-		if rarity and rarity.Order <= SELL_ALL_MAX_ORDER and not c.Golden and not c.Impossible and not Inventory.InPlot(data, id) then
+		if rarity and rarity.Order <= SELL_ALL_MAX_ORDER and not c.Golden and not c.Mutation and not c.Impossible and not Inventory.InPlot(data, id) then
 			data.Catches[id] = nil
 			earned += c.Value
 			count += 1

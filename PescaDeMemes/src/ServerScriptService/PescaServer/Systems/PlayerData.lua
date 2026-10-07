@@ -24,6 +24,7 @@ local Memes = require(Root.Config.Memes)
 local Rods = require(Root.Config.Rods)
 local Boosts = require(Root.Config.Boosts)
 local Missions = require(Root.Config.Missions)
+local Weather = require(Root.Config.Weather)
 local Remotes = require(Root.Shared.Remotes)
 local Util = require(Root.Shared.Util)
 local Inventory = require(Root.Shared.Inventory)
@@ -145,6 +146,7 @@ local function sanitize(data: any): any
 					Weight = tonumber(c.Weight),
 					Size = Inventory.SizeOf(tonumber(c.Weight) :: number),
 					Golden = c.Golden == true,
+					Mutation = if Weather.GetMutation(c.Mutation) then c.Mutation else nil,
 					Impossible = c.Impossible == true,
 					Value = math.max(1, math.floor(tonumber(c.Value) or 1)),
 					Time = tonumber(c.Time) or 0,

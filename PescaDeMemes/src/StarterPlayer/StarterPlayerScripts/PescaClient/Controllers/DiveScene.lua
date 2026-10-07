@@ -26,6 +26,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local GameConfig = require(Root.Config.GameConfig)
 local Memes = require(Root.Config.Memes)
+local Weather = require(Root.Config.Weather)
 local FishMath = require(Root.Shared.FishMath)
 local MemeModels = require(Root.Shared.MemeModels)
 
@@ -384,7 +385,7 @@ local function buildMeme(parent: Instance, spec: any, index: number, skip: { [st
 	local meme = if hidden then nil else Memes.Get(memeId)
 	-- los ejemplares grandes también se ven más grandes bajo el agua (con tope para no tapar el carril)
 	local scale = MEME_SCALE * (if meme then math.min(1.6, FishMath.DisplayScale(meme, spec.Weight)) else 1)
-	local model = MemeModels.Build(memeId, scale, spec.Golden == true, not hidden)
+	local model = MemeModels.Build(memeId, scale, spec.Golden == true, not hidden, if hidden then nil else spec.Mutation)
 	model.Name = "DiveMeme" .. index
 	local height = MemeModels.Height(memeId, scale)
 	local rarity = Memes.GetRarity(memeId)
@@ -405,7 +406,7 @@ local function buildMeme(parent: Instance, spec: any, index: number, skip: { [st
 			end
 		end
 	else
-		rarityText = (if spec.Golden then "✨ " else "") .. rarity.Name
+		rarityText = (if spec.Golden then "✨ " else "") .. Weather.Tag(spec.Mutation) .. rarity.Name
 		rarityColor = if spec.Golden then T.Coin else rarity.Color
 		weightText, weightColor = labelText(spec)
 		if skip and meme and skip[meme.Rarity] then

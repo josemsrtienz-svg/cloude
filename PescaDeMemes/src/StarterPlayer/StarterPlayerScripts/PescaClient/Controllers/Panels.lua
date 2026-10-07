@@ -22,6 +22,7 @@ local Inventory = require(Root.Shared.Inventory)
 local Boosts = require(Root.Config.Boosts)
 local Missions = require(Root.Config.Missions)
 local Merchant = require(Root.Config.Merchant)
+local Weather = require(Root.Config.Weather)
 local Monetization = require(Root.Config.Monetization)
 local GearModels = require(Root.Shared.GearModels)
 
@@ -81,8 +82,9 @@ local function catchTile(parent: Instance, catch: any, order: number): TextButto
 	local tile = UIKit.new("TextButton", { LayoutOrder = order, Text = "", AutoButtonColor = false, BackgroundColor3 = T.PanelLight, Parent = parent })
 	UIKit.corner(tile, 12)
 	UIKit.stroke(tile, 3, if catch.Golden then T.Coin else rarity.Color)
-	UIKit.memeIcon(catch.MemeId, { Size = UDim2.fromOffset(78, 74), Position = UDim2.new(0.5, -39, 0, 6), Parent = tile }, { Golden = catch.Golden })
-	UIKit.label({ Text = meme and meme.Name or "?", Size = UDim2.new(1, -8, 0, 22), Position = UDim2.fromOffset(4, 82), Font = T.Font,
+	UIKit.memeIcon(catch.MemeId, { Size = UDim2.fromOffset(78, 74), Position = UDim2.new(0.5, -39, 0, 6), Parent = tile },
+		{ Golden = catch.Golden, Mutation = catch.Mutation })
+	UIKit.label({ Text = Weather.Tag(catch.Mutation) .. (meme and meme.Name or "?"), Size = UDim2.new(1, -8, 0, 22), Position = UDim2.fromOffset(4, 82), Font = T.Font,
 		TextColor3 = if catch.Golden then T.Coin else T.Text, Parent = tile }, { MaxSize = 18 })
 	UIKit.label({ Text = FishMath.FormatWeight(catch.Weight) .. (if catch.Impossible then " 🏆" else ""), Size = UDim2.new(1, -8, 0, 18),
 		Position = UDim2.fromOffset(4, 104), Font = T.FontBody, TextColor3 = T.TextDim, Parent = tile }, { Stroke = false, MaxSize = 15 })
@@ -298,7 +300,13 @@ type ShopEntry = {
 }
 
 -- modelo 3D de cada objeto (tienda y mercader)
-local ITEM_MODELS = { SedalReforzado = GearModels.Spool, Linterna = GearModels.Flashlight, Iman = GearModels.Magnet, RedDorada = GearModels.Net }
+local function baitModel(id: string): () -> Model
+	return function()
+		return GearModels.Bait(id, Rods.Items[id].Color)
+	end
+end
+local ITEM_MODELS = { SedalReforzado = GearModels.Spool, Linterna = GearModels.Flashlight, Iman = GearModels.Magnet, RedDorada = GearModels.Net,
+	CeboPicante = baitModel("CeboPicante"), CeboDorado = baitModel("CeboDorado"), CeboPesado = baitModel("CeboPesado"), CeboLunar = baitModel("CeboLunar") }
 
 local function shopEntries(data: any): { ShopEntry }
 	local function can(price: number): Color3

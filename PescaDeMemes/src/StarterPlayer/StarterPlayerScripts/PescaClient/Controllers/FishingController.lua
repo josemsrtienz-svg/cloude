@@ -264,7 +264,7 @@ local function flyToBackpack(catches: { any }, from: Vector3?)
 			break
 		end
 		if MemeModels.Has(catch.MemeId) then
-			local model = MemeModels.Build(catch.MemeId, 0.35, catch.Golden, false)
+			local model = MemeModels.Build(catch.MemeId, 0.35, catch.Golden, false, catch.Mutation)
 			model.Parent = Workspace
 			task.spawn(function()
 				local t0 = os.clock()

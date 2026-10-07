@@ -284,6 +284,41 @@ Inspirado en el principio de Steal a Egg ("tu base es tuya y se ve"), con aplica
 - **⚙️ Ajustes:** música y efectos se pueden apagar, y se guardan en la partida.
 - **Técnico:** cada sonido tiene candidatos (`.wav` / `.mp3` / ID propio). El cliente precarga y usa el primero que carga.
 
+## 5k. Fase 4 · A 0.1 — Clima, mutaciones y cebos
+
+**Clima** (`Config/Weather`). Cambia cada 8 min y es el mismo en todos los servidores.
+
+| Clima | Prob. | Mutación por meme |
+|---|---|---|
+| ☀️ Soleado | 45 % | — |
+| 🌧️ Lluvia | 25 % | 15 % 💧 Mojado ×2 |
+| ⛈️ Tormenta | 18 % | 10 % ⚡ Eléctrico ×5 (y rayos) |
+| 🌕 Luna llena | 12 % | 6 % 🌙 Lunar ×10 (de noche) |
+
+**Mutaciones.**
+- Multiplican el valor y se suman al dorado (un 🌙 dorado vale ×30).
+- Se ven en el modelo:
+  - 💧: gotas y brillo húmedo;
+  - ⚡: chispas, luz y rayos de neón;
+  - 🌙: polvo violeta y una luna creciente encima.
+- También aparecen en el nombre, en la tarjeta y en la parcela.
+- Nunca se venden solas ni con «Vender comunes–raros».
+- ⚡ y 🌙 se anuncian a todo el servidor.
+
+**Cebos** (consumibles; equipados, se gasta 1 de cada en cada lanzamiento; ocupan huecos de objeto):
+
+| Cebo | Precio | Efecto |
+|---|---|---|
+| 🌶️ Picante | 3.000 | +50 % de raros o mejores |
+| 🪙 Dorado | 8.000 | ×3 dorados |
+| ⚓ Pesado | 5.000 | ×2,5 gigantes y colosales |
+| 🌙 Lunar | 15.000 | ×2 mutaciones (solo con mal tiempo o de noche) |
+
+**Diseño.**
+- El clima da una razón para conectarse y para quedarse ("¡hay tormenta!").
+- Los cebos dan profundidad a los huecos de objeto: ¿Linterna o Cebo Lunar?
+- Modo prueba: `GameConfig.DevMode.Weather = "Storm"` fuerza un clima.
+
 ## 6. Pescadores Furtivos (el toque social)
 Para tener tensión social **sin** convertirlo en un clon de "steal":
 

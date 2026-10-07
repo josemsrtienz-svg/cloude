@@ -19,6 +19,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local GameConfig = require(Root.Config.GameConfig)
 local Memes = require(Root.Config.Memes)
+local Weather = require(Root.Config.Weather)
 
 local F = GameConfig.Fishing
 
@@ -108,12 +109,13 @@ end
 
 -- Valor = valor base de la rareza × (peso / peso medio)^0.85: los ejemplares grandes valen MUCHO más
 -- (un Señor Stonks colosal de 30 kg vale ~5 veces uno normal).
-function FishMath.Value(meme: any, weight: number, golden: boolean): number
+function FishMath.Value(meme: any, weight: number, golden: boolean, mutation: string?): number
 	local rarity = Memes.Rarities[meme.Rarity]
 	local value = rarity.BaseValue * (weight / FishMath.AverageWeight(meme)) ^ 0.85
 	if golden then
 		value *= F.GoldenMultiplier
 	end
+	value *= Weather.Multiplier(mutation) -- 💧 ×2 · ⚡ ×5 · 🌙 ×10 (se suma al dorado)
 	return math.max(1, math.floor(value))
 end
 

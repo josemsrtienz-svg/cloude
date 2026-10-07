@@ -26,6 +26,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local GameConfig = require(Root.Config.GameConfig)
 local Memes = require(Root.Config.Memes)
+local Weather = require(Root.Config.Weather)
 local Rods = require(Root.Config.Rods)
 local Remotes = require(Root.Shared.Remotes)
 local FishMath = require(Root.Shared.FishMath)
@@ -35,6 +36,7 @@ local Boosts = require(Root.Config.Boosts)
 
 local PlayerData = require(script.Parent.PlayerData)
 local MissionService = require(script.Parent.MissionService)
+local WeatherService = require(script.Parent.WeatherService)
 local GearService = require(script.Parent.GearService)
 local BoostService = require(script.Parent.BoostService)
 
@@ -55,6 +57,7 @@ type DiveMeme = {
 	Size: number,
 	Taken: boolean,
 	Tutorial: boolean?, -- el meme asegurado del primer lanzamiento
+	Mutation: string?, -- 💧 Wet · ⚡ Electric · 🌙 Lunar (Config/Weather)
 }
 
 type Session = {
@@ -242,7 +245,12 @@ local function resume(session: Session, now: number)
 end
 
 -- Genera los memes de la columna de agua. Más hondo = más suerte (rarezas altas abajo).
-local function generateDive(rod: any, maxDepth: number, power: number, perfect: boolean, capacity: number, luckBoost: number): { DiveMeme }
+-- mods: lo que cambia la tirada además de la caña (cebos y clima):
+--   GoldenMult, GiantMult (× los de la caña) · Mutation + MutationChance (clima; el Cebo Lunar la duplica)
+type DiveMods = { GoldenMult: number, GiantMult: number, Mutation: string?, MutationChance: number }
+
+local function generateDive(rod: any, maxDepth: number, power: number, perfect: boolean, capacity: number, luckBoost: number,
+	mods: DiveMods): { DiveMeme }
 	local list: { DiveMeme } = {}
 	local span = maxDepth - D.StartDepth - 0.5
 	local count = math.clamp(math.floor(maxDepth / rod.DiveSpeed * D.MemesPerSecond), 6, D.MaxMemes)
@@ -252,12 +260,13 @@ local function generateDive(rod: any, maxDepth: number, power: number, perfect: 
 		local depth = D.StartDepth + span * (i - rng:NextNumber(0.1, 0.9)) / count
 		local luck = baseLuck * (1 + D.DepthLuck * depth / D.MaxWorldDepth)
 		local meme = pickMeme(rollRarity(luck, depth, luckBoost), depth)
-		local weight = rollWeight(meme, rod.GiantMult)
+		local weight = rollWeight(meme, (rod.GiantMult or 1) * mods.GiantMult)
 		local lane = D.LaneHalfWidth - 1
 		table.insert(list, {
 			Meme = meme,
 			Weight = weight,
-			Golden = rng:NextNumber() < F.GoldenChance * (rod.GoldenMult or 1),
+			Golden = rng:NextNumber() < F.GoldenChance * (rod.GoldenMult or 1) * mods.GoldenMult,
+			Mutation = if mods.Mutation and rng:NextNumber() < mods.MutationChance then mods.Mutation else nil,
 			Depth = math.floor(depth * 10 + 0.5) / 10,
 			X = rng:NextNumber(-lane, lane),
 			Amp = rng:NextNumber(0, 2.5),
@@ -269,6 +278,12 @@ local function generateDive(rod: any, maxDepth: number, power: number, perfect: 
 		})
 	end
 	return list
+end
+
+-- ¿Se vende solo al subir? (filtro AutoSell). Los dorados y los mutados NUNCA se venden solos.
+-- Grab/Red/Pelea y surface deben usar la MISMA regla: lo que se vende solo no ocupa sitio en el acuario.
+local function autoSells(data: any, spec: DiveMeme): boolean
+	return data.Settings.AutoSell[spec.Meme.Rarity] == true and not spec.Golden and not spec.Mutation
 end
 
 -- Cierra la inmersión: lo enganchado entra en la mochila-acuario. Devuelve el resumen para el cliente.
@@ -296,13 +311,14 @@ local function surface(player: Player): any
 			Weight = spec.Weight,
 			Size = spec.Size,
 			Golden = spec.Golden,
+			Mutation = spec.Mutation,
 			Impossible = spec.Ratio > 1,
-			Value = FishMath.Value(meme, spec.Weight, spec.Golden),
+			Value = FishMath.Value(meme, spec.Weight, spec.Golden, spec.Mutation),
 			Time = os.time(),
 		}
 		-- Grab ya comprobó el sitio; si mientras tanto se llenó (no debería), se vende solo
 		local sold = false
-		local autoSell = data.Settings.AutoSell[meme.Rarity] == true and not catch.Golden -- los dorados nunca se venden solos
+		local autoSell = autoSells(data, spec)
 		if autoSell then
 			-- filtro de venta automática: se vende al subir (con el multiplicador de dinero)
 			local earned = math.floor(catch.Value * BoostService.Money(player))
@@ -350,10 +366,12 @@ local function surface(player: Player): any
 		if catch.Impossible and spec.Ratio >= 1.5 then
 			text = ("🏆 ¡%s pescó %s de %s con una %s! (IMPOSIBLE)"):format(player.DisplayName, meme.Name,
 				FishMath.FormatWeight(catch.Weight), session.Rod.Name)
-		elseif rarity.Order >= 4 or catch.Golden or FishMath.SizeOf(meme, catch.Weight) == "COLOSAL" then
+		elseif rarity.Order >= 4 or catch.Golden or catch.Mutation == "Electric" or catch.Mutation == "Lunar"
+			or FishMath.SizeOf(meme, catch.Weight) == "COLOSAL" then
 			local sizeName = FishMath.SizeOf(meme, catch.Weight)
-			text = ("✨ ¡%s ha pescado %s%s %s (%s)!"):format(player.DisplayName, if catch.Golden then "un DORADO " else "",
-				meme.Name, sizeName, FishMath.FormatWeight(catch.Weight))
+			local mutation = Weather.GetMutation(catch.Mutation)
+			text = ("✨ ¡%s ha pescado %s%s%s %s (%s)!"):format(player.DisplayName, if catch.Golden then "un DORADO " else "",
+				if mutation then mutation.Emoji .. " " .. mutation.Name .. " " else "", meme.Name, sizeName, FishMath.FormatWeight(catch.Weight))
 		end
 		if text then
 			Remotes.Get("Announce"):FireAllClients(text, meme.Rarity, player.UserId)
@@ -430,7 +448,39 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 	-- el nivel limita hasta qué capa puedes bajar (aunque la caña llegue más hondo)
 	local unlocked, lockedLayer = GameConfig.UnlockedDepth(data.Level)
 	local maxDepth = math.min(rod.MaxDepth, unlocked)
-	local memes = generateDive(rod, maxDepth, power, perfect, capacity, BoostService.Luck(player))
+	-- CEBOS equipados (se gasta 1 de cada en este lanzamiento) + CLIMA actual (mutaciones)
+	local used = {}
+	local function bait(id: string): any?
+		if BoostService.HasItem(player, id) and (data.Items[id] or 0) > 0 then
+			data.Items[id] -= 1
+			table.insert(used, id)
+			if data.Items[id] <= 0 then
+				-- se acabó: deja libre el hueco para otro objeto
+				local slot = table.find(data.EquippedItems, id)
+				if slot then
+					table.remove(data.EquippedItems, slot)
+				end
+				PlayerData.Notify(player, ("%s Se te acabó el %s: hueco libre"):format(Rods.Items[id].Emoji, Rods.Items[id].Name), "Warning")
+			end
+			return Rods.Items[id]
+		end
+		return nil
+	end
+	local weather = WeatherService.Current()
+	local spicy, goldenBait, heavy = bait("CeboPicante"), bait("CeboDorado"), bait("CeboPesado")
+	-- el Cebo Lunar solo hace algo si el clima trae mutación: con sol no se gasta
+	local lunar = if weather.Mutation then bait("CeboLunar") else nil
+	if #used > 0 then
+		PlayerData.Push(player)
+	end
+	local mods: DiveMods = {
+		GoldenMult = if goldenBait then goldenBait.GoldenMult else 1,
+		GiantMult = if heavy then heavy.GiantMult else 1,
+		Mutation = weather.Mutation,
+		MutationChance = (weather.Chance or 0) * (if lunar then lunar.MutationMult else 1),
+	}
+	local luck = BoostService.Luck(player) * (if spicy then spicy.LuckMult else 1)
+	local memes = generateDive(rod, maxDepth, power, perfect, capacity, luck, mods)
 	-- TUTORIAL: el primer lanzamiento de un jugador nuevo trae un meme fácil, ligero y en el centro del carril
 	local tutorialMeme = not data.TutorialDone and data.Stats.TotalCatches == 0 and Memes.Get(GameConfig.Tutorial.FirstMeme)
 	if tutorialMeme and memes[1] then
@@ -479,13 +529,15 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 	for i, spec in ipairs(memes) do
 		local hidden = GameConfig.LayerAt(spec.Depth).Dark == true and not lantern
 		visible[i] = { MemeId = if hidden then nil else spec.Meme.Id, Weight = if hidden then nil else spec.Weight,
-			Golden = not hidden and spec.Golden, Hidden = hidden, Depth = spec.Depth,
+			Golden = not hidden and spec.Golden, Mutation = if hidden then nil else spec.Mutation, Hidden = hidden, Depth = spec.Depth,
 			X = spec.X, Amp = spec.Amp, Freq = spec.Freq, Phase = spec.Phase, Tutorial = spec.Tutorial == true }
 	end
 	return {
 		ok = true,
 		Perfect = perfect,
 		Reinforced = reinforced,
+		Baits = used, -- cebos gastados en este lanzamiento
+		Weather = weather.Id,
 		Capacity = capacity,
 		Hooks = hooks,
 		MaxDepth = maxDepth,
@@ -555,8 +607,8 @@ local function onGrab(player: Player, index: any, hookX: any): any
 	if data.Settings.CatchSkip[spec.Meme.Rarity] then
 		return fail("🚫 Filtrado: tu anzuelo ignora esa rareza")
 	end
-	-- lo que se vende solo al subir no ocupa sitio en el acuario (los dorados nunca se venden solos)
-	local autoSell = data.Settings.AutoSell[spec.Meme.Rarity] == true and not spec.Golden
+	-- lo que se vende solo al subir no ocupa sitio en el acuario
+	local autoSell = autoSells(data, spec)
 	if not autoSell and spec.Size > Inventory.Free(data) - session.UsedSize then
 		return fail("🐠 No cabe en tu acuario")
 	end
@@ -627,7 +679,7 @@ local function onUseNet(player: Player): any
 	end
 	data.Items.RedDorada -= 1
 	spec.Taken = true
-	local autoSell = data.Settings.AutoSell[spec.Meme.Rarity] == true and not spec.Golden
+	local autoSell = autoSells(data, spec)
 	session.UsedSize += if autoSell then 0 else spec.Size
 	table.insert(session.Grabbed, session.Current)
 	resume(session, os.clock())
@@ -723,7 +775,7 @@ local function onFinish(player: Player, success: any): any
 		return fail("Se cansó de esperar y se fue")
 	end
 	local data = PlayerData.Get(player)
-	local autoSell = data ~= nil and data.Settings.AutoSell[spec.Meme.Rarity] == true and not spec.Golden
+	local autoSell = data ~= nil and autoSells(data, spec)
 	session.UsedSize += if autoSell then 0 else spec.Size
 	table.insert(session.Grabbed, session.Current)
 	resume(session, now)

@@ -853,6 +853,51 @@ function GearModels.Net(): Model
 	return model
 end
 
+-- Lata de cebo (icono de los 4 cebos): lata de metal con borde enrollado, etiqueta del color del cebo con una
+-- franja, tapa abierta inclinada, gusano de bolitas asomando y "cebo" brillante del tipo (chile, pepita, plomo, luna).
+function GearModels.Bait(kind: string, color: Color3): Model
+	local model = Instance.new("Model")
+	model.Name = "Bait"
+	local UPRIGHT = CFrame.Angles(0, 0, math.rad(90)) -- cilindros de pie
+	local tin = part(model, { Name = "Tin", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.6, 1.8, 1.8), Color = RGB(190, 195, 205),
+		Material = Enum.Material.Metal, CFrame = UPRIGHT })
+	model.PrimaryPart = tin
+	part(model, { Name = "Label", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.9, 1.84, 1.84), Color = color, CFrame = UPRIGHT })
+	part(model, { Name = "LabelStripe", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.18, 1.86, 1.86), Color = color:Lerp(Color3.new(1, 1, 1), 0.6),
+		CFrame = CFrame.new(0, 0.2, 0) * UPRIGHT })
+	for _, y in ipairs({ -0.8, 0.8 }) do
+		part(model, { Name = "Rim", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.12, 1.9, 1.9), Color = RGB(160, 165, 175),
+			Material = Enum.Material.Metal, CFrame = CFrame.new(0, y, 0) * UPRIGHT })
+	end
+	part(model, { Name = "Soil", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.1, 1.6, 1.6), Color = RGB(90, 60, 40),
+		Material = Enum.Material.Ground, CFrame = CFrame.new(0, 0.74, 0) * UPRIGHT })
+	part(model, { Name = "Lid", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.1, 1.85, 1.85), Color = RGB(200, 205, 215),
+		Material = Enum.Material.Metal, CFrame = CFrame.new(0, 1.35, -0.95) * CFrame.Angles(math.rad(-65), 0, 0) * UPRIGHT })
+	-- gusano: bolitas en curva que salen de la tierra
+	for i = 0, 5 do
+		local a = i / 5
+		part(model, { Name = "Worm", Shape = Enum.PartType.Ball, Size = Vector3.one * (0.34 - a * 0.08), Color = RGB(235, 130, 150):Lerp(RGB(250, 160, 175), a),
+			CFrame = CFrame.new(0.25 + math.sin(a * 2.5) * 0.35, 0.85 + a * 0.75, math.cos(a * 2.5) * 0.15) })
+	end
+	-- el cebo del tipo, brillando encima
+	local tip = CFrame.new(-0.35, 1.15, 0.3)
+	if kind == "CeboPicante" then
+		part(model, { Name = "Chili", Size = Vector3.new(0.25, 0.7, 0.25), Color = RGB(230, 40, 30), CFrame = tip * CFrame.Angles(0, 0, 0.5) })
+		part(model, { Name = "Stem", Size = Vector3.new(0.12, 0.18, 0.12), Color = RGB(60, 150, 50), CFrame = tip * CFrame.Angles(0, 0, 0.5) * CFrame.new(0, 0.42, 0) })
+	elseif kind == "CeboDorado" then
+		part(model, { Name = "Nugget", Size = Vector3.new(0.45, 0.35, 0.4), Color = RGB(255, 205, 50), Material = Enum.Material.Neon,
+			CFrame = tip * CFrame.Angles(0.4, 0.6, 0.2) })
+	elseif kind == "CeboPesado" then
+		part(model, { Name = "Weight", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.5, Color = RGB(90, 95, 105), Material = Enum.Material.Metal, CFrame = tip })
+		part(model, { Name = "WeightLoop", Size = Vector3.new(0.1, 0.25, 0.1), Color = RGB(150, 150, 160), Material = Enum.Material.Metal,
+			CFrame = tip * CFrame.new(0, 0.32, 0) })
+	else
+		part(model, { Name = "MoonStone", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.5, Color = RGB(200, 150, 255), Material = Enum.Material.Neon, CFrame = tip })
+		part(model, { Name = "MoonBite", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.42, Color = RGB(40, 30, 70), CFrame = tip * CFrame.new(0.14, 0.08, 0.12) })
+	end
+	return model
+end
+
 -- Casita de bloques (icono de la parcela).
 function GearModels.House(): Model
 	local model = Instance.new("Model")
