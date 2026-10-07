@@ -7,16 +7,16 @@
 PROJECT:          Pesca de Memes (nombre provisional)
 STATUS:           Prototipo jugable
 CURRENT_PHASE:    FASE 2 — PROTOTIPO (P0)   ← ESTAMOS AQUÍ
-GAME_VERSION:     P0 0.7
+GAME_VERSION:     P0 0.8
 CORE_LOOP_STATUS: Lanzar con click → INMERSIÓN (guiar el anzuelo) → enganchar / pelear → subir → mochila → parcela → dinero
 MAP_STATUS:       Río ancho (80 studs) y largo (360), 8 parcelas con muelle propio, estilo casillas con studs
-SYSTEMS_STATUS:   PlayerData v4 · GearService · FishingService (inmersión) · PlotService · EconomyService · WorldBuilder
+SYSTEMS_STATUS:   PlayerData v5 · GearService · FishingService (inmersión) · PlotService · EconomyService · WorldBuilder
 UI_STATUS:        HUD con iconos 3D · escena submarina + medidor de profundidad · pelea · resultados · tienda nueva · índice
-DATA_STATUS:      Schema v4 con session lock y migraciones (v4 recalcula el valor de los memes con la economía nueva)
+DATA_STATUS:      Schema v5 con session lock y migraciones (v4 recalcula valores; v5 marca el tutorial como hecho a los jugadores antiguos)
 SECURITY_STATUS:  El servidor genera la inmersión y valida cada enganche por tiempo/profundidad, anzuelos y espacio
 QA_STATUS:        v0.4 probada en Studio por el equipo: SIN ERRORES · v0.5: luau-lsp + rojo build OK, pendiente de probar
 KNOWN_BUGS:       — (por descubrir en la prueba)
-NEXT_STEP:        Probar la v0.7 y seguir metiendo ideas en el prototipo (la Fase 2 sigue abierta: aquí se prueba TODO)
+NEXT_STEP:        Probar la v0.8 (tutorial) y luego meter más ideas y seguir metiendo ideas en el prototipo (la Fase 2 sigue abierta: aquí se prueba TODO)
 ```
 
 ## Fases
@@ -41,13 +41,14 @@ NEXT_STEP:        Probar la v0.7 y seguir metiendo ideas en el prototipo (la Fas
 | Mapa con casillas, caña-herramienta, mochila-acuario con kg, caña que se rompe, figuras 3D de bloques | v0.3 |
 | **Inmersión** (cámara bajo el agua, guiar el anzuelo, varios memes por lanzamiento), lanzar con **click**, río más ancho, **fotos 3D** en toda la GUI, **tienda nueva**, más animaciones | v0.4 |
 | **Gran Tienda** al fondo del río (VIP dentro, sin puesto aparte) + **tablón del boost gratis** que cambia cada 15 min (5 min de uso) · **profundidad ×10** (hasta 600 m) con **capas** que oscurecen · **filtros** (el anzuelo ignora rarezas / venta automática) · **cañas con diseño propio y efectos** · **arco nuevo** legible por los dos lados | **v0.6** |
+| **Tutorial jugando** (6 pasos con flecha y rastro, primer meme asegurado, premio 250 🪙, botón Saltar) | **v0.8** |
 | **Freno** del anzuelo · **economía nueva** (peso y rareza, ×10 más dinero) · **gigantes y colosales** · **12 mochilas** con diseño propio · **objetos con huecos** (Linterna para capas oscuras, Imán, Red Dorada, Sedal) | **v0.7** |
 | Rarezas **Mítico → Legendario → Secreto → Dios** (eventos), **6 memes nuevos con efectos**, capas de profundidad, **Gran Tienda** física (boosts, Robux, regalo gratis aleatorio), fauna del río, árboles y flores, **cara del jugador** en su parcela, **modo prueba** con dinero infinito | **v0.5** |
 
 | Falta para cerrar la fase (P0) | Prioridad |
 |---|---|
 | ~~Probar en Studio la inmersión~~ ✅ (v0.4 sin errores) | P0 |
-| Tutorial corto de 30–60 s jugando (muelle → caña → lanzar → primer meme fácil → parcela → cobrar) | P0 |
+| ~~Tutorial corto de 30–60 s jugando~~ ✅ (v0.8) | P0 |
 | Ajustar balance: velocidad de bajada, nº de memes, precios, kg | P0 |
 | Sonidos reales (Config/Assets) | P1 |
 | Configurar los IDs de los Game Passes (Config/Monetization) | P1 |
@@ -115,6 +116,7 @@ y PlotService el multiplicador. Los bonus son pequeños para no romper el balanc
 - [ ] Máximo de jugadores del servidor = 8 (una parcela cada uno).
 
 ## Historial
+- **v0.8** — Tutorial jugando: muelle → caña → lanzar → meme asegurado → parcela → cobrar. Datos v5.
 - **v0.7** — Freno del anzuelo, economía por peso y rareza (migración v4), gigantes/colosales, 12 mochilas, objetos con huecos (Linterna, Imán, Red Dorada) y debate de comprar memes.
 - **v0.6.1** — El nivel desbloquea capas (5/15/30) y da un cofre con MemeCoins y boosts al subir.
 - **v0.6** — Gran Tienda rediseñada con VIP dentro y tablón de boost gratis (15 min), profundidad hasta 600 m con 4 capas, filtros de pesca y de venta automática, cañas con diseño y efectos, arco nuevo.

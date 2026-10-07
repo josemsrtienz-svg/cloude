@@ -402,6 +402,18 @@ local function buildMeme(parent: Instance, spec: any, index: number, skip: { [st
 		Parent = bb }, { Stroke = 2 })
 	UIKit.label({ Name = "Weight", Text = weightText, Size = UDim2.new(1, 0, 0.5, 0), Position = UDim2.fromScale(0, 0.5),
 		Font = T.FontTitle, TextColor3 = weightColor, Parent = bb }, { Stroke = 2 })
+	if spec.Tutorial then
+		-- tutorial: flecha encima del meme asegurado para que el jugador nuevo sepa a por cuál ir
+		local arrow = Instance.new("BillboardGui")
+		arrow.Name = "TutorialArrow"
+		arrow.Size = UDim2.fromOffset(170, 60)
+		arrow.StudsOffsetWorldSpace = Vector3.new(0, height + 3.4, 0)
+		arrow.LightInfluence = 0
+		arrow.AlwaysOnTop = true
+		arrow.Parent = bb.Parent
+		UIKit.label({ Text = "⬇ ¡A POR ÉL! ⬇", Size = UDim2.fromScale(1, 1), Font = T.FontTitle, TextColor3 = T.Primary,
+			Parent = arrow }, { Stroke = 3 })
+	end
 	model.Parent = parent
 	return { Spec = spec, Model = model, Height = height, Label = bb, State = "free", Bob = rng:NextNumber(0, 6), Slot = 0,
 		Rarity = if meme then meme.Rarity else "?" }
@@ -511,6 +523,10 @@ function DiveScene.Attach(index: number)
 	view.State = "attached"
 	view.Slot = attachedCount
 	view.Label.Enabled = false
+	local arrow = view.Model:FindFirstChild("TutorialArrow", true)
+	if arrow then
+		arrow:Destroy()
+	end
 	local sparkle = Instance.new("ParticleEmitter")
 	sparkle.Rate = 0
 	sparkle.Speed = NumberRange.new(6, 10)

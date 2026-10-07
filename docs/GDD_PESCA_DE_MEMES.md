@@ -213,6 +213,15 @@ Inspirado en el principio de Steal a Egg ("tu base es tuya y se ve"), con aplica
   es el "salto", **nunca para secretos ni dioses**; con Robux solo packs de Red Dorada (producto de desarrollador),
   nunca un pase permanente.
 
+## 5h. Cambios v0.8 — Tutorial
+- Solo para jugadores nuevos (`TutorialDone`; los antiguos lo tienen hecho por la migración v5). Se puede **saltar**.
+- 6 pasos con una tarjeta arriba y una **flecha + rastro amarillo** en el mundo:
+  muelle → sacar la caña (1) → mantener click y soltar → guiar el anzuelo → volver a la parcela → pisar el cobrador.
+- El paso se calcula del estado real (si vendes el meme o te mueves, vuelve al paso que toca: nunca se atasca).
+- **Primer meme asegurado:** el servidor pone un Noob Feliz ligero a 6 m, en el centro del carril, con "⬇ ¡A POR ÉL!".
+- Premio: **250 MemeCoins** al terminarlo (solo si pescó de verdad; saltarlo no da premio).
+- Modo prueba: `GameConfig.DevMode.Tutorial` (true = lo ves en cada Play de Studio).
+
 ## 6. Pescadores Furtivos (el toque social)
 Para tener tensión social **sin** convertirlo en un clon de "steal":
 

@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
+local GameConfig = require(Root.Config.GameConfig)
 local Memes = require(Root.Config.Memes)
 local Rods = require(Root.Config.Rods)
 local Remotes = require(Root.Shared.Remotes)
@@ -240,7 +241,23 @@ local function onSetFilters(player: Player, data: any, catchSkip: any, autoSell:
 	return { ok = true }
 end
 
+-- Tutorial terminado (o saltado). Premio una sola vez y solo si de verdad pescó y cobró algo.
+local function onFinishTutorial(player: Player, data: any, skipped: any): any
+	if data.TutorialDone then
+		return { ok = true, Reward = 0 }
+	end
+	data.TutorialDone = true
+	local reward = 0
+	if skipped ~= true and data.Stats.TotalCatches > 0 then
+		reward = GameConfig.Tutorial.Reward
+		data.MemeCoin += reward
+	end
+	PlayerData.Push(player)
+	return { ok = true, Reward = reward }
+end
+
 function EconomyService.Init()
+	Remotes.Get("FinishTutorial").OnServerInvoke = handler(onFinishTutorial)
 	Remotes.Get("SetFilters").OnServerInvoke = handler(onSetFilters)
 	Remotes.Get("EquipItem").OnServerInvoke = handler(onEquipItem)
 	Remotes.Get("SellCatch").OnServerInvoke = handler(onSellCatch)

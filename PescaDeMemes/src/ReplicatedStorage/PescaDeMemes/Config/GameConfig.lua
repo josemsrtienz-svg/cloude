@@ -10,7 +10,7 @@
 local GameConfig = {}
 
 GameConfig.GameName = "PESCA DE MEMES"
-GameConfig.Version = "P0 0.7"
+GameConfig.Version = "P0 0.8"
 
 -- ===== Moneda =====
 GameConfig.CurrencyName = "MemeCoin"
@@ -176,10 +176,20 @@ GameConfig.DevMode = {
 	Enabled = true,
 	Money = 1e12,
 	Level = 30, -- para probar todas las capas de profundidad desde el principio
+	Tutorial = true, -- enseñar el tutorial en modo prueba (false = empiezas con él hecho)
+}
+
+-- ===== Tutorial (primeros 60 s, jugando) =====
+-- Muelle → sacar la caña → lanzar → primer meme fácil ASEGURADO → parcela → cobrar.
+-- Solo para jugadores nuevos (los antiguos lo tienen hecho por la migración v5). Se puede saltar.
+GameConfig.Tutorial = {
+	FirstMeme = "NoobFeliz", -- el meme asegurado del primer lanzamiento
+	FirstMemeDepth = 6, -- metros: cerca de la superficie, imposible de perder
+	Reward = 250, -- MemeCoins al terminarlo (no al saltarlo)
 }
 
 -- ===== Datos iniciales del jugador (Version = versión del schema) =====
-GameConfig.DataVersion = 4
+GameConfig.DataVersion = 5
 GameConfig.StartingData = {
 	Version = GameConfig.DataVersion,
 	MemeCoin = 300,
@@ -205,6 +215,7 @@ GameConfig.StartingData = {
 	Discovered = {},
 	LastSeen = 0,
 	Stats = { TotalCatches = 0, Impossible = 0, Heaviest = 0 },
+	TutorialDone = false,
 }
 
 return GameConfig

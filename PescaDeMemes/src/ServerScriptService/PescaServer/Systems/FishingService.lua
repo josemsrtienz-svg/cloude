@@ -53,6 +53,7 @@ type DiveMeme = {
 	Ratio: number,
 	Size: number,
 	Taken: boolean,
+	Tutorial: boolean?, -- el meme asegurado del primer lanzamiento
 }
 
 type Session = {
@@ -420,6 +421,18 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 	local unlocked, lockedLayer = GameConfig.UnlockedDepth(data.Level)
 	local maxDepth = math.min(rod.MaxDepth, unlocked)
 	local memes = generateDive(rod, maxDepth, power, perfect, capacity, BoostService.Luck(player))
+	-- TUTORIAL: el primer lanzamiento de un jugador nuevo trae un meme fácil, ligero y en el centro del carril
+	local tutorialMeme = not data.TutorialDone and data.Stats.TotalCatches == 0 and Memes.Get(GameConfig.Tutorial.FirstMeme)
+	if tutorialMeme and memes[1] then
+		local weight = math.min(rollWeight(tutorialMeme), capacity * 0.5)
+		weight = math.floor(weight * 10 + 0.5) / 10
+		memes[1] = {
+			Meme = tutorialMeme, Weight = weight, Golden = false,
+			Depth = math.min(GameConfig.Tutorial.FirstMemeDepth, maxDepth - 1),
+			X = 0, Amp = 0.4, Freq = 0.5, Phase = 0,
+			Ratio = weight / capacity, Size = Inventory.SizeOf(weight), Taken = false, Tutorial = true,
+		}
+	end
 	local hooks = rod.Hooks + BoostService.ExtraHooks(player)
 	local speed = rod.DiveSpeed * BoostService.Speed(player)
 
@@ -457,7 +470,7 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 		local hidden = GameConfig.LayerAt(spec.Depth).Dark == true and not lantern
 		visible[i] = { MemeId = if hidden then nil else spec.Meme.Id, Weight = if hidden then nil else spec.Weight,
 			Golden = not hidden and spec.Golden, Hidden = hidden, Depth = spec.Depth,
-			X = spec.X, Amp = spec.Amp, Freq = spec.Freq, Phase = spec.Phase }
+			X = spec.X, Amp = spec.Amp, Freq = spec.Freq, Phase = spec.Phase, Tutorial = spec.Tutorial == true }
 	end
 	return {
 		ok = true,

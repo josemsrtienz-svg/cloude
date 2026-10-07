@@ -40,6 +40,7 @@ Remotes.Definitions = {
 	EquipItem = "RemoteFunction", -- (itemId, on) equipar/quitar un objeto (huecos limitados)
 	UseNet = "RemoteFunction", -- usar la Red Dorada en la pelea actual: enganchado sin pelear
 	ClaimFreeBoost = "RemoteFunction", -- recoger el boost gratis (solo junto a la tienda física)
+	FinishTutorial = "RemoteFunction", -- (skipped) terminar o saltar el tutorial; premio solo si lo hizo
 }
 
 local function root(): Instance

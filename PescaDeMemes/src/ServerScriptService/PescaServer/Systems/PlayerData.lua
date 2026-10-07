@@ -87,6 +87,11 @@ local MIGRATIONS: { [number]: (any) -> any } = {
 		end
 		return data
 	end,
+	-- 4 → 5: tutorial nuevo; quien ya jugaba no lo necesita
+	[4] = function(data)
+		data.TutorialDone = true
+		return data
+	end,
 }
 
 local function migrate(data: any): any
@@ -367,6 +372,7 @@ local function onPlayerAdded(player: Player)
 		data, canSave = sanitize(Util.deepCopy(GameConfig.StartingData)), false
 		data.MemeCoin = GameConfig.DevMode.Money
 		data.Level = GameConfig.DevMode.Level
+		data.TutorialDone = not GameConfig.DevMode.Tutorial
 	else
 		data, canSave = loadData(player)
 	end

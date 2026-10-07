@@ -42,6 +42,9 @@ rojo build default.project.json -o PescaDeMemes.rbxlx
    **⚡ boosts** (Dinero ×2, Suerte ×2, Anzuelo ×1.5, +1 Anzuelo), **💎 pases de Robux** y el **🎁 boost gratis** del tablón (cambia cada 15 min).
 9. **Objetos:** en la pestaña Objetos eliges qué llevas en tus **huecos** (1 al empezar): Sedal, Linterna, Imán, Red Dorada.
 
+> 🎓 **Tutorial:** los jugadores nuevos lo ven al entrar (6 pasos con flecha). En Studio sale en cada Play
+> mientras `GameConfig.DevMode.Tutorial = true`; ponlo en false para empezar con él hecho.
+
 > 🧪 **Modo prueba:** en Studio empiezas con dinero infinito y la sesión NO se guarda (`GameConfig.DevMode`).
 > Apágalo (`Enabled = false`) para probar el guardado y siempre antes de publicar.
 
