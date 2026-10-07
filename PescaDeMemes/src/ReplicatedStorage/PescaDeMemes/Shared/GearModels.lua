@@ -191,38 +191,217 @@ function GearModels.Rod(rod: any, broken: boolean?): Model
 	return model
 end
 
--- Mochila-acuario: tanque de cristal con agua, arena, alga y hasta 3 MINI MEMES de verdad dentro.
+-- ===== Mochilas-acuario: 12 diseños =====
+-- Todas comparten el "interior" (agua, arena y hasta 3 MINI MEMES de verdad, mirando hacia fuera) y
+-- cambian la CARCASA, que es lo que las hace reconocibles a la espalda:
+--   Jar tarro con corcho · Bowl pecera redonda en mochila de tela · Tank acuario de cristal · Barrel barril
+--   con ventana · Globe esfera con anillo · Sub submarino con ojos de buey · Chest cofre con tapa de cristal
+--   Rocket cohete con aletas y llama · Neon burbuja que brilla · Royal marco de oro con corona
+--   Cosmic cristal oscuro con estrellas y anillo · BlackHole esfera negra con disco morado que gira.
+-- El origen es el centro del agua; la espalda del jugador queda hacia -Z (las correas van por -Z).
+
+local function ball(model: Model, name: string, d: number, cf: CFrame, color: Color3, material: Enum.Material?, transparency: number?): Part
+	return part(model, { Name = name, Shape = Enum.PartType.Ball, Size = Vector3.one * d, Color = color,
+		Material = material or Enum.Material.SmoothPlastic, Transparency = transparency or 0, CFrame = cf })
+end
+
+local function cylinder(model: Model, name: string, length: number, d: number, cf: CFrame, color: Color3, material: Enum.Material?, transparency: number?): Part
+	return part(model, { Name = name, Shape = Enum.PartType.Cylinder, Size = Vector3.new(length, d, d), Color = color,
+		Material = material or Enum.Material.SmoothPlastic, Transparency = transparency or 0, CFrame = cf })
+end
+
+local UP = CFrame.Angles(0, 0, math.rad(90)) -- los cilindros de Roblox van en X: así quedan de pie
+
+local function straps(model: Model, color: Color3, height: number)
+	for _, x in ipairs({ -0.55, 0.55 }) do
+		part(model, { Name = "Strap", Size = Vector3.new(0.25, 0.15, 1.6), Color = color, Material = Enum.Material.Fabric,
+			CFrame = CFrame.new(x, height, -0.8) })
+		part(model, { Name = "StrapDown", Size = Vector3.new(0.25, height * 1.6, 0.15), Color = color, Material = Enum.Material.Fabric,
+			CFrame = CFrame.new(x, 0, -0.62) })
+	end
+end
+
+local SHELLS: { [string]: (Model, any) -> () } = {
+	Jar = function(m, aq)
+		cylinder(m, "Glass", 2.2, 1.8, UP, RGB(210, 245, 255), Enum.Material.Glass, 0.6)
+		cylinder(m, "Cork", 0.5, 1.2, CFrame.new(0, 1.3, 0) * UP, RGB(170, 125, 80), Enum.Material.Wood)
+		part(m, { Name = "Twine", Size = Vector3.new(1.85, 0.12, 1.85), Color = RGB(230, 215, 170), Material = Enum.Material.Fabric, CFrame = CFrame.new(0, 0.95, 0) })
+		part(m, { Name = "Label", Size = Vector3.new(0.9, 0.6, 0.05), Color = aq.Color, CFrame = CFrame.new(0, 0.2, 0.92) })
+		straps(m, RGB(120, 90, 60), 0.9)
+	end,
+	Bowl = function(m, aq)
+		part(m, { Name = "Pack", Size = Vector3.new(2.2, 2.4, 0.7), Color = aq.Color, Material = Enum.Material.Fabric, CFrame = CFrame.new(0, -0.1, -0.55) })
+		part(m, { Name = "Pocket", Size = Vector3.new(1.4, 0.7, 0.2), Color = aq.Color:Lerp(Color3.new(0, 0, 0), 0.2), Material = Enum.Material.Fabric, CFrame = CFrame.new(0, -0.9, -0.95) })
+		ball(m, "Glass", 2.0, CFrame.new(0, 0.1, 0.35), RGB(210, 245, 255), Enum.Material.Glass, 0.55)
+		cylinder(m, "Rim", 0.2, 1.1, CFrame.new(0, 1.05, 0.35) * UP, RGB(240, 250, 255), Enum.Material.Glass, 0.3)
+		straps(m, aq.Color:Lerp(Color3.new(0, 0, 0), 0.3), 1)
+	end,
+	Tank = function(m, aq)
+		part(m, { Name = "Glass", Size = Vector3.new(1.9, 2.2, 1.1), Color = RGB(200, 240, 255), Material = Enum.Material.Glass, Transparency = 0.6, CFrame = CFrame.new() })
+		part(m, { Name = "Lid", Size = Vector3.new(2.05, 0.25, 1.25), Color = aq.Color, CFrame = CFrame.new(0, 1.2, 0) })
+		part(m, { Name = "Bottom", Size = Vector3.new(2.05, 0.25, 1.25), Color = aq.Color, CFrame = CFrame.new(0, -1.2, 0) })
+		for _, x in ipairs({ -0.97, 0.97 }) do
+			part(m, { Name = "Frame", Size = Vector3.new(0.12, 2.2, 1.2), Color = aq.Color, CFrame = CFrame.new(x, 0, 0) })
+		end
+		straps(m, RGB(60, 45, 35), 1.1)
+	end,
+	Barrel = function(m, aq)
+		for k = 0, 7 do
+			local a = k * math.pi / 4
+			part(m, { Name = "Stave", Size = Vector3.new(0.8, 2.5, 0.2), Color = RGB(150, 100, 60):Lerp(RGB(120, 80, 45), (k % 2) * 0.5),
+				Material = Enum.Material.WoodPlanks, CFrame = CFrame.Angles(0, a, 0) * CFrame.new(0, 0, -0.95) })
+		end
+		for _, y in ipairs({ -0.8, 0.8 }) do
+			cylinder(m, "Hoop", 0.18, 2.1, CFrame.new(0, y, 0) * UP, RGB(80, 80, 90), Enum.Material.Metal)
+		end
+		part(m, { Name = "Window", Size = Vector3.new(1.1, 1.2, 0.1), Color = RGB(200, 240, 255), Material = Enum.Material.Glass, Transparency = 0.4, CFrame = CFrame.new(0, 0, 1.02) })
+		cylinder(m, "Top", 0.2, 1.9, CFrame.new(0, 1.25, 0) * UP, aq.Color)
+		straps(m, RGB(60, 45, 35), 1.1)
+	end,
+	Globe = function(m, aq)
+		ball(m, "Glass", 2.4, CFrame.new(), RGB(200, 240, 255), Enum.Material.Glass, 0.55)
+		cylinder(m, "Ring", 0.25, 2.8, CFrame.Angles(0, math.rad(90), 0), aq.Color, Enum.Material.SmoothPlastic)
+		cylinder(m, "Base", 0.35, 1.4, CFrame.new(0, -1.25, 0) * UP, aq.Color)
+		ball(m, "Wave", 0.5, CFrame.new(0.7, 0.6, 0.7), RGB(120, 230, 255), Enum.Material.Neon, 0.3)
+		straps(m, RGB(60, 45, 35), 1.1)
+	end,
+	Sub = function(m, aq)
+		part(m, { Name = "Hull", Size = Vector3.new(2.2, 2.0, 1.4), Color = aq.Color, CFrame = CFrame.new() })
+		ball(m, "Nose", 2.0, CFrame.new(0, 1.0, 0), aq.Color)
+		ball(m, "Tail", 1.6, CFrame.new(0, -1.1, 0), aq.Color)
+		for _, y in ipairs({ 0.45, -0.45 }) do
+			cylinder(m, "Porthole", 0.12, 0.8, CFrame.new(0, y, 0.72) * CFrame.Angles(0, math.rad(90), 0), RGB(200, 240, 255), Enum.Material.Glass, 0.3)
+			cylinder(m, "PortRim", 0.1, 0.95, CFrame.new(0, y, 0.7) * CFrame.Angles(0, math.rad(90), 0), RGB(90, 90, 100), Enum.Material.Metal)
+		end
+		cylinder(m, "Periscope", 1.2, 0.25, CFrame.new(0.6, 2.2, 0) * UP, RGB(90, 90, 100), Enum.Material.Metal)
+		part(m, { Name = "PeriscopeTop", Size = Vector3.new(0.3, 0.3, 0.5), Color = RGB(90, 90, 100), Material = Enum.Material.Metal, CFrame = CFrame.new(0.6, 2.8, 0.15) })
+		for _, x in ipairs({ -1, 1 }) do
+			part(m, { Name = "Fin", Size = Vector3.new(0.6, 0.15, 0.8), Color = aq.Color:Lerp(Color3.new(0, 0, 0), 0.2), CFrame = CFrame.new(x * 1.3, -1.2, 0) })
+		end
+		straps(m, RGB(60, 45, 35), 1.1)
+	end,
+	Chest = function(m, aq)
+		part(m, { Name = "Base", Size = Vector3.new(2.4, 1.6, 1.4), Color = aq.Color, Material = Enum.Material.WoodPlanks, CFrame = CFrame.new(0, -0.5, 0) })
+		part(m, { Name = "Glass", Size = Vector3.new(2.2, 1.1, 1.2), Color = RGB(200, 240, 255), Material = Enum.Material.Glass, Transparency = 0.55, CFrame = CFrame.new(0, 0.85, 0) })
+		part(m, { Name = "LidFrame", Size = Vector3.new(2.5, 0.25, 1.5), Color = RGB(255, 200, 50), Reflectance = 0.2, CFrame = CFrame.new(0, 1.45, 0) })
+		for _, x in ipairs({ -1.1, 1.1 }) do
+			part(m, { Name = "GoldBand", Size = Vector3.new(0.2, 1.65, 1.45), Color = RGB(255, 200, 50), Reflectance = 0.2, CFrame = CFrame.new(x, -0.5, 0) })
+		end
+		part(m, { Name = "Lock", Size = Vector3.new(0.4, 0.5, 0.12), Color = RGB(255, 200, 50), CFrame = CFrame.new(0, -0.1, 0.72) })
+		straps(m, RGB(60, 45, 35), 1.2)
+	end,
+	Rocket = function(m, aq)
+		cylinder(m, "Body", 2.6, 1.6, UP, RGB(240, 240, 245))
+		part(m, { Name = "Stripe", Size = Vector3.new(1.65, 0.35, 1.65), Color = aq.Color, CFrame = CFrame.new(0, 0.6, 0) })
+		ball(m, "Nose", 1.6, CFrame.new(0, 1.45, 0), aq.Color)
+		cylinder(m, "Window", 0.12, 0.9, CFrame.new(0, 0.1, 0.8) * CFrame.Angles(0, math.rad(90), 0), RGB(200, 240, 255), Enum.Material.Glass, 0.3)
+		for k = 0, 2 do
+			part(m, { Name = "Fin", Size = Vector3.new(0.15, 0.9, 0.8), Color = aq.Color, CFrame = CFrame.Angles(0, k * math.pi * 2 / 3, 0) * CFrame.new(0, -1.1, 0.9) })
+		end
+		local nozzle = cylinder(m, "Nozzle", 0.4, 0.9, CFrame.new(0, -1.45, 0) * UP, RGB(70, 70, 80), Enum.Material.Metal)
+		local flame = Instance.new("ParticleEmitter")
+		flame.Name = "Flame"
+		flame.Rate = 25
+		flame.Lifetime = NumberRange.new(0.2, 0.35)
+		flame.Speed = NumberRange.new(3, 5)
+		flame.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
+		flame.Color = ColorSequence.new(RGB(255, 220, 80), RGB(255, 90, 30))
+		flame.LightEmission = 1
+		flame.EmissionDirection = Enum.NormalId.Left -- el cilindro está girado: "Left" apunta hacia abajo
+		flame.Parent = nozzle
+		straps(m, RGB(60, 45, 35), 1.0)
+	end,
+	Neon = function(m, aq)
+		ball(m, "Glass", 2.3, CFrame.new(), RGB(255, 200, 250), Enum.Material.Glass, 0.5)
+		for _, rot in ipairs({ CFrame.Angles(0, 0, 0), CFrame.Angles(0, math.rad(90), 0), CFrame.Angles(math.rad(90), 0, 0) }) do
+			cylinder(m, "NeonRing", 0.12, 2.45, rot * CFrame.Angles(0, math.rad(90), 0), aq.Color, Enum.Material.Neon, 0.1)
+		end
+		local glow = Instance.new("PointLight")
+		glow.Color = aq.Color
+		glow.Range = 8
+		glow.Brightness = 1.5
+		glow.Parent = m:FindFirstChild("Glass")
+		straps(m, RGB(40, 30, 50), 1.1)
+	end,
+	Royal = function(m, aq)
+		part(m, { Name = "Glass", Size = Vector3.new(2.0, 2.3, 1.2), Color = RGB(220, 240, 255), Material = Enum.Material.Glass, Transparency = 0.55, CFrame = CFrame.new() })
+		for _, y in ipairs({ -1.25, 1.25 }) do
+			part(m, { Name = "GoldFrame", Size = Vector3.new(2.3, 0.3, 1.45), Color = aq.Color, Reflectance = 0.25, CFrame = CFrame.new(0, y, 0) })
+		end
+		for _, x in ipairs({ -1.05, 1.05 }) do
+			part(m, { Name = "GoldPillar", Size = Vector3.new(0.25, 2.3, 0.25), Color = aq.Color, Reflectance = 0.25, CFrame = CFrame.new(x, 0, 0.6) })
+		end
+		for i = 0, 3 do
+			part(m, { Name = "CrownSpike", Size = Vector3.new(0.3, 0.5, 0.3), Color = aq.Color, Reflectance = 0.25, CFrame = CFrame.new(-0.75 + i * 0.5, 1.65, 0) })
+		end
+		ball(m, "Jewel", 0.35, CFrame.new(0, 1.25, 0.75), RGB(230, 40, 70), Enum.Material.Neon)
+		straps(m, RGB(160, 20, 40), 1.2)
+	end,
+	Cosmic = function(m, aq)
+		ball(m, "Glass", 2.4, CFrame.new(), aq.Color, Enum.Material.Glass, 0.35)
+		cylinder(m, "PlanetRing", 0.1, 3.4, CFrame.Angles(math.rad(20), 0, 0) * CFrame.Angles(0, 0, math.rad(90)), RGB(200, 170, 255), Enum.Material.Neon, 0.4)
+		local stars = Instance.new("ParticleEmitter")
+		stars.Name = "Stars"
+		stars.Rate = 6
+		stars.Lifetime = NumberRange.new(1, 2)
+		stars.Speed = NumberRange.new(0.2, 0.6)
+		stars.SpreadAngle = Vector2.new(180, 180)
+		stars.Size = NumberSequence.new(0.12)
+		stars.Color = ColorSequence.new(RGB(255, 255, 255), RGB(180, 200, 255))
+		stars.LightEmission = 1
+		stars.Parent = m:FindFirstChild("Glass")
+		straps(m, RGB(30, 20, 60), 1.1)
+	end,
+	BlackHole = function(m, aq)
+		ball(m, "Core", 1.4, CFrame.new(0, 0, -0.2), RGB(5, 5, 10), Enum.Material.SmoothPlastic)
+		ball(m, "Glass", 2.5, CFrame.new(), RGB(60, 30, 90), Enum.Material.Glass, 0.6)
+		cylinder(m, "Disc", 0.08, 3.6, CFrame.Angles(math.rad(70), 0, 0) * CFrame.Angles(0, 0, math.rad(90)), aq.Color, Enum.Material.Neon, 0.25)
+		cylinder(m, "DiscInner", 0.1, 2.6, CFrame.Angles(math.rad(70), 0, 0) * CFrame.Angles(0, 0, math.rad(90)), RGB(255, 170, 80), Enum.Material.Neon, 0.35)
+		local swirl = Instance.new("ParticleEmitter")
+		swirl.Name = "Swirl"
+		swirl.Rate = 10
+		swirl.Lifetime = NumberRange.new(0.8, 1.2)
+		swirl.Speed = NumberRange.new(-1.5, -1)
+		swirl.SpreadAngle = Vector2.new(180, 180)
+		swirl.Size = NumberSequence.new(0.2)
+		swirl.Color = ColorSequence.new(aq.Color, RGB(255, 170, 80))
+		swirl.LightEmission = 1
+		swirl.Parent = m:FindFirstChild("Glass")
+		straps(m, RGB(30, 20, 40), 1.1)
+	end,
+}
+
+-- Mochila-acuario con su diseño y hasta 3 MINI MEMES de verdad dentro (en la espalda y en la tienda).
+-- Escala de la mochila a la espalda según el tier (las grandes se ven un poco más grandes).
+function GearModels.TankScale(aquarium: any): number
+	return 1 + math.clamp((aquarium.Tier - 1) * 0.035, 0, 0.4)
+end
+
+-- Mitad del fondo (eje Z) de la mochila ya escalada: para pegarla a la espalda sin medir efectos.
+function GearModels.TankHalfDepth(aquarium: any): number
+	return 0.6 * GearModels.TankScale(aquarium)
+end
+
 function GearModels.Tank(aquarium: any, memeIds: { string }?): Model
 	local model = Instance.new("Model")
 	model.Name = "Tank"
-	local glass = part(model, { Name = "Glass", Size = Vector3.new(1.9, 2.2, 1.1), Color = RGB(200, 240, 255),
-		Material = Enum.Material.Glass, Transparency = 0.6, CFrame = CFrame.new() })
-	model.PrimaryPart = glass
-	part(model, { Name = "Water", Size = Vector3.new(1.75, 1.6, 0.95), Color = RGB(60, 170, 230), Transparency = 0.55,
+	-- interior común: agua y arena
+	local water = part(model, { Name = "Water", Size = Vector3.new(1.6, 1.4, 0.9), Color = RGB(60, 170, 230), Transparency = 0.55,
 		CFrame = CFrame.new(0, -0.25, 0) })
-	part(model, { Name = "Sand", Size = Vector3.new(1.75, 0.2, 0.95), Color = RGB(235, 215, 160), Material = Enum.Material.Sand,
-		CFrame = CFrame.new(0, -0.95, 0) })
-	part(model, { Name = "Weed", Size = Vector3.new(0.12, 0.7, 0.12), Color = RGB(70, 190, 90), CFrame = CFrame.new(0.65, -0.5, 0.25) })
-	part(model, { Name = "Weed", Size = Vector3.new(0.12, 0.45, 0.12), Color = RGB(50, 160, 70), CFrame = CFrame.new(0.75, -0.62, 0.1) })
-	part(model, { Name = "Lid", Size = Vector3.new(2.05, 0.25, 1.25), Color = aquarium.Color, CFrame = CFrame.new(0, 1.2, 0) })
-	part(model, { Name = "Bottom", Size = Vector3.new(2.05, 0.25, 1.25), Color = aquarium.Color, CFrame = CFrame.new(0, -1.2, 0) })
-	for _, x in ipairs({ -0.97, 0.97 }) do
-		part(model, { Name = "Frame", Size = Vector3.new(0.12, 2.2, 1.2), Color = aquarium.Color, CFrame = CFrame.new(x, 0, 0) })
-		part(model, { Name = "Strap", Size = Vector3.new(0.25, 0.15, 1.6), Color = RGB(60, 45, 35), Material = Enum.Material.Fabric,
-			CFrame = CFrame.new(x * 0.55, 1.1, -0.8) })
-	end
-	part(model, { Name = "Bubble", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.18, Color = Color3.new(1, 1, 1),
-		Material = Enum.Material.Glass, Transparency = 0.3, CFrame = CFrame.new(0.5, 0.4, -0.3) })
-	part(model, { Name = "Bubble", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.12, Color = Color3.new(1, 1, 1),
-		Material = Enum.Material.Glass, Transparency = 0.3, CFrame = CFrame.new(0.35, 0.75, -0.2) })
+	model.PrimaryPart = water
+	part(model, { Name = "Sand", Size = Vector3.new(1.6, 0.2, 0.9), Color = RGB(235, 215, 160), Material = Enum.Material.Sand,
+		CFrame = CFrame.new(0, -0.9, 0) })
+	part(model, { Name = "Weed", Size = Vector3.new(0.12, 0.6, 0.12), Color = RGB(70, 190, 90), CFrame = CFrame.new(0.6, -0.5, 0.2) })
+	local shell = SHELLS[aquarium.Style or "Tank"] or SHELLS.Tank
+	shell(model, aquarium)
 	-- mini memes de pie sobre la arena, mirando hacia fuera (la espalda del jugador)
 	for i, memeId in ipairs(memeIds or {}) do
 		if i > 3 then
 			break
 		end
 		if MemeModels.Has(memeId) then
-			local mini = MemeModels.Build(memeId, 0.13, false, false)
-			mini:PivotTo(CFrame.new(-0.55 + (i - 1) * 0.55, -0.85, 0.05) * CFrame.Angles(0, math.pi, 0))
+			local mini = MemeModels.Build(memeId, 0.12, false, false)
+			mini:PivotTo(CFrame.new(-0.5 + (i - 1) * 0.5, -0.8, 0.05) * CFrame.Angles(0, math.pi, 0))
 			for _, d in ipairs(mini:GetDescendants()) do
 				if d:IsA("BasePart") then
 					d.Massless = true
@@ -231,6 +410,11 @@ function GearModels.Tank(aquarium: any, memeIds: { string }?): Model
 			end
 			mini.Parent = model
 		end
+	end
+	-- las mochilas grandes se ven un poco más grandes a la espalda
+	local scale = GearModels.TankScale(aquarium)
+	if scale ~= 1 then
+		model:ScaleTo(scale)
 	end
 	return model
 end
@@ -248,6 +432,56 @@ function GearModels.Spool(): Model
 	end
 	part(model, { Name = "Thread", Size = Vector3.new(0.08, 0.08, 1.4), Color = RGB(255, 255, 255),
 		CFrame = CFrame.new(0.4, -0.6, 0.6) * CFrame.Angles(math.rad(70), 0, 0) })
+	return model
+end
+
+-- Linterna: cuerpo con agarre, cabezal ancho y cristal que brilla.
+function GearModels.Flashlight(): Model
+	local model = Instance.new("Model")
+	model.Name = "Flashlight"
+	local body = part(model, { Name = "Body", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2.4, 0.8, 0.8), Color = RGB(60, 60, 70),
+		Material = Enum.Material.Metal, CFrame = CFrame.new() })
+	model.PrimaryPart = body
+	for k = -1, 1 do
+		part(model, { Name = "Grip", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.18, 0.86, 0.86), Color = RGB(30, 30, 35),
+			CFrame = CFrame.new(k * 0.45 + 0.2, 0, 0) })
+	end
+	part(model, { Name = "Head", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.7, 1.3, 1.3), Color = RGB(255, 200, 50),
+		CFrame = CFrame.new(-1.45, 0, 0) })
+	part(model, { Name = "Lens", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.1, 1.05, 1.05), Color = RGB(255, 245, 190),
+		Material = Enum.Material.Neon, CFrame = CFrame.new(-1.82, 0, 0) })
+	part(model, { Name = "Button", Size = Vector3.new(0.3, 0.2, 0.3), Color = RGB(230, 60, 60), CFrame = CFrame.new(0.1, 0.45, 0) })
+	return model
+end
+
+-- Imán en U: rojo con puntas plateadas.
+function GearModels.Magnet(): Model
+	local model = Instance.new("Model")
+	model.Name = "Magnet"
+	local bend = part(model, { Name = "Bend", Size = Vector3.new(2.4, 0.7, 0.8), Color = RGB(220, 50, 50), CFrame = CFrame.new(0, 1.2, 0) })
+	model.PrimaryPart = bend
+	for _, x in ipairs({ -0.85, 0.85 }) do
+		part(model, { Name = "Arm", Size = Vector3.new(0.7, 1.8, 0.8), Color = RGB(220, 50, 50), CFrame = CFrame.new(x, 0.1, 0) })
+		part(model, { Name = "Tip", Size = Vector3.new(0.72, 0.5, 0.82), Color = RGB(215, 220, 230), Material = Enum.Material.Metal, CFrame = CFrame.new(x, -1.0, 0) })
+	end
+	return model
+end
+
+-- Red dorada: aro con mango y malla en cuadrícula.
+function GearModels.Net(): Model
+	local model = Instance.new("Model")
+	model.Name = "Net"
+	local ring = part(model, { Name = "Ring", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.2, 2.4, 2.4), Color = RGB(255, 200, 50),
+		Reflectance = 0.2, CFrame = CFrame.Angles(0, math.rad(90), 0) })
+	model.PrimaryPart = ring
+	part(model, { Name = "Inner", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.22, 2.1, 2.1), Color = RGB(255, 245, 210),
+		Transparency = 0.6, CFrame = CFrame.Angles(0, math.rad(90), 0) })
+	for k = -2, 2 do
+		part(model, { Name = "MeshV", Size = Vector3.new(0.05, 2.0, 0.05), Color = RGB(255, 225, 120), CFrame = CFrame.new(k * 0.4, 0, 0) })
+		part(model, { Name = "MeshH", Size = Vector3.new(2.0, 0.05, 0.05), Color = RGB(255, 225, 120), CFrame = CFrame.new(0, k * 0.4, 0) })
+	end
+	part(model, { Name = "Handle", Size = Vector3.new(0.25, 2.2, 0.25), Color = RGB(150, 100, 60), Material = Enum.Material.Wood,
+		CFrame = CFrame.new(0, -2.2, 0) })
 	return model
 end
 

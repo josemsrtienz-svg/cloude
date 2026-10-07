@@ -22,6 +22,8 @@ Monetization.GamePasses = {
 		LuckMultiplier = 1.25, Description = "Suerte ×1.25 para siempre en todas las inmersiones." },
 	{ Key = "ExtraHook", Id = 0, Name = "+1 Anzuelo", Emoji = "🪝", Robux = 249, Color = RGB(255, 90, 150),
 		ExtraHooks = 1, Description = "Un anzuelo más en TODAS tus cañas." },
+	{ Key = "ItemSlot", Id = 0, Name = "+1 Hueco de objeto", Emoji = "🎒", Robux = 149, Color = RGB(255, 140, 40),
+		ItemSlots = 1, Description = "Lleva un objeto más equipado (p. ej. Linterna + Imán)." },
 }
 
 function Monetization.Get(key: any): any?

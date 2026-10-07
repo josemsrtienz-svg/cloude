@@ -49,7 +49,7 @@ end
 local function tile(parent: Instance, catch: any, isNew: boolean, order: number)
 	local meme = Memes.Get(catch.MemeId)
 	local rarity = Memes.GetRarity(catch.MemeId)
-	local sizeName = meme and FishMath.SizeName(FishMath.Fraction(meme, catch.Weight)) or "?"
+	local sizeName = meme and FishMath.SizeOf(meme, catch.Weight) or "?"
 	local frame = UIKit.new("Frame", { LayoutOrder = order, BackgroundColor3 = T.PanelLight, Parent = parent })
 	UIKit.corner(frame, 14)
 	UIKit.stroke(frame, 4, if catch.Golden then T.Coin else rarity.Color)

@@ -27,6 +27,7 @@ local Rods = require(Root.Config.Rods)
 local Inventory = require(Root.Shared.Inventory)
 local FishMath = require(Root.Shared.FishMath)
 local MemeModels = require(Root.Shared.MemeModels)
+local Memes = require(Root.Config.Memes)
 local Util = require(Root.Shared.Util)
 
 local Controllers = script.Parent
@@ -54,7 +55,6 @@ local function currentPhase(): string
 	return phase
 end
 local runId = 0
-local useReinforced = false
 -- dirección de la inmersión: el ratón o el dedo marcan una x objetivo; el teclado la anula
 local pointerX: number? = nil
 local wantSurface = false
@@ -67,8 +67,7 @@ local gui: ScreenGui
 local hint: Frame
 local hintLabel: TextLabel
 local rodChip: TextLabel
-local reinforcedButton: TextButton
-local reinforcedLabel: TextLabel
+local itemsLabel: TextLabel
 local powerFrame: Frame
 local powerFill: Frame
 local wipe: Frame
@@ -81,6 +80,8 @@ local markerHolder: Frame
 local hookCounter: TextLabel
 local layerLabel: TextLabel
 local surfaceButton: TextButton
+local brakeButton: TextButton
+local brakeHeld = false
 local diveHint: TextLabel
 
 -- ===== Personaje =====
@@ -335,8 +336,8 @@ local function runDive(spec: any, myRun: number, castTime: number): DiveResult
 	buildMarkers(spec.MaxDepth)
 	diveHint.Visible = true
 	diveHint.Text = if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-		then "¡Arrastra el dedo para guiar el anzuelo hacia los memes!"
-		else "¡Guía el anzuelo hacia los memes! (A / D o ratón)"
+		then "¡Arrastra el dedo para guiar el anzuelo! Mantén 🐢 FRENAR para ir despacio"
+		else "¡Guía el anzuelo con A / D o el ratón! Mantén S para FRENAR"
 	task.delay(4, function()
 		diveHint.Visible = false
 	end)
@@ -345,6 +346,7 @@ local function runDive(spec: any, myRun: number, castTime: number): DiveResult
 	local paused = 0
 	local x, targetX = 0, 0
 	hookX = 0
+	brakeHeld = false
 	pointerX = nil
 	wantSurface = false
 	local tried: { [number]: boolean } = {}
@@ -377,8 +379,28 @@ local function runDive(spec: any, myRun: number, castTime: number): DiveResult
 	-- pelea con un meme que pesa más que la caña (el anzuelo se queda quieto mientras tanto)
 	local function handleFight(index: number, info: any)
 		local pauseStart = os.clock()
-		local choice = FightUI.Decide(info)
+		local data = State.Data
+		local memeInfo = Memes.Get(info.MemeId)
+		local canNet = spec.Net == true and data ~= nil and (data.Items.RedDorada or 0) > 0
+			and memeInfo ~= nil and Memes.Rarities[memeInfo.Rarity].Order < 7
+		local choice = FightUI.Decide(info, canNet)
 		if result or myRun ~= runId then
+			return
+		end
+		if choice == "net" then
+			local r = State.Call("UseNet")
+			if r.ok and r.Grabbed then
+				DiveScene.Attach(index)
+				grabbed = r.Count or grabbed + 1
+				updateCounter(grabbed, spec.Hooks)
+				UIKit.playSound("Catch")
+				HUD.Toast(("🥅 ¡Atrapado con la red! (te quedan %d)"):format(r.NetsLeft or 0), "Success")
+			else
+				HUD.Toast(r.err or "La red falló", "Warning")
+				State.Call("Release")
+				DiveScene.Remove(index)
+			end
+			paused += os.clock() - pauseStart
 			return
 		end
 		if choice ~= "fight" then
@@ -473,8 +495,14 @@ local function runDive(spec: any, myRun: number, castTime: number): DiveResult
 		end
 		local now = os.clock()
 		local t = diveTime()
-		local depth = math.min(spec.MaxDepth, spec.Speed * t)
-		currentDepth = depth
+		-- bajada: a tope con la velocidad de la caña, o despacio mientras mantienes FRENAR
+		local braking = brakeHeld or UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.Down)
+		local fallSpeed = if braking then math.min(spec.Speed, D.BrakeSpeed) else spec.Speed
+		if now >= diveStart then
+			currentDepth = math.min(spec.MaxDepth, currentDepth + fallSpeed * dt)
+		end
+		local depth = currentDepth
+		brakeButton.BackgroundColor3 = if braking then T.Success else T.PanelLight
 
 		-- dirección: teclado (A/D, flechas) o ratón/dedo
 		local axis = 0
@@ -567,6 +595,7 @@ local function finish()
 	setDiveHudVisible(false)
 	surfaceButton.Visible = false
 	powerFrame.Visible = false
+	brakeHeld = false
 	wipe.BackgroundTransparency = 1
 	unlockMovement()
 	FishingController.RefreshHint()
@@ -577,7 +606,7 @@ local function cast(power: number)
 	runId += 1
 	local myRun = runId
 	local castTime = os.clock()
-	local result = State.Call("Cast", power, useReinforced)
+	local result = State.Call("Cast", power)
 	if myRun ~= runId then
 		return
 	end
@@ -589,7 +618,7 @@ local function cast(power: number)
 	castTime = os.clock() -- el servidor empieza a contar al recibir; respondió ahora
 	serverSession = true
 	if result.Reinforced then
-		useReinforced = false
+		HUD.Toast("🧵 Sedal Reforzado usado: tu caña aguanta +25 % en este lanzamiento", "Info")
 	end
 	if result.Perfect then
 		HUD.Toast("✨ ¡Lanzamiento PERFECTO! Más memes raros", "Success")
@@ -739,18 +768,9 @@ local function buildUI()
 			FishingController.FiltersRequested:Fire()
 		end
 	end)
-	reinforcedButton = UIKit.button({ Name = "Reinforced", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(1, 8, 0, 20),
-		Size = UDim2.fromOffset(84, 44), Parent = hint }, { Color = T.PanelLight, Radius = 12 })
-	reinforcedLabel = UIKit.label({ Text = "🧵 0", Size = UDim2.new(1, -8, 1, -8), Position = UDim2.fromOffset(4, 4), Font = T.Font,
-		Parent = reinforcedButton }, { MaxSize = 20 })
-	reinforcedButton.Activated:Connect(function()
-		if phase ~= "Idle" then
-			return
-		end
-		useReinforced = not useReinforced
-		HUD.Toast(if useReinforced then "🧵 Sedal Reforzado ACTIVADO para el próximo lanzamiento (+25 % capacidad)" else "🧵 Sedal Reforzado desactivado", "Info")
-		FishingController.RefreshHint()
-	end)
+	-- objetos equipados (los que funcionan en este lanzamiento)
+	itemsLabel = UIKit.label({ Name = "Items", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(1, 8, 0, 20), Size = UDim2.fromOffset(200, 40),
+		Font = T.Font, TextXAlignment = Enum.TextXAlignment.Left, Parent = hint }, { Stroke = 2, MaxSize = 20 })
 
 	-- barra de fuerza (horizontal, bajo el personaje)
 	powerFrame = UIKit.new("Frame", { Name = "Power", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.7),
@@ -807,6 +827,19 @@ local function buildUI()
 	surfaceButton = UIKit.button({ Name = "Surface", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -24, 1, -24),
 		Size = UDim2.fromOffset(170, 76), Visible = false, Parent = diveHud }, { Color = T.Accent, Text = "⬆️ SUBIR (E)", TextSize = 28, Radius = 16 })
 	UIKit.responsive(surfaceButton)
+	-- FRENAR (mantener): botón para móvil; en PC también S o ↓
+	brakeButton = UIKit.button({ Name = "Brake", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -24, 1, -112),
+		Size = UDim2.fromOffset(170, 76), Parent = diveHud }, { Color = T.PanelLight, Text = "🐢 FRENAR (S)", TextSize = 26, Radius = 16 })
+	UIKit.responsive(brakeButton)
+	brakeButton.MouseButton1Down:Connect(function()
+		brakeHeld = true
+	end)
+	brakeButton.MouseButton1Up:Connect(function()
+		brakeHeld = false
+	end)
+	brakeButton.MouseLeave:Connect(function()
+		brakeHeld = false
+	end)
 	surfaceButton.Activated:Connect(function()
 		wantSurface = true
 	end)
@@ -817,13 +850,15 @@ function FishingController.RefreshHint()
 		return
 	end
 	local data = State.Data
-	local count = data and data.Items and data.Items.SedalReforzado or 0
-	if count <= 0 then
-		useReinforced = false
+	local parts = {}
+	for _, id in ipairs(data and data.EquippedItems or {}) do
+		local item = Rods.Items[id]
+		local count = data.Items[id] or 0
+		if item and count > 0 then
+			table.insert(parts, if item.Kind == "Consumable" then ("%s×%d"):format(item.Emoji, count) else item.Emoji)
+		end
 	end
-	reinforcedButton.Visible = count > 0
-	reinforcedLabel.Text = "🧵 " .. count
-	reinforcedButton.BackgroundColor3 = if useReinforced then T.Success else T.PanelLight
+	itemsLabel.Text = if #parts > 0 then "🎒 " .. table.concat(parts, " ") else "🎒 sin objetos"
 	local rod = equippedRod()
 	local broken = data and data.BrokenRods and data.BrokenRods[rod.Id]
 	hintLabel.Text = if broken then "💥 Caña rota: repárala en la tienda"
@@ -859,12 +894,16 @@ function FishingController.Init()
 		end
 	end)
 	-- el ratón (o el dedo arrastrando) marca hacia dónde va el anzuelo
-	UserInputService.InputChanged:Connect(function(input)
-		if phase == "Diving" and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+	UserInputService.InputChanged:Connect(function(input, processed)
+		-- sobre un botón (FRENAR, SUBIR) el ratón no mueve el anzuelo
+		if not processed and phase == "Diving" and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
 			pointerX = DiveScene.ScreenToX(Vector2.new(input.Position.X, input.Position.Y))
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			brakeHeld = false -- soltar el dedo/click en cualquier sitio deja de frenar
+		end
 		if isCastInput(input) and phase == "Charging" then
 			stopCharging()
 		end

@@ -185,8 +185,43 @@ local function onBuyItem(player: Player, data: any, itemId: any): any
 	if data.MemeCoin < item.Price then
 		return fail("No tienes suficientes MemeCoins")
 	end
+	if item.Kind == "Gear" and (data.Items[item.Id] or 0) >= 1 then
+		return fail("Ya lo tienes")
+	end
 	data.MemeCoin -= item.Price
 	data.Items[item.Id] = (data.Items[item.Id] or 0) + 1
+	-- si tienes un hueco libre, se equipa solo
+	if not table.find(data.EquippedItems, item.Id) and #data.EquippedItems < BoostService.ItemSlots(player) then
+		table.insert(data.EquippedItems, item.Id)
+	end
+	PlayerData.Push(player)
+	return { ok = true }
+end
+
+-- Equipar / quitar un objeto (hay pocos huecos: elige qué te llevas).
+local function onEquipItem(player: Player, data: any, itemId: any, on: any): any
+	local item = Rods.GetItem(itemId)
+	if not item then
+		return fail("Ese objeto no existe")
+	end
+	if FishingService.IsFishing(player) then
+		return fail("Termina de pescar primero")
+	end
+	local index = table.find(data.EquippedItems, item.Id)
+	if on == true then
+		if index then
+			return { ok = true }
+		end
+		if (data.Items[item.Id] or 0) <= 0 then
+			return fail("No lo tienes: cómpralo primero")
+		end
+		if #data.EquippedItems >= BoostService.ItemSlots(player) then
+			return fail("🎒 No te quedan huecos: quita otro objeto (o consigue más huecos)")
+		end
+		table.insert(data.EquippedItems, item.Id)
+	elseif index then
+		table.remove(data.EquippedItems, index)
+	end
 	PlayerData.Push(player)
 	return { ok = true }
 end
@@ -207,6 +242,7 @@ end
 
 function EconomyService.Init()
 	Remotes.Get("SetFilters").OnServerInvoke = handler(onSetFilters)
+	Remotes.Get("EquipItem").OnServerInvoke = handler(onEquipItem)
 	Remotes.Get("SellCatch").OnServerInvoke = handler(onSellCatch)
 	Remotes.Get("SellAll").OnServerInvoke = handler(onSellAll)
 	Remotes.Get("BuyRod").OnServerInvoke = handler(onBuyRod)

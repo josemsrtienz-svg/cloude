@@ -26,6 +26,7 @@ local Boosts = require(Root.Config.Boosts)
 local Remotes = require(Root.Shared.Remotes)
 local Util = require(Root.Shared.Util)
 local Inventory = require(Root.Shared.Inventory)
+local FishMath = require(Root.Shared.FishMath)
 
 local PlayerData = {}
 PlayerData.Loaded = Util.Signal() -- (player, data)
@@ -76,6 +77,16 @@ local MIGRATIONS: { [number]: (any) -> any } = {
 		end
 		return data
 	end,
+	-- 3 → 4: nueva economía (valor por peso y rareza) → recalcula el valor de los memes guardados
+	[3] = function(data)
+		for _, c in pairs(type(data.Catches) == "table" and data.Catches or {}) do
+			local meme = type(c) == "table" and Memes.Get(c.MemeId)
+			if meme then
+				c.Value = FishMath.Value(meme, tonumber(c.Weight) or 1, c.Golden == true)
+			end
+		end
+		return data
+	end,
 }
 
 local function migrate(data: any): any
@@ -101,7 +112,22 @@ local function sanitize(data: any): any
 	data.Level = math.max(1, math.floor(tonumber(data.Level) or 1))
 	data.XP = math.max(0, math.floor(tonumber(data.XP) or 0))
 	data.LastSeen = math.max(0, math.floor(tonumber(data.LastSeen) or 0))
-	data.Items.SedalReforzado = math.max(0, math.floor(tonumber(data.Items.SedalReforzado) or 0))
+	for _, id in ipairs(Rods.ItemOrder) do
+		local item = Rods.Items[id]
+		local count = math.max(0, math.floor(tonumber(data.Items[id]) or 0))
+		data.Items[id] = if item.Kind == "Gear" then math.min(1, count) else count
+	end
+	-- equipados: válidos, sin repetir y como mucho MaxItemSlots (los huecos reales los aplica el servidor al usarlos)
+	local equipped, equippedSeen = {}, {}
+	if type(data.EquippedItems) == "table" then
+		for _, id in ipairs(data.EquippedItems) do
+			if type(id) == "string" and Rods.Items[id] and not equippedSeen[id] and #equipped < Rods.MaxItemSlots then
+				equippedSeen[id] = true
+				table.insert(equipped, id)
+			end
+		end
+	end
+	data.EquippedItems = equipped
 
 	local catches = {}
 	if type(data.Catches) == "table" then

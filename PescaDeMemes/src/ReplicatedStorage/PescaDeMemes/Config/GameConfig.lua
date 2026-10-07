@@ -10,7 +10,7 @@
 local GameConfig = {}
 
 GameConfig.GameName = "PESCA DE MEMES"
-GameConfig.Version = "P0 0.6"
+GameConfig.Version = "P0 0.7"
 
 -- ===== Moneda =====
 GameConfig.CurrencyName = "MemeCoin"
@@ -26,7 +26,7 @@ GameConfig.RodToolName = "Caña"
 
 -- ===== Parcela y mochila-acuario =====
 GameConfig.PlotSlots = 8 -- huecos en el césped de la parcela
-GameConfig.PlotIncomeRate = 0.08 -- fracción del valor de cada meme expuesto, por minuto
+GameConfig.PlotIncomeRate = 0.25 -- fracción del valor de cada meme expuesto, por minuto (un Noob normal ≈ 7/min)
 GameConfig.OfflineIncomeMultiplier = 0.5 -- la parcela rinde la mitad mientras no estás
 GameConfig.OfflineCapHours = 8
 GameConfig.DepositCheckInterval = 0.5 -- cada cuánto se mira si estás dentro de tu parcela
@@ -98,6 +98,9 @@ GameConfig.Fishing = {
 	MinSurvival = 0.001,
 	GoldenChance = 0.01,
 	GoldenMultiplier = 3,
+	GiantChance = 0.04, -- 4 %: ejemplar GIGANTE o COLOSAL (de 1.3 a 5 veces su peso máximo)
+	GiantMin = 1.3,
+	GiantMax = 5,
 }
 
 GameConfig.Dive = {
@@ -108,10 +111,11 @@ GameConfig.Dive = {
 	GrabRadius = 1.7, -- m: distancia a la que el anzuelo engancha un meme
 	GrabSlack = 2.5, -- m de margen del servidor al validar la x (latencia + nado del meme)
 	SteerSpeed = 12, -- m/s máximos del anzuelo hacia los lados (cliente y servidor)
+	BrakeSpeed = 3, -- m/s al mantener FRENAR (S, ↓ o el botón): para poder coger el meme que ves aunque tu caña sea rápida
 	GrabEarly = 0.5, -- s de margen por si el cliente va un poco por delante
 	GrabLate = 2, -- s de margen por la latencia (después ya lo has pasado)
 	BottomWait = 1.2, -- s en el fondo antes de subir solo
-	Timeout = 150, -- s máximos de una inmersión (contando peleas)
+	Timeout = 300, -- s máximos de una inmersión (sin contar peleas; frenar mucho alarga la bajada)
 	DepthLuck = 1, -- suerte extra según la profundidad: ×(1 + DepthLuck·m/MaxWorldDepth) — ×1.25 a 150 m, ×2 a 600 m
 	MaxWorldDepth = 600, -- m: el fondo del río por ahora (se ampliará con nuevas capas en actualizaciones)
 	MaxMemes = 40, -- tope de memes por inmersión (rendimiento)
@@ -125,8 +129,8 @@ local RGB = Color3.fromRGB
 GameConfig.DepthLayers = {
 	{ From = 0, Name = "Charca del Noob", RequiredLevel = 1, Top = RGB(80, 195, 235), Bottom = RGB(45, 150, 210) },
 	{ From = 50, Name = "Arrecife Meme", RequiredLevel = 5, Top = RGB(45, 150, 210), Bottom = RGB(25, 95, 170) },
-	{ From = 150, Name = "Abismo Brainrot", RequiredLevel = 15, Top = RGB(25, 95, 170), Bottom = RGB(15, 45, 110) },
-	{ From = 300, Name = "Fosa Abisal", RequiredLevel = 30, Top = RGB(15, 45, 110), Bottom = RGB(5, 10, 35), Glow = RGB(120, 255, 220) },
+	{ From = 150, Name = "Abismo Brainrot", RequiredLevel = 15, Dark = true, Top = RGB(25, 95, 170), Bottom = RGB(15, 45, 110) },
+	{ From = 300, Name = "Fosa Abisal", RequiredLevel = 30, Dark = true, Top = RGB(15, 45, 110), Bottom = RGB(5, 10, 35), Glow = RGB(120, 255, 220) },
 }
 
 -- EL NIVEL DESBLOQUEA CAPAS (decisión del equipo): aunque tu caña baje más, no pasas de la primera capa
@@ -142,8 +146,8 @@ end
 
 -- COFRE AL SUBIR DE NIVEL (decisión del equipo): MemeCoins que crecen con el nivel y a veces un boost.
 GameConfig.LevelRewards = {
-	CoinsBase = 100,
-	CoinsPerLevel = 50, -- nivel 10 → 600, nivel 30 → 1.600
+	CoinsBase = 500,
+	CoinsPerLevel = 250, -- nivel 10 → 3.000, nivel 30 → 8.000
 	BoostEvery = 5, -- cada 5 niveles, boost seguro de BigBoostSeconds
 	BoostChance = 0.25, -- el resto de niveles, 25 % de un boost de BoostSeconds
 	BoostSeconds = 180,
@@ -175,10 +179,10 @@ GameConfig.DevMode = {
 }
 
 -- ===== Datos iniciales del jugador (Version = versión del schema) =====
-GameConfig.DataVersion = 3
+GameConfig.DataVersion = 4
 GameConfig.StartingData = {
 	Version = GameConfig.DataVersion,
-	MemeCoin = 50,
+	MemeCoin = 300,
 	Level = 1,
 	XP = 0,
 	-- [catchId] = { Id, MemeId, Weight, Size, Golden, Impossible, Value, Time }
@@ -191,7 +195,8 @@ GameConfig.StartingData = {
 	PlotBank = 0, -- monedas acumuladas en el cobrador de la parcela
 	Rods = { Palo = true },
 	EquippedRod = "Palo",
-	Items = { SedalReforzado = 0 },
+	Items = { SedalReforzado = 0, Linterna = 0, Iman = 0, RedDorada = 0 }, -- unidades (los "Gear" valen 0 o 1)
+	EquippedItems = {}, -- ids de objetos equipados (en orden; solo cuentan los que caben en tus huecos)
 	Boosts = {}, -- [boostId] = os.time() en que caduca (Config/Boosts)
 	-- filtros (rarezas): CatchSkip = el anzuelo las ignora · AutoSell = se venden solas al subir
 	Settings = { CatchSkip = {}, AutoSell = {} },

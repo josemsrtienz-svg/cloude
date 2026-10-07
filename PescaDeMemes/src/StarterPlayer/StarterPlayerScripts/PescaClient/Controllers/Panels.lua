@@ -289,6 +289,7 @@ type ShopEntry = {
 	Price: string,
 	Tag: string?, -- "EQUIPADA", "ROTA", "TUYA"…
 	Angle: number?, -- giro de la foto 3D (por defecto según la pestaña)
+	Extra: { Text: string, Run: () -> () }?, -- segundo botón (p. ej. Equipar un consumible)
 	TagColor: Color3?,
 	Stats: { { Name: string, Value: number, Text: string } }?,
 	Action: { Text: string, Color: Color3, Run: (() -> ())? }?,
@@ -368,15 +369,47 @@ local function shopEntries(data: any): { ShopEntry }
 			})
 		end
 	elseif shopTab == "Items" then
-		local item = Rods.Items.SedalReforzado
-		table.insert(list, {
-			Name = item.Name, Color = RGB(255, 90, 150), Desc = item.Description .. " Actívalo con el botón 🧵 al sacar la caña.",
-			Model = GearModels.Spool, Price = "🪙 " .. Util.formatShort(item.Price),
-			Tag = ("x%d"):format(data.Items.SedalReforzado or 0), TagColor = T.Secondary,
-			Action = { Text = "Comprar 🪙 " .. Util.formatShort(item.Price), Color = can(item.Price), Run = function()
-				call("BuyItem", "🧵 +1 Sedal Reforzado", item.Id)
-			end },
-		})
+		-- objetos: comprar y EQUIPAR (huecos limitados: elige qué te llevas)
+		local itemModels = { SedalReforzado = GearModels.Spool, Linterna = GearModels.Flashlight, Iman = GearModels.Magnet, RedDorada = GearModels.Net }
+		local slotsAttr = Players.LocalPlayer:GetAttribute("ItemSlots") -- lo publica el servidor (BoostService)
+		local slots = if type(slotsAttr) == "number" then slotsAttr else Rods.BaseItemSlots
+		for _, id in ipairs(Rods.ItemOrder) do
+			local item = Rods.Items[id]
+			local count = data.Items[id] or 0
+			local equipped = table.find(data.EquippedItems or {}, id) ~= nil
+			local owned = count > 0
+			local gear = item.Kind == "Gear"
+			local action
+			if gear and owned then
+				action = if equipped
+					then { Text = "Quitar", Color = T.PanelLight, Run = function()
+						call("EquipItem", item.Emoji .. " " .. item.Name .. " guardado", id, false)
+					end }
+					else { Text = "Equipar", Color = T.Accent, Run = function()
+						call("EquipItem", item.Emoji .. " " .. item.Name .. " equipado", id, true)
+					end }
+			else
+				action = { Text = "Comprar 🪙 " .. Util.formatShort(item.Price), Color = can(item.Price), Run = function()
+					call("BuyItem", item.Emoji .. " +1 " .. item.Name, id)
+				end }
+			end
+			local tag = if equipped then "✅ EQUIPADO" elseif gear and owned then "TUYO" elseif count > 0 then ("x%d"):format(count) else nil
+			table.insert(list, {
+				Name = item.Name, Color = item.Color, Model = itemModels[id] or GearModels.Spool,
+				Desc = item.Description .. ("  ·  Huecos de objetos: %d/%d"):format(#(data.EquippedItems or {}), slots),
+				Price = if gear and owned then "" else "🪙 " .. Util.formatShort(item.Price), Tag = tag, TagColor = if equipped then T.Success else T.Secondary,
+				Stats = if gear then nil else { { Name = "Tienes", Value = math.min(1, count / 10), Text = tostring(count) } },
+				Action = action,
+				-- los consumibles también se equipan/quitan (además de comprar más)
+				Extra = if not gear and (owned or equipped) then (if equipped
+					then { Text = "Quitar", Run = function()
+						call("EquipItem", item.Emoji .. " " .. item.Name .. " guardado", id, false)
+					end }
+					else { Text = "Equipar", Run = function()
+						call("EquipItem", item.Emoji .. " " .. item.Name .. " equipado", id, true)
+					end }) else nil,
+			})
+		end
 	elseif shopTab == "Boosts" then
 		local available, free = Boosts.FreeAvailable(data)
 		if available == true then
@@ -557,6 +590,12 @@ local function renderShop()
 		statBar(stats, i, stat, e.Color)
 	end
 	local action = e.Action
+	local extra = e.Extra
+	if extra then
+		local btn2 = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -68), Size = UDim2.new(1, -20, 0, 44),
+			Parent = preview }, { Color = T.Accent, Text = extra.Text, TextSize = 20 })
+		btn2.Activated:Connect(extra.Run)
+	end
 	if action then
 		local btn = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -10), Size = UDim2.new(1, -20, 0, 52),
 			Parent = preview }, { Color = action.Color, Text = action.Text, TextSize = 22 })
@@ -665,7 +704,10 @@ function Panels.Signature(name: string): string
 		for _, aq in ipairs(Rods.Aquariums) do
 			table.insert(affordable, if data.MemeCoin >= aq.Price then "1" else "0")
 		end
-		table.insert(affordable, if data.MemeCoin >= Rods.Items.SedalReforzado.Price then "1" else "0")
+		for _, id in ipairs(Rods.ItemOrder) do
+			table.insert(affordable, (if data.MemeCoin >= Rods.Items[id].Price then "1" else "0") .. tostring(data.Items[id]))
+		end
+		table.insert(affordable, table.concat(data.EquippedItems or {}, "+"))
 		local broken = {}
 		for id in pairs(data.BrokenRods or {}) do
 			table.insert(broken, id)

@@ -188,6 +188,31 @@ Inspirado en el principio de Steal a Egg ("tu base es tuya y se ve"), con aplica
   Abisal (runas y esfera que brilla con niebla morada).
 - **Arco "PESCA DE MEMES"** de piedra, cartel por las dos caras, bombillas y un pez gigante encima.
 
+## 5g. Cambios v0.7
+- **Freno del anzuelo:** mantén **S / ↓ / click o dedo** y baja a 3 m/s para enganchar el meme que ves.
+- **Economía nueva:** valor = `ValorBase(rareza) × (peso / peso medio)^0.85` (× 3 si es dorado). Bases:
+  40 / 150 / 600 / 2.500 / 9.000 / 25.000 / 200.000 (secreto) / 2.000.000 (dios). La parcela paga el **25 %** del valor
+  por minuto (un Noob Feliz normal ≈ 10/min, antes 0,9). Los memes guardados se recalculan (migración v4).
+- **Ejemplares gigantes:** 4 % de **GIGANTE** (×1,3–×5 de peso) y **COLOSAL** a partir de ×2,5 (anuncio a todo el servidor).
+  Se ven más grandes (escala ∛peso, con tope 0,75–2,1 para no romper la parcela).
+- **12 mochilas** con diseño propio a la espalda (frasco, pecera, tanque, barril, globo, submarino, cofre, cohete,
+  neón, real, cósmica y agujero negro): de 25 kg a 350.000 kg. Un secreto ocupa media mochila de las intermedias.
+- **Objetos con huecos:** 1 hueco al empezar (+1 con el pase *Hueco Extra*; el **renacer** dará más). Se elige qué se
+  lleva desde la pestaña Objetos:
+  - 🧵 **Sedal Reforzado** (consumible): +25 % de capacidad de la caña en un lanzamiento.
+  - 🔦 **Linterna** (equipo): en las capas oscuras (Abismo, Fosa) sin linterna los memes son siluetas "???".
+  - 🧲 **Imán** (equipo): radio de enganche ×1,2.
+  - 🥅 **Red Dorada** (consumible): atrapa sin pelear (no sirve con secretos).
+- **Futuro (decidido):** el **renacer** agranda la parcela y da huecos de objetos (2–3); quizá **cañas nuevas**.
+
+### Debate: ¿comprar un meme para pelear o saltarse la pelea con Robux?
+- **A favor de comprarlo con MemeCoins y pelear:** da un sumidero de dinero para el late game y mantiene la habilidad.
+- **En contra:** si puedes comprar un secreto, pescarlo deja de ser especial (mata el "¡me tocó!") y la tienda se
+  vuelve un catálogo. Mejor como **evento**: un *Mercader ambulante* con 1 meme raro, precio alto y stock 1 por servidor.
+- **Saltarse la pelea con Robux / pase:** riesgo de *pay-to-win*. Decisión propuesta: la **Red Dorada** (MemeCoins)
+  es el "salto", **nunca para secretos ni dioses**; con Robux solo packs de Red Dorada (producto de desarrollador),
+  nunca un pase permanente.
+
 ## 6. Pescadores Furtivos (el toque social)
 Para tener tensión social **sin** convertirlo en un clon de "steal":
 
@@ -210,9 +235,9 @@ Riesgo vigilado: frustración de jugadores nuevos → los acuarios de nivel < 10
 | Decoración | MemeCoins | Fama/cosmético | Sumidero sano |
 | Trading | Captura ↔ captura | — | Estafas/dupes → reutilizar Trading.lua con confirmación doble |
 
-**Valor de venta** = `ValorBase(rareza) × Tamaño × Mutación`. Valores base iniciales: 10 / 40 / 150 / 600 / 3.000 / 20.000.
+**Valor de venta** (v0.7) = `ValorBase(rareza) × (peso / peso medio)^0.85 × Dorado × Mutación`. Bases: 40 / 150 / 600 / 2.500 / 9.000 / 25.000 / 200.000 / 2.000.000.
 
-**Ingreso del acuario** = 2 % del valor de venta por minuto de cada captura expuesta (solo 6 huecos al empezar, ampliables).
+**Ingreso de la parcela** = 25 % del valor de venta por minuto de cada meme expuesto (8 pedestales).
 
 ## 8. Player journey
 - **0–10 s:** apareces en el muelle con la caña en la mano y un corcho brillante delante. Texto: "Mantén para lanzar".

@@ -24,15 +24,15 @@ local RGB = Color3.fromRGB
 -- Odds = peso relativo para la tirada · BaseValue = MemeCoins de un ejemplar mediano
 -- Difficulty divide la velocidad de llenado · Pull = cuánto empuja el meme tu indicador
 Memes.Rarities = {
-	COMMON = { Name = "COMÚN", Color = RGB(175, 178, 190), Order = 1, Odds = 60, BaseValue = 10, XP = 10, Difficulty = 1.0, Pull = 0.6 },
-	UNCOMMON = { Name = "POCO COMÚN", Color = RGB(90, 210, 110), Order = 2, Odds = 25, BaseValue = 40, XP = 20, Difficulty = 1.2, Pull = 0.8 },
-	RARE = { Name = "RARO", Color = RGB(70, 160, 255), Order = 3, Odds = 10, BaseValue = 150, XP = 45, Difficulty = 1.45, Pull = 1.0 },
-	EPIC = { Name = "ÉPICO", Color = RGB(185, 90, 255), Order = 4, Odds = 4, BaseValue = 600, XP = 100, Difficulty = 1.8, Pull = 1.25 },
-	MYTHIC = { Name = "MÍTICO", Color = RGB(255, 60, 120), Order = 5, Odds = 1.5, BaseValue = 1500, XP = 180, Difficulty = 2.1, Pull = 1.4 },
-	LEGENDARY = { Name = "LEGENDARIO", Color = RGB(255, 190, 40), Order = 6, Odds = 0.6, BaseValue = 3000, XP = 300, Difficulty = 2.3, Pull = 1.5 },
-	SECRET = { Name = "SECRETO", Color = RGB(80, 240, 255), Order = 7, Odds = 0.02, BaseValue = 25000, XP = 1200, Difficulty = 2.8, Pull = 1.8 },
+	COMMON = { Name = "COMÚN", Color = RGB(175, 178, 190), Order = 1, Odds = 60, BaseValue = 40, XP = 10, Difficulty = 1.0, Pull = 0.6 },
+	UNCOMMON = { Name = "POCO COMÚN", Color = RGB(90, 210, 110), Order = 2, Odds = 25, BaseValue = 150, XP = 20, Difficulty = 1.2, Pull = 0.8 },
+	RARE = { Name = "RARO", Color = RGB(70, 160, 255), Order = 3, Odds = 10, BaseValue = 600, XP = 45, Difficulty = 1.45, Pull = 1.0 },
+	EPIC = { Name = "ÉPICO", Color = RGB(185, 90, 255), Order = 4, Odds = 4, BaseValue = 2500, XP = 100, Difficulty = 1.8, Pull = 1.25 },
+	MYTHIC = { Name = "MÍTICO", Color = RGB(255, 60, 120), Order = 5, Odds = 1.5, BaseValue = 9000, XP = 180, Difficulty = 2.1, Pull = 1.4 },
+	LEGENDARY = { Name = "LEGENDARIO", Color = RGB(255, 190, 40), Order = 6, Odds = 0.6, BaseValue = 25000, XP = 300, Difficulty = 2.3, Pull = 1.5 },
+	SECRET = { Name = "SECRETO", Color = RGB(80, 240, 255), Order = 7, Odds = 0.02, BaseValue = 200000, XP = 1200, Difficulty = 2.8, Pull = 1.8 },
 	-- reservado para eventos: no sale en la tirada normal (Odds = 0)
-	GOD = { Name = "DIOS", Color = RGB(255, 245, 200), Order = 8, Odds = 0, BaseValue = 250000, XP = 5000, Difficulty = 3.2, Pull = 2.1 },
+	GOD = { Name = "DIOS", Color = RGB(255, 245, 200), Order = 8, Odds = 0, BaseValue = 2000000, XP = 5000, Difficulty = 3.2, Pull = 2.1 },
 }
 
 Memes.RarityOrder = { "COMMON", "UNCOMMON", "RARE", "EPIC", "MYTHIC", "LEGENDARY", "SECRET", "GOD" }

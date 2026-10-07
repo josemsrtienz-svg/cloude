@@ -37,6 +37,8 @@ Remotes.Definitions = {
 	BuyItem = "RemoteFunction",
 	BuyBoost = "RemoteFunction", -- (boostId) solo junto a la tienda física
 	SetFilters = "RemoteFunction", -- (catchSkip, autoSell) filtros de rarezas
+	EquipItem = "RemoteFunction", -- (itemId, on) equipar/quitar un objeto (huecos limitados)
+	UseNet = "RemoteFunction", -- usar la Red Dorada en la pelea actual: enganchado sin pelear
 	ClaimFreeBoost = "RemoteFunction", -- recoger el boost gratis (solo junto a la tienda física)
 }
 

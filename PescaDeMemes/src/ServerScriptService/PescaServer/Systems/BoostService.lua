@@ -21,6 +21,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local Boosts = require(Root.Config.Boosts)
 local Monetization = require(Root.Config.Monetization)
+local Rods = require(Root.Config.Rods)
 local Remotes = require(Root.Shared.Remotes)
 
 local PlayerData = require(script.Parent.PlayerData)
@@ -72,6 +73,28 @@ end
 
 function BoostService.ExtraHooks(player: Player): number
 	return passValue(player, "ExtraHooks", 0, add) + (if active(player, "Hook") then 1 else 0)
+end
+
+function BoostService.ItemSlots(player: Player): number
+	return math.min(Rods.MaxItemSlots, Rods.BaseItemSlots + passValue(player, "ItemSlots", 0, add))
+end
+
+-- ¿Lleva este objeto equipado (y cabe en sus huecos)?
+function BoostService.HasItem(player: Player, id: string): boolean
+	local data = PlayerData.Get(player)
+	if not data then
+		return false
+	end
+	local slots = BoostService.ItemSlots(player)
+	for i, itemId in ipairs(data.EquippedItems) do
+		if i > slots then
+			break
+		end
+		if itemId == id then
+			return (data.Items[id] or 0) > 0
+		end
+	end
+	return false
 end
 
 function BoostService.Speed(player: Player): number
@@ -177,6 +200,7 @@ local function refreshPasses(player: Player)
 		end
 		player:SetAttribute("Pass_" .. pass.Key, owned[pass.Key] == true)
 	end
+	player:SetAttribute("ItemSlots", BoostService.ItemSlots(player))
 end
 
 function BoostService.Init()
@@ -203,6 +227,7 @@ function BoostService.Init()
 				passes[player] = passes[player] or {}
 				passes[player][pass.Key] = true
 				player:SetAttribute("Pass_" .. pass.Key, true)
+				player:SetAttribute("ItemSlots", BoostService.ItemSlots(player))
 				PlayerData.Notify(player, ("%s ¡Gracias! %s activado"):format(pass.Emoji, pass.Name), "Success")
 			end
 		end

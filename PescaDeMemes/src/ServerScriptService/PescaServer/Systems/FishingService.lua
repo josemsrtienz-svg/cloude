@@ -71,6 +71,7 @@ type Session = {
 	UsedSize: number,
 	HookX: number, -- última x (m) del anzuelo aceptada y cuándo (límite de velocidad lateral)
 	HookXAt: number,
+	GrabRadius: number, -- con el Imán es mayor
 	-- pelea en curso
 	Current: number?,
 	Survival: number,
@@ -146,7 +147,12 @@ local function pickMeme(rarityId: string, depth: number): any
 end
 
 local function rollWeight(meme: any): number
-	-- más ejemplares pequeños que gigantes
+	-- a veces sale un ejemplar GIGANTE o COLOSAL, muy por encima de su peso máximo
+	if rng:NextNumber() < F.GiantChance then
+		local w = meme.WeightMax * (F.GiantMin + (F.GiantMax - F.GiantMin) * rng:NextNumber() ^ 2)
+		return math.floor(w * 10 + 0.5) / 10
+	end
+	-- más ejemplares pequeños que grandes
 	local u = rng:NextNumber() ^ 2.2
 	local w = meme.WeightMin + (meme.WeightMax - meme.WeightMin) * u
 	return math.floor(w * 10 + 0.5) / 10
@@ -335,8 +341,8 @@ local function surface(player: Player): any
 		if catch.Impossible and spec.Ratio >= 1.5 then
 			text = ("🏆 ¡%s pescó %s de %s con una %s! (IMPOSIBLE)"):format(player.DisplayName, meme.Name,
 				FishMath.FormatWeight(catch.Weight), session.Rod.Name)
-		elseif rarity.Order >= 4 or catch.Golden then
-			local sizeName = FishMath.SizeName(FishMath.Fraction(meme, catch.Weight))
+		elseif rarity.Order >= 4 or catch.Golden or FishMath.SizeOf(meme, catch.Weight) == "COLOSAL" then
+			local sizeName = FishMath.SizeOf(meme, catch.Weight)
 			text = ("✨ ¡%s ha pescado %s%s %s (%s)!"):format(player.DisplayName, if catch.Golden then "un DORADO " else "",
 				meme.Name, sizeName, FishMath.FormatWeight(catch.Weight))
 		end
@@ -400,12 +406,14 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 	power = math.clamp(power, 0, 1)
 
 	local rod = Rods.Get(data.EquippedRod) or Rods.List[1]
+	-- objetos equipados: el Sedal Reforzado se gasta solo en cada lanzamiento
 	local reinforced = false
-	if useReinforced == true and data.Items.SedalReforzado > 0 then
+	if BoostService.HasItem(player, "SedalReforzado") then
 		data.Items.SedalReforzado -= 1
 		reinforced = true
 		PlayerData.Push(player)
 	end
+	local grabRadius = D.GrabRadius + (if BoostService.HasItem(player, "Iman") then Rods.Items.Iman.GrabBonus else 0)
 	local perfect = power >= F.PerfectPower.Min and power <= F.PerfectPower.Max
 	local capacity = rod.Capacity * (if reinforced then 1 + Rods.Items.SedalReforzado.CapacityBonus else 1)
 	-- el nivel limita hasta qué capa puedes bajar (aunque la caña llegue más hondo)
@@ -431,6 +439,7 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 		UsedSize = 0,
 		HookX = 0,
 		HookXAt = now + D.IntroTime,
+		GrabRadius = grabRadius,
 		Current = nil,
 		Survival = 1,
 		Params = nil,
@@ -441,9 +450,13 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 	}
 
 	-- al cliente solo lo que necesita para dibujar la inmersión
+	-- en las capas OSCURAS sin Linterna, el cliente ni siquiera recibe qué meme es (ni su peso)
+	local lantern = BoostService.HasItem(player, "Linterna")
 	local visible = {}
 	for i, spec in ipairs(memes) do
-		visible[i] = { MemeId = spec.Meme.Id, Weight = spec.Weight, Golden = spec.Golden, Depth = spec.Depth,
+		local hidden = GameConfig.LayerAt(spec.Depth).Dark == true and not lantern
+		visible[i] = { MemeId = if hidden then nil else spec.Meme.Id, Weight = if hidden then nil else spec.Weight,
+			Golden = not hidden and spec.Golden, Hidden = hidden, Depth = spec.Depth,
 			X = spec.X, Amp = spec.Amp, Freq = spec.Freq, Phase = spec.Phase }
 	end
 	return {
@@ -457,6 +470,9 @@ local function onCast(player: Player, power: any, useReinforced: any): any
 		LockedLayer = if lockedLayer and rod.MaxDepth > maxDepth then { Name = lockedLayer.Name, Level = lockedLayer.RequiredLevel } else nil,
 		Speed = speed,
 		IntroTime = D.IntroTime,
+		GrabRadius = grabRadius,
+		Lantern = lantern,
+		Net = BoostService.HasItem(player, "RedDorada"),
 		Free = Inventory.Free(data),
 		Memes = visible,
 	}
@@ -483,9 +499,12 @@ local function onGrab(player: Player, index: any, hookX: any): any
 	-- ¿puede estar el anzuelo a esa profundidad ahora? (baja a velocidad fija desde DiveStart)
 	local now = os.clock()
 	local t = diveTime(session, now)
-	local earliest = (spec.Depth - D.GrabRadius) / session.Speed - D.GrabEarly
-	local latest = (spec.Depth + D.GrabRadius) / session.Speed + D.GrabLate
-	local nearBottom = spec.Depth >= session.MaxDepth - D.GrabRadius
+	-- el anzuelo baja entre BrakeSpeed (frenando) y session.Speed (a tope): no puede llegar antes de lo que
+	-- permite ir a tope ni quedarse más tarde de lo que permite ir frenando todo el rato
+	local radius = session.GrabRadius
+	local earliest = (spec.Depth - radius) / session.Speed - D.GrabEarly
+	local latest = (spec.Depth + radius) / math.min(session.Speed, D.BrakeSpeed) + D.GrabLate
+	local nearBottom = spec.Depth >= session.MaxDepth - radius
 	if t < earliest or (t > latest and not nearBottom) then
 		return fail("El anzuelo no está ahí")
 	end
@@ -498,7 +517,7 @@ local function onGrab(player: Player, index: any, hookX: any): any
 		return fail("El anzuelo no está ahí")
 	end
 	-- ¿y el meme está cerca de esa x? (el servidor calcula dónde nada con su propio reloj)
-	if math.abs(FishMath.SwimX(spec, t) - hookX) > D.GrabRadius + D.GrabSlack then
+	if math.abs(FishMath.SwimX(spec, t) - hookX) > radius + D.GrabSlack then
 		return fail("El anzuelo no está ahí")
 	end
 	session.HookX = hookX
@@ -563,6 +582,34 @@ local function onEngage(player: Player): any
 	session.State = "Fighting"
 	session.FightStart = os.clock()
 	return { ok = true }
+end
+
+-- RED DORADA: en la decisión, engancha el meme sin pelear (gasta una red). No vale con SECRETOS ni DIOS.
+local function onUseNet(player: Player): any
+	local session = sessions[player]
+	if not session or session.State ~= "Deciding" or not session.Current then
+		return fail("No hay nada que atrapar")
+	end
+	if os.clock() - session.FightStart > F.FightTimeout then
+		resume(session, os.clock())
+		return fail("Se cansó de esperar y se fue")
+	end
+	local data = PlayerData.Get(player)
+	if not data or not BoostService.HasItem(player, "RedDorada") then
+		return fail("🥅 Equipa una Red Dorada para usarla")
+	end
+	local spec = session.Memes[session.Current]
+	if Memes.Rarities[spec.Meme.Rarity].Order >= 7 then
+		return fail("🥅 La red no aguanta un SECRETO: ¡a pelear!")
+	end
+	data.Items.RedDorada -= 1
+	spec.Taken = true
+	local autoSell = data.Settings.AutoSell[spec.Meme.Rarity] == true and not spec.Golden
+	session.UsedSize += if autoSell then 0 else spec.Size
+	table.insert(session.Grabbed, session.Current)
+	resume(session, os.clock())
+	PlayerData.Push(player)
+	return { ok = true, Grabbed = true, Count = #session.Grabbed, NetsLeft = data.Items.RedDorada }
 end
 
 -- SOLTAR (antes de pelear): el meme se va y el anzuelo sigue bajando.
@@ -691,6 +738,7 @@ function FishingService.Init()
 	Remotes.Get("Grab").OnServerInvoke = onGrab
 	Remotes.Get("Engage").OnServerInvoke = onEngage
 	Remotes.Get("Release").OnServerInvoke = onRelease
+	Remotes.Get("UseNet").OnServerInvoke = onUseNet
 	Remotes.Get("Tug").OnServerInvoke = onTug
 	Remotes.Get("FinishFight").OnServerInvoke = onFinish
 	Remotes.Get("Surface").OnServerInvoke = onSurface

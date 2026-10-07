@@ -15,13 +15,13 @@ local Boosts = {}
 local RGB = Color3.fromRGB
 
 Boosts.List = {
-	Money = { Id = "Money", Name = "Dinero ×2", Emoji = "💰", Multiplier = 2, Duration = 300, Price = 600, Color = RGB(90, 220, 90),
+	Money = { Id = "Money", Name = "Dinero ×2", Emoji = "💰", Multiplier = 2, Duration = 300, Price = 3000, Color = RGB(90, 220, 90),
 		Description = "Lo que vendes y lo que gana tu parcela vale el doble durante 5 min." },
-	Luck = { Id = "Luck", Name = "Suerte ×2", Emoji = "🍀", Multiplier = 2, Duration = 300, Price = 900, Color = RGB(80, 200, 255),
+	Luck = { Id = "Luck", Name = "Suerte ×2", Emoji = "🍀", Multiplier = 2, Duration = 300, Price = 4500, Color = RGB(80, 200, 255),
 		Description = "El doble de memes raros (o más) en cada inmersión durante 5 min." },
-	Speed = { Id = "Speed", Name = "Anzuelo ×1.5", Emoji = "⚡", Multiplier = 1.5, Duration = 300, Price = 700, Color = RGB(255, 205, 40),
+	Speed = { Id = "Speed", Name = "Anzuelo ×1.5", Emoji = "⚡", Multiplier = 1.5, Duration = 300, Price = 2500, Color = RGB(255, 205, 40),
 		Description = "El anzuelo baja un 50 % más rápido: llegas antes al fondo." },
-	Hook = { Id = "Hook", Name = "+1 Anzuelo", Emoji = "🪝", Multiplier = 1, Duration = 300, Price = 1200, Color = RGB(255, 90, 150),
+	Hook = { Id = "Hook", Name = "+1 Anzuelo", Emoji = "🪝", Multiplier = 1, Duration = 300, Price = 6000, Color = RGB(255, 90, 150),
 		Description = "Un anzuelo extra en cada lanzamiento durante 5 min." },
 }
 Boosts.Order = { "Money", "Luck", "Speed", "Hook" }

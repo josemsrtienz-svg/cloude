@@ -32,13 +32,15 @@ rojo build default.project.json -o PescaDeMemes.rbxlx
 4. **Inmersión:** la cámara baja al agua. El anzuelo baja solo; **guíalo** con **A/D**, el **ratón** o el **dedo**
    hacia los memes. Encima de cada uno ves su rareza y sus kg: **verde** se engancha solo, **naranja ⚔️** pesa más
    que tu caña (PELEAR o SOLTAR) y **rojo ⛔** es demasiado pesado. Tu caña tiene X **anzuelos** y baja X **metros**.
+   **Frena** manteniendo **S / ↓** (o el click/dedo) para no pasarte de un meme. En las capas oscuras lleva la 🔦 **Linterna**.
 5. Pelea con la barra de tensión. Si pierdes, el sedal **sube de golpe**; si fallas un **⚡ TIRÓN**,
    **la caña se ROMPE** (repárala en la tienda; la de palo es irrompible).
 6. Se sube al llenar los anzuelos, al tocar el fondo o con **SUBIR (E)**. Los memes saltan a tu **mochila-acuario**.
 7. Vuelve a tu parcela: **al entrar se colocan solos** en el césped y generan MemeCoins en el **círculo verde**
    (písalo para cobrar). "Recoger" junto a un meme lo devuelve al acuario.
 8. **Tienda:** el botón del HUD vende cañas, mochilas y objetos. La **GRAN TIENDA** (entrada del mapa) tiene además
-   **⚡ boosts** (Dinero ×2, Suerte ×1.5), **💎 pases de Robux** y el **🎁 boost gratis** que te sale de vez en cuando.
+   **⚡ boosts** (Dinero ×2, Suerte ×2, Anzuelo ×1.5, +1 Anzuelo), **💎 pases de Robux** y el **🎁 boost gratis** del tablón (cambia cada 15 min).
+9. **Objetos:** en la pestaña Objetos eliges qué llevas en tus **huecos** (1 al empezar): Sedal, Linterna, Imán, Red Dorada.
 
 > 🧪 **Modo prueba:** en Studio empiezas con dinero infinito y la sesión NO se guarda (`GameConfig.DevMode`).
 > Apágalo (`Enabled = false`) para probar el guardado y siempre antes de publicar.

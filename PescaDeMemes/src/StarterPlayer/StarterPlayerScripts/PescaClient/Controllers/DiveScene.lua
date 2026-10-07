@@ -61,6 +61,8 @@ local capacity = 1
 local maxDepth = 15
 local attachedCount = 0
 local lockedLayer: { Name: string, Level: number }? = nil
+local hasLantern = false
+local grabRadius = D.GrabRadius
 local savedCamera: { Type: Enum.CameraType, CFrame: CFrame, FOV: number, Subject: Instance? }? = nil
 local tint: ColorCorrectionEffect? = nil
 
@@ -317,6 +319,15 @@ local function buildHook(parent: Instance): Model
 	local att = Instance.new("Attachment")
 	att.Name = "LineEnd"
 	att.Parent = sinker
+	if hasLantern then
+		-- linterna: luz cálida alrededor del anzuelo
+		local light = Instance.new("PointLight")
+		light.Color = RGB(255, 235, 170)
+		light.Range = 22
+		light.Brightness = 2
+		light.Parent = sinker
+		block(m, "Lantern", Vector3.new(0.5, 0.6, 0.5), CFrame.new(0, 0.75, 0), RGB(255, 230, 120), Enum.Material.Neon)
+	end
 	m.Parent = parent
 	-- el sedal baja desde la superficie, justo encima del anzuelo
 	local top = block(parent, "LineTop", Vector3.one * 0.2, CFrame.new(ORIGIN), Color3.new(1, 1, 1), nil, 1)
@@ -348,14 +359,21 @@ local function labelText(spec: any): (string, Color3)
 	return kg, T.Success
 end
 
+-- Meme bajo el agua. spec.Hidden = capa oscura sin Linterna: el servidor no dice qué meme es, así que se
+-- dibuja una silueta negra genérica con "???" (sin rareza, sin peso).
 local function buildMeme(parent: Instance, spec: any, index: number, skip: { [string]: boolean }?): MemeView?
-	if not MemeModels.Has(spec.MemeId) then
+	local hidden = spec.Hidden == true
+	local memeId = if hidden then "NoobFeliz" else spec.MemeId
+	if not MemeModels.Has(memeId) then
 		return nil
 	end
-	local model = MemeModels.Build(spec.MemeId, MEME_SCALE, spec.Golden)
+	local meme = if hidden then nil else Memes.Get(memeId)
+	-- los ejemplares grandes también se ven más grandes bajo el agua (con tope para no tapar el carril)
+	local scale = MEME_SCALE * (if meme then math.min(1.6, FishMath.DisplayScale(meme, spec.Weight)) else 1)
+	local model = MemeModels.Build(memeId, scale, spec.Golden == true, not hidden)
 	model.Name = "DiveMeme" .. index
-	local height = MemeModels.Height(spec.MemeId, MEME_SCALE)
-	local rarity = Memes.GetRarity(spec.MemeId)
+	local height = MemeModels.Height(memeId, scale)
+	local rarity = Memes.GetRarity(memeId)
 	local bb = Instance.new("BillboardGui")
 	bb.Name = "Tag"
 	bb.Size = UDim2.fromOffset(130, 52)
@@ -363,19 +381,30 @@ local function buildMeme(parent: Instance, spec: any, index: number, skip: { [st
 	bb.LightInfluence = 0
 	bb.MaxDistance = 120
 	bb.Parent = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
-	UIKit.label({ Name = "Rarity", Text = (if spec.Golden then "✨ " else "") .. rarity.Name, Size = UDim2.new(1, 0, 0.5, 0),
-		Font = T.FontTitle, TextColor3 = if spec.Golden then T.Coin else rarity.Color, Parent = bb }, { Stroke = 2 })
-	local text, color = labelText(spec)
-	local meme = Memes.Get(spec.MemeId)
-	if skip and meme and skip[meme.Rarity] then
-		-- filtrado: el anzuelo lo atraviesa
-		text, color = "🚫 filtrado", T.TextDim
+	local rarityText, rarityColor, weightText, weightColor
+	if hidden then
+		rarityText, rarityColor, weightText, weightColor = "🔦 ???", T.TextDim, "??? kg", T.TextDim
+		for _, d in ipairs(model:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.Color = RGB(10, 12, 20)
+				d.Material = Enum.Material.SmoothPlastic
+			end
+		end
+	else
+		rarityText = (if spec.Golden then "✨ " else "") .. rarity.Name
+		rarityColor = if spec.Golden then T.Coin else rarity.Color
+		weightText, weightColor = labelText(spec)
+		if skip and meme and skip[meme.Rarity] then
+			weightText, weightColor = "🚫 filtrado", T.TextDim -- el anzuelo lo atraviesa
+		end
 	end
-	UIKit.label({ Name = "Weight", Text = text, Size = UDim2.new(1, 0, 0.5, 0), Position = UDim2.fromScale(0, 0.5),
-		Font = T.FontTitle, TextColor3 = color, Parent = bb }, { Stroke = 2 })
+	UIKit.label({ Name = "Rarity", Text = rarityText, Size = UDim2.new(1, 0, 0.5, 0), Font = T.FontTitle, TextColor3 = rarityColor,
+		Parent = bb }, { Stroke = 2 })
+	UIKit.label({ Name = "Weight", Text = weightText, Size = UDim2.new(1, 0, 0.5, 0), Position = UDim2.fromScale(0, 0.5),
+		Font = T.FontTitle, TextColor3 = weightColor, Parent = bb }, { Stroke = 2 })
 	model.Parent = parent
 	return { Spec = spec, Model = model, Height = height, Label = bb, State = "free", Bob = rng:NextNumber(0, 6), Slot = 0,
-		Rarity = if meme then meme.Rarity else "COMMON" }
+		Rarity = if meme then meme.Rarity else "?" }
 end
 
 -- ===== API =====
@@ -386,6 +415,8 @@ function DiveScene.Build(spec: any, skip: { [string]: boolean }?)
 	capacity = spec.Capacity
 	maxDepth = spec.MaxDepth
 	lockedLayer = spec.LockedLayer
+	hasLantern = spec.Lantern == true
+	grabRadius = spec.GrabRadius or D.GrabRadius
 	attachedCount = 0
 	local f = Instance.new("Folder")
 	f.Name = "DiveScene"
@@ -463,7 +494,7 @@ function DiveScene.Touching(t: number, x: number, depth: number, tried: { [numbe
 		if view.State == "free" and not tried[i] and not (skip and skip[view.Rarity]) then
 			local dx = FishMath.SwimX(view.Spec, t) - x
 			local dy = view.Spec.Depth - depth
-			if dx * dx + dy * dy <= D.GrabRadius * D.GrabRadius then
+			if dx * dx + dy * dy <= grabRadius * grabRadius then
 				return i
 			end
 		end
@@ -485,7 +516,7 @@ function DiveScene.Attach(index: number)
 	sparkle.Speed = NumberRange.new(6, 10)
 	sparkle.Lifetime = NumberRange.new(0.4, 0.7)
 	sparkle.SpreadAngle = Vector2.new(180, 180)
-	sparkle.Color = ColorSequence.new(Memes.GetRarity(view.Spec.MemeId).Color)
+	sparkle.Color = ColorSequence.new(if view.Spec.Hidden then RGB(200, 200, 220) else Memes.GetRarity(view.Spec.MemeId).Color)
 	sparkle.LightEmission = 1
 	sparkle.Parent = view.Model.PrimaryPart or view.Model:FindFirstChildWhichIsA("BasePart")
 	sparkle:Emit(25)
@@ -550,7 +581,8 @@ end
 function DiveScene.Markers(): { [number]: { Depth: number, Color: Color3, Free: boolean } }
 	local list = {}
 	for i, view in pairs(memeViews) do
-		list[i] = { Depth = view.Spec.Depth, Color = Memes.GetRarity(view.Spec.MemeId).Color, Free = view.State == "free" }
+		local color = if view.Spec.Hidden then RGB(90, 90, 110) else Memes.GetRarity(view.Spec.MemeId).Color
+		list[i] = { Depth = view.Spec.Depth, Color = color, Free = view.State == "free" }
 	end
 	return list
 end

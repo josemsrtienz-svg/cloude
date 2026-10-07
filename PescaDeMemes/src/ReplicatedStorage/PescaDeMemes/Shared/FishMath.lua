@@ -59,7 +59,7 @@ function FishMath.TugChance(survival: number, inGreen: boolean): number
 	return p
 end
 
--- Dónde cae el peso dentro del rango del meme (0 = mínimo, 1 = máximo).
+-- Dónde cae el peso dentro del rango del meme (0 = mínimo, 1 = máximo; MÁS de 1 = ejemplar gigante).
 function FishMath.Fraction(meme: any, weight: number): number
 	local span = meme.WeightMax - meme.WeightMin
 	if span <= 0 then
@@ -72,9 +72,30 @@ FishMath.Sizes = {
 	{ Max = 0.3, Name = "S" },
 	{ Max = 0.55, Name = "M" },
 	{ Max = 0.75, Name = "L" },
-	{ Max = 0.92, Name = "XL" },
-	{ Max = 1.01, Name = "GIGANTE" },
+	{ Max = 1.01, Name = "XL" },
 }
+
+-- Tamaño de un ejemplar: S…XL dentro de su rango; por encima de su peso máximo es GIGANTE
+-- (hasta 2,5× WeightMax) o COLOSAL (más de 2,5×), igual para todos los memes.
+function FishMath.SizeOf(meme: any, weight: number): string
+	if weight > meme.WeightMax * 2.5 then
+		return "COLOSAL"
+	elseif weight > meme.WeightMax * 1.01 then
+		return "GIGANTE"
+	end
+	return FishMath.SizeName(FishMath.Fraction(meme, weight))
+end
+
+-- Peso medio de un meme (para comparar ejemplares).
+function FishMath.AverageWeight(meme: any): number
+	return (meme.WeightMin + meme.WeightMax) / 2
+end
+
+-- Escala visual de un ejemplar: el TAMAÑO IMPORTA. Raíz cúbica del peso relativo (el doble de kg no es el
+-- doble de alto), con tope para que un colosal no tape la parcela ni se bugee.
+function FishMath.DisplayScale(meme: any, weight: number): number
+	return math.clamp((weight / FishMath.AverageWeight(meme)) ^ (1 / 3), 0.75, 2.1)
+end
 
 function FishMath.SizeName(fraction: number): string
 	for _, size in ipairs(FishMath.Sizes) do
@@ -82,13 +103,14 @@ function FishMath.SizeName(fraction: number): string
 			return size.Name
 		end
 	end
-	return "GIGANTE"
+	return "XL"
 end
 
+-- Valor = valor base de la rareza × (peso / peso medio)^0.85: los ejemplares grandes valen MUCHO más
+-- (un Señor Stonks colosal de 30 kg vale ~5 veces uno normal).
 function FishMath.Value(meme: any, weight: number, golden: boolean): number
 	local rarity = Memes.Rarities[meme.Rarity]
-	local fraction = FishMath.Fraction(meme, weight)
-	local value = rarity.BaseValue * (0.75 + 1.5 * fraction)
+	local value = rarity.BaseValue * (weight / FishMath.AverageWeight(meme)) ^ 0.85
 	if golden then
 		value *= F.GoldenMultiplier
 	end

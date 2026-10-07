@@ -43,7 +43,8 @@ local function isHold(input: InputObject): boolean
 		or input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.F
 end
 
-function FightUI.Decide(info: any): string
+-- canNet = llevas una Red Dorada equipada y el meme no es secreto → aparece el botón 🥅 (devuelve "net").
+function FightUI.Decide(info: any, canNet: boolean?): string
 	local rarity = Memes.Rarities[info.Rarity] or Memes.Rarities.COMMON
 	local meme = Memes.Get(info.MemeId)
 	local d = decisionRefs
@@ -60,6 +61,7 @@ function FightUI.Decide(info: any): string
 	d.Icon = UIKit.memeIcon(info.MemeId, { Name = "Icon", Size = UDim2.fromOffset(110, 110), Position = UDim2.fromOffset(20, 64),
 		Parent = decision }, { Spin = 1.2 })
 	UIKit.stroke(d.Icon, 4, rarity.Color)
+	decisionRefs.Net.Visible = canNet == true
 	decision.Visible = true
 	UIKit.pop(decision, 0.7)
 	UIKit.playSound("Bite")
@@ -232,7 +234,7 @@ function FightUI.Init()
 
 	-- ===== Decisión (PELEAR / SOLTAR) =====
 	decision = UIKit.new("Frame", { Name = "Decision", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.45),
-		Size = UDim2.fromOffset(500, 300), BackgroundColor3 = T.Panel, Visible = false, Parent = gui })
+		Size = UDim2.fromOffset(500, 340), BackgroundColor3 = T.Panel, Visible = false, Parent = gui })
 	UIKit.corner(decision, 22)
 	UIKit.stroke(decision, 5, T.PrimaryDark)
 	UIKit.responsive(decision)
@@ -259,6 +261,12 @@ function FightUI.Init()
 	end)
 	releaseBtn.Activated:Connect(function()
 		choice = "release"
+	end)
+	-- Red Dorada: engancharlo sin pelear (encima de los otros dos botones)
+	d.Net = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -88), Size = UDim2.fromOffset(300, 40), Visible = false,
+		Parent = decision }, { Color = T.Coin, Text = "🥅 Usar Red Dorada (sin pelear)", TextSize = 20 })
+	d.Net.Activated:Connect(function()
+		choice = "net"
 	end)
 
 	-- ===== Pelea =====

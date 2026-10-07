@@ -116,7 +116,9 @@ local function buildPack(player: Player)
 
 	local pack = GearModels.Tank(tier, ids)
 	pack.Name = "AquariumPack"
-	pack:PivotTo(torso.CFrame * CFrame.new(0, 0.1, torso.Size.Z / 2 + 0.65))
+	-- separada de la espalda según su tier (medida fija: los brillos/efectos no la alejan)
+	local halfDepth = GearModels.TankHalfDepth(tier)
+	pack:PivotTo(torso.CFrame * CFrame.new(0, 0.1, torso.Size.Z / 2 + halfDepth - 0.05))
 	GearModels.WeldTo(pack, torso)
 	pack.Parent = character
 end

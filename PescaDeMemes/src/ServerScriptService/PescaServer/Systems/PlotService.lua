@@ -34,7 +34,6 @@ local BoostService = require(script.Parent.BoostService)
 local PlotService = {}
 
 local INCOME_TICK = 5
-local SIZE_SCALE = { S = 0.8, M = 0.95, L = 1.1, XL = 1.25, GIGANTE = 1.45 }
 
 local owners: { [number]: Player } = {}
 local plotOf: { [Player]: number } = {}
@@ -122,8 +121,8 @@ local function buildDisplay(parent: Instance, spot: BasePart, catch: any)
 		return
 	end
 	local rarity = Memes.Rarities[meme.Rarity]
-	local sizeName = FishMath.SizeName(FishMath.Fraction(meme, catch.Weight))
-	local scale = SIZE_SCALE[sizeName] or 1
+	-- el tamaño importa: cuanto más pesa, más grande se ve (con tope)
+	local scale = FishMath.DisplayScale(meme, catch.Weight)
 	local model = MemeModels.Build(meme.Id, scale, catch.Golden)
 	-- mirando hacia el río (el frente de la parcela), de pie sobre el césped
 	model:PivotTo(spot.CFrame * CFrame.new(0, spot.Size.Y / 2, 0))
