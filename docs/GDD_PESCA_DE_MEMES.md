@@ -355,6 +355,24 @@ Inspirado en el principio de Steal a Egg ("tu base es tuya y se ve"), con aplica
 - **Por qué:** es el meta loop de largo plazo. Reiniciar las cañas vuelve a dar "dopamina de compra" con un
   multiplicador que acelera el siguiente ciclo, y la terraza hace visible el progreso a todo el servidor.
 
+## 5n. Fase 4 · A 0.4 — 21 memes nuevos (3 por rareza)
+- **Regla de rarezas:** los personajes fuertes y famosos de los videojuegos **nunca** van en rarezas bajas
+  (un "Steve" es Mítico, no Raro). Las rarezas bajas son memes de la vida diaria.
+- **Todos** son modelos de bloques hechos con la skill de modelado (silueta, capas de detalle, materiales).
+
+| Rareza | Memes (referencia) | Profundidad |
+|---|---|---|
+| Común | 🐸 Sapo del Lunes · 🧦 Calcetín Perdido · 🥔 Patata Sospechosa | desde arriba |
+| Poco común | 🐧 Pingüino Patinador · 🍞 Tostadora Rebelde · 🐔 Pollo Gamer | desde arriba |
+| Raro | 🛡️ Caballero Cubo (héroe de juegos de bloques) · 🤖 Robot Bailarín · 👵 Abuela Gamer | desde arriba |
+| Épico | 👑 Rey Slime (jefe de RPG) · 💀 Esqueleto Arquero (juegos de supervivencia) · 🥷 Pato Ninja | desde arriba |
+| Mítico | ⛏️ Minero Cúbico (estilo Steve) · 🗡️ Héroe Verde (estilo Link) · 🪖 Espartano Galáctico (estilo Master Chief) | 100 m |
+| Legendario | 🐉 Rey Dragón · 🧙 Mago Supremo · ⚔️ Samurái Neón | 200 m |
+| Secreto | 👦 **Habibriel** (idea del equipo) · 🔨 El Admin (martillo del baneo) · 👾 Glitch Fantasma | 350 / 400 / 450 m |
+
+- **Dinero con comas:** por debajo de 1.000 millones se ve el número entero con comas (1,250,000); por encima, B/T/Qa.
+- **Índice:** ordenado por rareza, los memes nuevos entran en su grupo.
+
 ## 6. Pescadores Furtivos (el toque social)
 Para tener tensión social **sin** convertirlo en un clon de "steal":
 

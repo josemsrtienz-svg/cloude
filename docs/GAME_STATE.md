@@ -7,7 +7,7 @@
 PROJECT:          Pesca de Memes (nombre provisional)
 STATUS:           Alpha en producción
 CURRENT_PHASE:    FASE 4 — ALPHA   ← ESTAMOS AQUÍ (Fase 3 cerrada en la VS 0.2; su playtest lo hace el equipo)
-GAME_VERSION:     A 0.3
+GAME_VERSION:     A 0.4
 CORE_LOOP_STATUS: Lanzar con click → INMERSIÓN (guiar el anzuelo) → enganchar / pelear → subir → mochila → parcela → dinero
 META_LOOP:        clima con mutaciones (💧×2 ⚡×5 🌙×10) · 4 cebos · 16 cañas con perks · 12 mochilas · niveles que abren capas · misiones diarias + racha · mercader cada hora
 MAP_STATUS:       Río ancho (80 studs) y largo (360), 8 parcelas con muelle propio, arco, Gran Tienda, barca del mercader
@@ -87,9 +87,9 @@ de la Alpha ya no entran sistemas nuevos: solo contenido, balance y pulido (Beta
 | 2 | **Cebos**: 🌶️ Picante (+50 % raros), 🪙 Dorado (×3 dorados), ⚓ Pesado (×2,5 gigantes), 🌙 Lunar (×2 mutaciones). Ocupan huecos de objeto | P1 | ✅ A 0.1 |
 | 3 | **Jefe del río**: cada 30 min (min. 15) emerge la **Ballena Sigma** (DIOS) en el río; todo el servidor pulsa 🎣 ¡TIRA! durante 3 min; monedas para quien ayuda y sorteo del meme DIOS | P1 | ✅ A 0.2 |
 | 4 | **Renacer**: pierdes dinero y cañas; ganas dinero ×1,5 por renacer, la **terraza** de la parcela (+2 huecos por renacer, hasta 12) y huecos de objeto (renacer 1 y 3). Coste 2M ×4 cada vez, con la Abisal | P1 | ✅ A 0.3 |
-| 5 | **Mascotas**: brainrots propios (modelos originales) que acompañan y dan bonus | P1 | ⬜ Siguiente |
+| 5 | **Mascotas**: brainrots propios (modelos originales) que acompañan y dan bonus | P1 | ⏸️ Más tarde (decisión del equipo; primeros diseños guardados en `PescaDeMemes/drafts/PetModels.lua`: Pez Tostada, Cangrejo DJ, Pulpo Chef, Medusa Disco, Patito Astronauta) |
 | 6 | **Intercambio** seguro: doble confirmación, el servidor bloquea los objetos, sin duplicados | P1 | ⬜ |
-| 7 | **Más memes** por capa (2–3 nuevos en cada una) | P2 | ⬜ |
+| 7 | **Más memes**: 3 nuevos por rareza (21), con **Habibriel** como secreto. Los personajes fuertes y famosos van en rarezas altas | P2 | ✅ A 0.4 |
 | 8 | **Clasificación**: el meme más pesado y el dinero por minuto (base del torneo de la Fase 5) | P2 | ⬜ |
 
 **Terminado cuando:** los 6 primeros sistemas están en el juego, sus datos migran sin errores, cada uno pasa una revisión
@@ -130,6 +130,8 @@ de seguridad, y una partida de 30 min los toca todos sin errores en la consola.
 ### Rarezas (decidido)
 Común → Poco común → Raro → Épico → **Mítico** → **Legendario** → **Secreto** → **DIOS** (solo eventos, `Odds = 0`).
 Míticos: Gato Pop, Plátano Bailarín, Hámster Dramático. Secretos: Tiburón Zapatillero, Capibara Zen, Cocodrilo Aviador.
+**Regla (A 0.4):** los personajes "duros" y famosos (estilo Steve, Link, Master Chief…) van en **Mítico o más**, nunca en
+común/raro. Las rarezas bajas son para memes de la vida diaria (sapo del lunes, calcetín perdido…).
 
 ## Skins de parcela y muelle (futuro — FASE 7, teaser ya visible en la tienda)
 
@@ -153,6 +155,7 @@ y PlotService el multiplicador. Los bonus son pequeños para no romper el balanc
 - [ ] Máximo de jugadores del servidor = 8 (una parcela cada uno).
 
 ## Historial
+- **A 0.4** — 21 memes nuevos (3 por rareza, con referencias a juegos y personajes fuertes en Mítico+); **Habibriel** es meme SECRETO (idea del equipo). Dinero con comas (1,250,000). Índice ordenado por rareza. Mascotas aplazadas.
 - **A 0.3** — Renacer: terraza nueva en todas las parcelas (4 huecos con candado), dinero ×1,5 por renacer, huecos de objeto, ♻️ en el cartel, panel con doble confirmación.
 - **A 0.2** — Jefe del río: la Ballena Sigma (primer meme DIOS, modelo nuevo) emerge cada 30 min; todo el servidor tira con 🎣 ¡TIRA!; premio repartido y sorteo del DIOS.
 - **A 0.1** — Empieza la Fase 4 (Alpha): clima global con lluvia, tormenta y luna llena; mutaciones 💧⚡🌙 en valor, modelos y UI; 4 cebos con modelo 3D.

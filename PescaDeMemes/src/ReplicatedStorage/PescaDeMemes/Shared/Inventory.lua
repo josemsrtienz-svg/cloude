@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Root = ReplicatedStorage:WaitForChild("PescaDeMemes")
 local Rods = require(Root.Config.Rods)
+local Util = require(Root.Shared.Util)
 
 local Inventory = {}
 
@@ -85,7 +86,7 @@ function Inventory.FormatIncome(perMinute: number): string
 	if perMinute < 10 then
 		return string.format("%.1f/min", perMinute)
 	end
-	return string.format("%d/min", math.floor(perMinute + 0.5))
+	return Util.formatShort(math.floor(perMinute + 0.5)) .. "/min"
 end
 
 return Inventory

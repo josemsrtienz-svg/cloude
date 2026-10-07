@@ -61,7 +61,7 @@ Estado y fases del proyecto: [`docs/GAME_STATE.md`](../docs/GAME_STATE.md).
 ## Estructura
 ```
 src/ReplicatedStorage/PescaDeMemes/
-  Config/   GameConfig (reglas, mapa del río y parcelas) · Memes (8 memes) · Rods (cañas, mochilas-acuario, Sedal) · Assets
+  Config/   GameConfig (reglas, mapa del río y parcelas) · Memes (36 memes: 3+ por rareza y la Ballena Sigma DIOS) · Rods (cañas, mochilas-acuario, Sedal) · Assets
   Shared/   Remotes · Inventory (acuario/parcela) · MemeModels (figuras de bloques) · GearModels (caña, mochila, iconos 3D)
             FishMath (peso/capacidad/aguante/valor) · FishBehaviors (cómo pelea cada meme) · Util
 src/ServerScriptService/PescaServer/

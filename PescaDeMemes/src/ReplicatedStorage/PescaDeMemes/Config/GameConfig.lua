@@ -10,7 +10,7 @@
 local GameConfig = {}
 
 GameConfig.GameName = "PESCA DE MEMES"
-GameConfig.Version = "A 0.3"
+GameConfig.Version = "A 0.4"
 
 -- ===== Moneda =====
 GameConfig.CurrencyName = "MemeCoin"

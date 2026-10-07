@@ -380,7 +380,7 @@ local function surface(player: Player): any
 	if soldValue > 0 then
 		data.MemeCoin += soldValue
 		MissionService.Progress(player, "Sell", soldValue)
-		PlayerData.Notify(player, ("💰 No cabía en tu acuario: se vendió solo por %d MemeCoins"):format(soldValue), "Info")
+		PlayerData.Notify(player, ("💰 No cabía en tu acuario: se vendió solo por %s MemeCoins"):format(Util.formatShort(soldValue)), "Info")
 	end
 	if autoSoldValue > 0 then
 		PlayerData.Notify(player, ("💰 Venta automática: +%s MemeCoins"):format(Util.formatShort(autoSoldValue)), "Success")

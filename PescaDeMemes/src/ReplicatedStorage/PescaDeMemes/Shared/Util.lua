@@ -6,6 +6,7 @@
 
 local Util = {}
 
+-- Número entero con comas de miles: 1250000 → "1,250,000".
 function Util.formatNumber(n: number?): string
 	local value = math.floor(tonumber(n) or 0)
 	local s = tostring(math.abs(value))
@@ -16,11 +17,15 @@ function Util.formatNumber(n: number?): string
 	return (value < 0 and "-" or "") .. formatted
 end
 
--- Números cortos estilo "20.8B", "7.1M", "79K".
+-- Dinero para mostrar: con comas hasta 999,999,999 (se lee de un vistazo) y abreviado a partir de mil millones
+-- (1.2B, 3.5T) para que quepa en botones y cartas.
 function Util.formatShort(n: number?): string
 	local value = tonumber(n) or 0
 	local abs = math.abs(value)
-	local suffixes = { { 1e12, "T" }, { 1e9, "B" }, { 1e6, "M" }, { 1e3, "K" } }
+	if abs < 1e9 then
+		return Util.formatNumber(value)
+	end
+	local suffixes = { { 1e15, "Qa" }, { 1e12, "T" }, { 1e9, "B" } }
 	for _, entry in ipairs(suffixes) do
 		if abs >= entry[1] then
 			local short = value / entry[1]

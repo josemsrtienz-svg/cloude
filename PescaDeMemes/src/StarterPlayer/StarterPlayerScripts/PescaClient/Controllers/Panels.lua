@@ -634,7 +634,8 @@ local function renderBestiary()
 	for i, meme in ipairs(Memes.List) do
 		local entry = data.Discovered[meme.Id]
 		local rarity = Memes.Rarities[meme.Rarity]
-		local card = UIKit.new("Frame", { LayoutOrder = i, BackgroundColor3 = T.PanelLight, Parent = grid })
+		-- ordenado por rareza (los añadidos después caen en su grupo)
+		local card = UIKit.new("Frame", { LayoutOrder = rarity.Order * 1000 + i, BackgroundColor3 = T.PanelLight, Parent = grid })
 		UIKit.corner(card, 14)
 		UIKit.stroke(card, 3, rarity.Color)
 		if entry then
