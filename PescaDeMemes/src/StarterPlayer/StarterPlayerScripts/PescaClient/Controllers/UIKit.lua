@@ -9,6 +9,7 @@
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
+local ContentProvider = game:GetService("ContentProvider")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -216,21 +217,170 @@ task.spawn(function()
 end)
 
 -- ===== Sonido =====
-local soundCache: { [string]: Sound } = {}
-function UIKit.playSound(name: string)
+-- Cada sonido de Config/Assets tiene candidatos: se precargan y se queda el primero que carga (si ninguno
+-- carga, ese sonido simplemente no suena). UIKit.PreloadSounds() lo arranca el controlador Audio.
+local resolved: { [string]: Sound | false } = {}
+local resolving: { [string]: boolean } = {}
+local soundRng = Random.new()
+
+local function resolveSound(name: string)
+	if resolving[name] or resolved[name] ~= nil then
+		return
+	end
+	resolving[name] = true
+	task.spawn(function()
+		local def = Assets.Sounds[name]
+		for _, id in ipairs(def and def.Ids or {}) do
+			local sound = UIKit.new("Sound", { Name = "SFX_" .. name, SoundId = id, Volume = def.Volume or 0.6,
+				SoundGroup = UIKit.SFXGroup, Parent = SoundService })
+			local ok = false
+			pcall(function()
+				ContentProvider:PreloadAsync({ sound }, function(_, status)
+					ok = status == Enum.AssetFetchStatus.Success
+				end)
+			end)
+			if ok then
+				resolved[name] = sound
+				resolving[name] = nil
+				return
+			end
+			sound:Destroy()
+		end
+		resolved[name] = false
+		resolving[name] = nil
+	end)
+end
+
+function UIKit.PreloadSounds()
+	for name in pairs(Assets.Sounds) do
+		resolveSound(name)
+	end
+end
+
+function UIKit.playSound(name: string, pitch: number?)
 	if not UIKit.SFXEnabled then
 		return
 	end
-	local id = Assets.Sounds[name]
-	if not id or id == "" then
+	local sound = resolved[name]
+	if sound == nil then
+		resolveSound(name) -- aún no estaba precargado: sonará la próxima vez
 		return
 	end
-	local sound = soundCache[name]
 	if not sound then
-		sound = UIKit.new("Sound", { Name = "UI_" .. name, SoundId = id, Volume = 0.6, SoundGroup = UIKit.SFXGroup, Parent = SoundService })
-		soundCache[name] = sound
+		return
 	end
+	local def = Assets.Sounds[name]
+	sound.SoundGroup = UIKit.SFXGroup
+	sound.PlaybackSpeed = (def.Speed or 1) * (pitch or 1) * (1 + soundRng:NextNumber(-1, 1) * (def.Vary or 0))
 	SoundService:PlayLocalSound(sound)
+end
+
+-- ===== "Dopamina": recompensas que se SIENTEN (sonido + confeti + destello) =====
+-- Escala mayor: cada meme enganchado en la misma inmersión suena una nota más aguda (como un combo).
+local SCALE = { 1, 1.122, 1.26, 1.335, 1.498, 1.682, 1.888, 2 }
+function UIKit.combo(step: number)
+	local i = math.clamp(step, 1, #SCALE)
+	UIKit.playSound("Combo", SCALE[i])
+	if step >= 3 then
+		task.delay(0.07, function()
+			UIKit.playSound("Combo", SCALE[i] * 1.5) -- a partir del 3º, acorde doble
+		end)
+	end
+end
+
+local fxGui: ScreenGui? = nil
+local function effectsGui(): ScreenGui?
+	if fxGui and fxGui.Parent then
+		return fxGui
+	end
+	local player = game:GetService("Players").LocalPlayer
+	local playerGui = player and player:FindFirstChildOfClass("PlayerGui")
+	if not playerGui then
+		return nil
+	end
+	fxGui = UIKit.new("ScreenGui", { Name = "PescaFX", ResetOnSpawn = false, DisplayOrder = 60, IgnoreGuiInset = true,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling, Parent = playerGui })
+	return fxGui
+end
+
+local CONFETTI = { RGB(255, 205, 40), RGB(255, 90, 150), RGB(70, 195, 255), RGB(80, 215, 110), RGB(185, 90, 255), RGB(255, 255, 255) }
+-- Lluvia de confeti desde arriba (count piezas). colors opcional (p. ej. el color de la rareza).
+function UIKit.confetti(count: number, colors: { Color3 }?)
+	local layer = effectsGui()
+	if not layer then
+		return
+	end
+	local palette = colors or CONFETTI
+	for _ = 1, count do
+		local size = soundRng:NextInteger(8, 16)
+		local piece = UIKit.new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(size, math.floor(size * 0.6)),
+			Position = UDim2.new(soundRng:NextNumber(0.1, 0.9), 0, -0.05, 0), Rotation = soundRng:NextNumber(0, 360),
+			BackgroundColor3 = palette[soundRng:NextInteger(1, #palette)], BorderSizePixel = 0, Parent = layer })
+		local time = soundRng:NextNumber(1.2, 2.2)
+		local drift = soundRng:NextNumber(-0.15, 0.15)
+		local tween = TweenService:Create(piece, TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Position = piece.Position + UDim2.fromScale(drift, 1.15), Rotation = piece.Rotation + soundRng:NextNumber(-540, 540),
+			BackgroundTransparency = 0.3 })
+		tween.Completed:Once(function()
+			piece:Destroy()
+		end)
+		task.delay(soundRng:NextNumber(0, 0.35), function()
+			tween:Play()
+		end)
+	end
+end
+
+-- Destello de pantalla completa del color dado.
+function UIKit.flash(color: Color3, strength: number?)
+	local layer = effectsGui()
+	if not layer then
+		return
+	end
+	local f = UIKit.new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = color, BackgroundTransparency = 1 - (strength or 0.45),
+		BorderSizePixel = 0, Parent = layer })
+	local tween = TweenService:Create(f, TweenInfo.new(0.6), { BackgroundTransparency = 1 })
+	tween.Completed:Once(function()
+		f:Destroy()
+	end)
+	tween:Play()
+end
+
+-- Celebración según lo bueno que sea (order = orden de rareza 1..8; golden/new añaden brillo):
+--   1–2 pop · 3 + chispa · 4 + fanfarria corta · 5–6 fanfarria + golpe + confeti + destello · 7+ todo a lo grande
+function UIKit.celebrate(order: number, color: Color3?, golden: boolean?, isNew: boolean?)
+	if order >= 7 then
+		UIKit.playSound("Boom")
+		UIKit.playSound("Fanfare")
+		UIKit.flash(color or T.Primary, 0.6)
+		UIKit.confetti(120, if color then { color, T.Primary, Color3.new(1, 1, 1) } else nil)
+		task.delay(0.5, function()
+			UIKit.playSound("Fanfare", 1.25)
+			UIKit.confetti(60)
+		end)
+	elseif order >= 5 then
+		UIKit.playSound("Boom")
+		UIKit.playSound("Fanfare")
+		UIKit.flash(color or T.Primary, 0.4)
+		UIKit.confetti(70)
+	elseif order == 4 then
+		UIKit.playSound("Reward")
+		UIKit.confetti(30)
+	elseif order == 3 then
+		UIKit.playSound("Catch")
+		UIKit.playSound("Sparkle")
+	else
+		UIKit.playSound("Catch")
+	end
+	if golden or isNew then
+		for k = 0, 2 do
+			task.delay(0.12 * k, function()
+				UIKit.playSound("Sparkle", 1 + k * 0.12)
+			end)
+		end
+		if golden then
+			UIKit.flash(T.Coin, 0.3)
+		end
+	end
 end
 
 -- ===== Fotos 3D (ViewportFrame): los memes y el equipo se ven como modelos, no como emojis =====

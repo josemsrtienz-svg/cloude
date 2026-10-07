@@ -356,7 +356,7 @@ local function surface(player: Player): any
 				meme.Name, sizeName, FishMath.FormatWeight(catch.Weight))
 		end
 		if text then
-			Remotes.Get("Announce"):FireAllClients(text, meme.Rarity)
+			Remotes.Get("Announce"):FireAllClients(text, meme.Rarity, player.UserId)
 		end
 	end
 	if soldValue > 0 then

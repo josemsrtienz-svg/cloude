@@ -262,6 +262,28 @@ Inspirado en el principio de Steal a Egg ("tu base es tuya y se ve"), con aplica
   - Un boost rebajado.
 - Hay un límite de compras por jugador. Es el gasto de dinero que salió del debate de la v0.7.
 
+## 5j. Fase 3 · VS 0.1 — Dirección de audio y "dopamina"
+- **Regla:** cada acción tiene un sonido, y cuanto mejor es lo que consigues, más grande es la celebración.
+- **Combo de notas:** cada meme enganchado en el mismo lanzamiento suena una nota más alta de la escala mayor;
+  desde el 3º, en acorde. Engancharlos seguidos "suena bien" y apetece llenar todos los anzuelos.
+- **Celebración por rareza** (al subir):
+
+  | Rareza | Celebración |
+  |---|---|
+  | Común / Poco común | Pop |
+  | Raro | Pop y chispa |
+  | Épico | Fanfarria corta y confeti |
+  | Mítico / Legendario | Golpe grave, fanfarria, destello del color de la rareza y confeti |
+  | Secreto / Dios | Doble fanfarria, destello fuerte y lluvia de confeti |
+
+  Los dorados y los memes nuevos añaden tres destellos que suben.
+- **Monedas:** el contador tintinea subiendo de tono mientras cuenta, y solo cuando ganas.
+- **Otros momentos:** subir de nivel, misiones, el regalo diario, el tutorial y el mercader tienen su sonido y su confeti.
+- **Música** por ambiente (superficie / bajo el agua) que se cruza suavemente. Los IDs de música con licencia los pone
+  el equipo en `Config/Assets.Music`.
+- **⚙️ Ajustes:** música y efectos se pueden apagar, y se guardan en la partida.
+- **Técnico:** cada sonido tiene candidatos (`.wav` / `.mp3` / ID propio). El cliente precarga y usa el primero que carga.
+
 ## 6. Pescadores Furtivos (el toque social)
 Para tener tensión social **sin** convertirlo en un clon de "steal":
 

@@ -699,7 +699,8 @@ local function renderMissions()
 			if r.ok then
 				HUD.Toast(("🎁 ¡Día %d de racha! +%s MemeCoins%s"):format(r.Streak, Util.formatShort(r.Coins),
 					if r.Boost then " y 💰 Dinero ×2 durante 5 min" else ""), "Success")
-				UIKit.playSound("Coins")
+				UIKit.playSound("Reward")
+				UIKit.confetti(40)
 			end
 		end)
 	end
@@ -736,7 +737,8 @@ local function renderMissions()
 				if r.ok then
 					HUD.Toast(("📜 +%s MemeCoins%s"):format(Util.formatShort(r.Reward),
 						if r.Bonus then " · ¡Las 3 hechas! 🍀 Suerte ×2 durante 5 min" else ""), "Success")
-					UIKit.playSound("Coins")
+					UIKit.playSound("Reward")
+					UIKit.confetti(if r.Bonus then 90 else 35)
 				end
 			end)
 		end
@@ -744,6 +746,37 @@ local function renderMissions()
 	UIKit.label({ Text = if allClaimed then "🏆 ¡Misiones de hoy completadas! Vuelve mañana" else "🍀 Completa las 3 y ganas Suerte ×2 durante 5 min",
 		Size = UDim2.new(1, 0, 0, 30), Position = UDim2.fromOffset(0, 160 + #daily.Missions * 84), Font = T.Font,
 		TextColor3 = if allClaimed then T.Success else T.TextDim, Parent = body }, { MaxSize = 18 })
+end
+
+-- ===== Ajustes =====
+local function renderSettings()
+	local p = panels.Settings
+	local data = State.Data
+	local body = p.Content:FindFirstChild("Body") :: Frame
+	clear(body)
+	p.Content.Count.Text = "Se guardan en tu partida"
+	if not data then
+		return
+	end
+	local options = {
+		{ Key = "Music", Text = "🎵 Música", Desc = "Música de fondo (cambia bajo el agua)" },
+		{ Key = "SFX", Text = "🔊 Efectos", Desc = "Sonidos del juego: lanzar, enganchar, monedas, fanfarrias…" },
+	}
+	for i, o in ipairs(options) do
+		local on = data.Settings[o.Key] ~= false
+		local row = UIKit.new("Frame", { Size = UDim2.new(1, 0, 0, 80), Position = UDim2.fromOffset(0, (i - 1) * 92), BackgroundColor3 = T.PanelLight,
+			Parent = body })
+		UIKit.corner(row, 12)
+		UIKit.label({ Text = o.Text, Size = UDim2.new(1, -190, 0, 34), Position = UDim2.fromOffset(14, 8), Font = T.FontTitle,
+			TextXAlignment = Enum.TextXAlignment.Left, Parent = row }, { Stroke = 2, MaxSize = 26 })
+		UIKit.label({ Text = o.Desc, Size = UDim2.new(1, -190, 0, 26), Position = UDim2.fromOffset(14, 44), Font = T.FontBody, TextColor3 = T.TextDim,
+			TextXAlignment = Enum.TextXAlignment.Left, Parent = row }, { Stroke = false, MaxSize = 15 })
+		local btn = UIKit.button({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -14, 0.5, 0), Size = UDim2.fromOffset(150, 52), Parent = row },
+			{ Color = if on then T.Success else T.Danger, Text = if on then "ENCENDIDO" else "APAGADO", TextSize = 20 })
+		btn.Activated:Connect(function()
+			call("SetAudio", nil, o.Key, not on)
+		end)
+	end
 end
 
 -- ===== Mercader ambulante =====
@@ -815,7 +848,12 @@ local function renderMerchant()
 				local r = call("BuyMerchant", nil, i)
 				if r.ok then
 					HUD.Toast(r.Text or "🧳 ¡Comprado!", "Success")
-					UIKit.playSound("Coins")
+					if offer.Kind == "Meme" then
+						local rarity = Memes.GetRarity(offer.MemeId)
+						UIKit.celebrate(rarity.Order, rarity.Color)
+					else
+						UIKit.playSound("Reward")
+					end
 				end
 			end)
 		end
@@ -891,6 +929,8 @@ function Panels.Signature(name: string): string
 		end
 		return table.concat(rods, ",") .. "|" .. data.EquippedRod .. "|" .. tostring(data.Items.SedalReforzado) .. "|" .. table.concat(affordable)
 			.. "|" .. table.concat(broken, ",") .. "|" .. tostring(data.AquariumTier) .. "|" .. tostring(data.FreeRound) .. "|" .. tostring(workspace:GetAttribute("FreeRound"))
+	elseif name == "Settings" then
+		return tostring(data.Settings.Music) .. tostring(data.Settings.SFX)
 	elseif name == "Merchant" then
 		local parts = { tostring(workspace:GetAttribute("MerchantVisit")), tostring(workspace:GetAttribute("MerchantOpen")),
 			tostring(data.MerchantVisit) }
@@ -923,7 +963,7 @@ function Panels.Signature(name: string): string
 end
 
 function Panels.Open(name: string)
-	if State.Busy and name ~= "Bestiary" and name ~= "Missions" then
+	if State.Busy and name ~= "Bestiary" and name ~= "Missions" and name ~= "Settings" then
 		HUD.Toast("🎣 Termina de pescar primero", "Warning")
 		return
 	end
@@ -996,6 +1036,7 @@ function Panels.Init()
 	end)
 	makePanel("Shop", "🛒 TIENDA", RGB(60, 200, 80), nil, renderShop, nil, Vector2.new(900, 560))
 	makePanel("Bestiary", "📖 ÍNDICE", RGB(40, 170, 255), Vector2.new(330, 140), renderBestiary)
+	makePanel("Settings", "⚙️ AJUSTES", RGB(120, 130, 150), nil, renderSettings, nil, Vector2.new(560, 300))
 	makePanel("Merchant", "🧳 MERCADER AMBULANTE", RGB(150, 80, 220), nil, renderMerchant, nil, Vector2.new(800, 470))
 	makePanel("Missions", "📜 MISIONES", RGB(255, 150, 40), nil, renderMissions, nil, Vector2.new(760, 560))
 

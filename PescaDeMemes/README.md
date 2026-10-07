@@ -44,6 +44,9 @@ rojo build default.project.json -o PescaDeMemes.rbxlx
 10. **Misiones (📜):** 3 misiones al día y un regalo diario con racha de 7 días.
 11. **Mercader (🧳):** cada hora amarra su barca junto al puente 10 min con un meme raro, un objeto al 50 % y un boost rebajado.
 
+> 🎵 **Música:** pon IDs de música con licencia (Creator Store, autor Roblox/APM) en `Config/Assets.lua` → `Assets.Music`.
+> Los efectos ya suenan con sonidos que vienen con Roblox. Música y efectos se apagan en ⚙️ Ajustes.
+
 > 🎓 **Tutorial:** los jugadores nuevos lo ven al entrar (6 pasos con flecha). En Studio sale en cada Play
 > mientras `GameConfig.DevMode.Tutorial = true`; ponlo en false para empezar con él hecho.
 

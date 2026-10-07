@@ -5,18 +5,20 @@
 
 ```text
 PROJECT:          Pesca de Memes (nombre provisional)
-STATUS:           Prototipo jugable
-CURRENT_PHASE:    FASE 2 — PROTOTIPO (P0)   ← ESTAMOS AQUÍ
-GAME_VERSION:     P0 0.9
+STATUS:           Vertical slice en producción
+CURRENT_PHASE:    FASE 3 — VERTICAL SLICE   ← ESTAMOS AQUÍ (la Fase 2 se cerró en la v0.9)
+GAME_VERSION:     VS 0.1
 CORE_LOOP_STATUS: Lanzar con click → INMERSIÓN (guiar el anzuelo) → enganchar / pelear → subir → mochila → parcela → dinero
-MAP_STATUS:       Río ancho (80 studs) y largo (360), 8 parcelas con muelle propio, estilo casillas con studs
+META_LOOP:        16 cañas con perks · 12 mochilas · niveles que abren capas · misiones diarias + racha · mercader cada hora
+MAP_STATUS:       Río ancho (80 studs) y largo (360), 8 parcelas con muelle propio, arco, Gran Tienda, barca del mercader
 SYSTEMS_STATUS:   PlayerData v5 · GearService · FishingService (inmersión) · PlotService · EconomyService · BoostService · MissionService · MerchantService · WorldBuilder
-UI_STATUS:        HUD con iconos 3D · escena submarina + medidor de profundidad · pelea · resultados · tienda nueva · índice
-DATA_STATUS:      Schema v5 con session lock y migraciones (v4 recalcula valores; v5 marca el tutorial como hecho a los jugadores antiguos)
-SECURITY_STATUS:  El servidor genera la inmersión y valida cada enganche por tiempo/profundidad, anzuelos y espacio
-QA_STATUS:        v0.4 probada en Studio por el equipo: SIN ERRORES · v0.5: luau-lsp + rojo build OK, pendiente de probar
+UI_STATUS:        HUD con iconos 3D · inmersión · pelea · resultados · tienda · índice · misiones · mercader · ⚙️ ajustes · tutorial
+AUDIO_STATUS:     VS 0.1: efectos con respaldo automático, combo de notas, fanfarrias por rareza, monedas que tintinean · música: faltan IDs
+DATA_STATUS:      Schema v5 con session lock y migraciones (v4 recalcula valores; v5 marca el tutorial como hecho a los antiguos)
+SECURITY_STATUS:  El servidor genera la inmersión y valida enganches, compras, misiones, mercader y ajustes
+QA_STATUS:        luau-lsp + rojo build OK en cada versión · v0.4 probada en Studio sin errores · v0.5–VS 0.1 pendientes de probar
 KNOWN_BUGS:       — (por descubrir en la prueba)
-NEXT_STEP:        Probar la v0.9 (16 cañas, misiones, mercader) · siguiente idea: sonidos o cebos y seguir metiendo ideas en el prototipo (la Fase 2 sigue abierta: aquí se prueba TODO)
+NEXT_STEP:        Fase 3 · tarea 2: pulido visual (partículas finales y cámara) → tarea 3: móvil
 ```
 
 ## Fases
@@ -25,14 +27,14 @@ NEXT_STEP:        Probar la v0.9 (16 cañas, misiones, mercader) · siguiente id
 |---|---|---|---|
 | 0 | Validación | Idea, nicho, referencias | ✅ Hecho (concepto A "Pesca de Memes") |
 | 1 | Preproducción | GDD, core loop, sistemas, arquitectura | ✅ Hecho (GDD v0.1 + mecánica peso/capacidad) |
-| 2 | **Prototipo (P0)** | Meter y probar TODAS las ideas para ver cómo queda el juego | 🟡 **En curso, abierta a propósito** (decisión del equipo: es la fase más importante) |
-| 3 | Vertical slice | Zona 1 con calidad casi final: arte, sonido, onboarding | ⬜ Siguiente |
+| 2 | Prototipo (P0) | Meter y probar TODAS las ideas para ver cómo queda el juego | ✅ **Cerrada en la v0.9** (decisión del equipo) |
+| 3 | **Vertical slice** | Zona 1 con calidad casi final: sonido, pulido, móvil, balance, playtest | 🟡 **En curso (VS 0.1)** |
 | 4 | Alpha | Todos los sistemas principales (zonas, eventos, misiones, trading…) | ⬜ |
 | 5 | Beta | Balance, móvil, multijugador, QA, rendimiento | ⬜ |
 | 6 | Release | Icono, thumbnail, descripción, monetización ética, analítica | ⬜ |
 | 7 | Live ops | Eventos, skins de muelle, zonas nuevas, temporadas | ⬜ |
 
-### FASE 2 — Prototipo: qué hay y qué falta
+### FASE 2 — Prototipo: qué se hizo (CERRADA en la v0.9)
 
 | Hecho | Versión |
 |---|---|
@@ -46,15 +48,7 @@ NEXT_STEP:        Probar la v0.9 (16 cañas, misiones, mercader) · siguiente id
 | **Freno** del anzuelo · **economía nueva** (peso y rareza, ×10 más dinero) · **gigantes y colosales** · **12 mochilas** con diseño propio · **objetos con huecos** (Linterna para capas oscuras, Imán, Red Dorada, Sedal) | **v0.7** |
 | Rarezas **Mítico → Legendario → Secreto → Dios** (eventos), **6 memes nuevos con efectos**, capas de profundidad, **Gran Tienda** física (boosts, Robux, regalo gratis aleatorio), fauna del río, árboles y flores, **cara del jugador** en su parcela, **modo prueba** con dinero infinito | **v0.5** |
 
-| Falta para cerrar la fase (P0) | Prioridad |
-|---|---|
-| ~~Probar en Studio la inmersión~~ ✅ (v0.4 sin errores) | P0 |
-| ~~Tutorial corto de 30–60 s jugando~~ ✅ (v0.8) | P0 |
-| Ajustar balance: velocidad de bajada, nº de memes, precios, kg | P0 |
-| Sonidos reales (Config/Assets) | P1 |
-| Configurar los IDs de los Game Passes (Config/Monetization) | P1 |
-
-**La fase se cierra cuando el equipo lo decida**, no antes: aquí entran todas las ideas para verlas funcionando.
+Lo que quedaba pendiente (balance, sonidos, IDs de pases) pasa a la Fase 3.
 
 ### El NIVEL (decidido: opciones 1 y 4)
 - **Desbloquea capas de profundidad:** Charca (Nv 1) · Arrecife Meme (Nv 5) · Abismo Brainrot (Nv 15) · Fosa Abisal (Nv 30).
@@ -63,11 +57,25 @@ NEXT_STEP:        Probar la v0.9 (16 cañas, misiones, mercader) · siguiente id
   un 25 % de un boost de 3 min. Si el nivel abre una capa, el cofre lo anuncia.
 - En modo prueba empiezas en el nivel 30 para probar todas las capas.
 
-### FASE 3 — Vertical slice (siguiente)
-- ~~Onboarding guiado~~ ✅ (tutorial v0.8) · ~~misiones diarias~~ ✅ (v0.9, adelantadas al prototipo).
-- Sonido y música, efectos de partículas finales.
-- 1–2 ideas de la lista de abajo (las que elijas) bien hechas.
-- Modelos de memes revisados en Blender (skill detailed-3d-modeling) si hace falta más detalle.
+### FASE 3 — Vertical slice (EN CURSO)
+**Objetivo:** la zona 1 (río, parcelas, tienda y las capas de profundidad) con calidad casi final. Que un jugador
+nuevo diga "esto parece un juego de verdad" y quiera seguir.
+
+| # | Tarea | Prioridad | Estado |
+|---|---|---|---|
+| 1 | **Audio y "dopamina"**: efectos, combo de notas, fanfarrias por rareza, confeti, monedas que tintinean, música por ambiente, ⚙️ Ajustes | P0 | ✅ VS 0.1 (faltan los IDs de música: los pone el equipo) |
+| 2 | **Pulido visual**: salpicadura y ondas al lanzar, estela y burbujas del anzuelo, cámara con temblor suave en capturas grandes, transiciones | P0 | ⬜ Siguiente |
+| 3 | **Móvil**: botones grandes, zonas seguras, freno táctil cómodo, textos legibles, prueba en teléfono | P0 | ⬜ |
+| 4 | **Balance con números**: MemeCoins/min por nivel, tiempo hasta cada caña y mochila, premios de misiones | P0 | ⬜ |
+| 5 | **Rendimiento**: piezas del mapa y de los memes, StreamingEnabled, FPS en móvil | P1 | ⬜ |
+| 6 | **Playtest** con 3–5 jugadores nuevos + lista de bugs y arreglos | P0 | ⬜ |
+| 7 | IDs reales de Game Passes y de música (equipo) | P1 | ⬜ |
+
+**Terminado cuando:** un jugador nuevo juega 15 min en PC **y** en móvil sin ayuda, con sonido, sin errores en la
+consola, entiende qué hacer después y quiere seguir; FPS ≥ 50 en un móvil medio.
+
+**Riesgos:** los sonidos clásicos de Roblox cambian de formato (por eso cada uno tiene respaldo) · que se cuelen ideas
+nuevas (van a la lista de la Fase 4, no aquí) · el móvil, que aún no se ha probado.
 
 ## Decisiones del equipo sobre las ideas (después de probar la v0.4)
 
@@ -119,6 +127,7 @@ y PlotService el multiplicador. Los bonus son pequeños para no romper el balanc
 - [ ] Máximo de jugadores del servidor = 8 (una parcela cada uno).
 
 ## Historial
+- **VS 0.1** — Se cierra la Fase 2. Fase 3 empieza por el audio: sonidos con respaldo, "dopamina" (combo de notas, fanfarrias, confeti, monedas), música por ambiente y ⚙️ Ajustes.
 - **v0.9** — 12 cañas nuevas (16 en total) con perks, misiones diarias y racha, mercader ambulante.
 - **v0.8** — Tutorial jugando: muelle → caña → lanzar → meme asegurado → parcela → cobrar. Datos v5.
 - **v0.7** — Freno del anzuelo, economía por peso y rareza (migración v4), gigantes/colosales, 12 mochilas, objetos con huecos (Linterna, Imán, Red Dorada) y debate de comprar memes.

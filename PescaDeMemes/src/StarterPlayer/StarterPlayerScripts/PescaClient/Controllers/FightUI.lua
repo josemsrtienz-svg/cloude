@@ -212,7 +212,9 @@ function FightUI.Run(info: any, onTug: (boolean) -> any): (boolean, string, any?
 	holding = false
 	local r = result :: any
 	if not r.won then
-		UIKit.playSound("Snap")
+		if r.reason ~= "error" then -- cancelado/sin conexión: sin chasquido
+			UIKit.playSound(if r.reason == "escape" then "Fail" else "Snap") -- se escapa: "uuhhh" · se rompe: chasquido
+		end
 		UIKit.shake(fight)
 	end
 	task.delay(0.3, function()

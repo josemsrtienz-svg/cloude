@@ -244,6 +244,16 @@ local function onSetFilters(player: Player, data: any, catchSkip: any, autoSell:
 	return { ok = true }
 end
 
+-- Ajustes de sonido (solo dos interruptores conocidos).
+local function onSetAudio(player: Player, data: any, key: any, on: any): any
+	if (key ~= "Music" and key ~= "SFX") or type(on) ~= "boolean" then
+		return fail("Ajuste inválido")
+	end
+	data.Settings[key] = on
+	PlayerData.Push(player)
+	return { ok = true }
+end
+
 -- Tutorial terminado (o saltado). Premio una sola vez y solo si de verdad pescó y cobró algo.
 local function onFinishTutorial(player: Player, data: any, skipped: any): any
 	if data.TutorialDone then
@@ -261,6 +271,7 @@ end
 
 function EconomyService.Init()
 	Remotes.Get("FinishTutorial").OnServerInvoke = handler(onFinishTutorial)
+	Remotes.Get("SetAudio").OnServerInvoke = handler(onSetAudio)
 	Remotes.Get("SetFilters").OnServerInvoke = handler(onSetFilters)
 	Remotes.Get("EquipItem").OnServerInvoke = handler(onEquipItem)
 	Remotes.Get("SellCatch").OnServerInvoke = handler(onSellCatch)

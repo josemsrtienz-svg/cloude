@@ -43,6 +43,7 @@ Remotes.Definitions = {
 	ClaimMission = "RemoteFunction", -- (index) recoger el premio de una misión diaria completada
 	ClaimDailyGift = "RemoteFunction", -- recoger el regalo diario (racha)
 	BuyMerchant = "RemoteFunction", -- (index) comprar una oferta del mercader ambulante (junto a su barca)
+	SetAudio = "RemoteFunction", -- ("Music" | "SFX", on) ajustes de sonido (se guardan)
 	FinishTutorial = "RemoteFunction", -- (skipped) terminar o saltar el tutorial; premio solo si lo hizo
 }
 

@@ -10,7 +10,7 @@
 local GameConfig = {}
 
 GameConfig.GameName = "PESCA DE MEMES"
-GameConfig.Version = "P0 0.9"
+GameConfig.Version = "VS 0.1"
 
 -- ===== Moneda =====
 GameConfig.CurrencyName = "MemeCoin"
@@ -210,7 +210,7 @@ GameConfig.StartingData = {
 	EquippedItems = {}, -- ids de objetos equipados (en orden; solo cuentan los que caben en tus huecos)
 	Boosts = {}, -- [boostId] = os.time() en que caduca (Config/Boosts)
 	-- filtros (rarezas): CatchSkip = el anzuelo las ignora · AutoSell = se venden solas al subir
-	Settings = { CatchSkip = {}, AutoSell = {} },
+	Settings = { CatchSkip = {}, AutoSell = {}, Music = true, SFX = true }, -- Music/SFX: ⚙️ Ajustes
 	FreeRound = 0, -- última ronda del tablón de la Gran Tienda cuyo boost gratis ya recogió
 	-- [memeId] = { Count, Heaviest }
 	Discovered = {},

@@ -56,14 +56,14 @@ function HUD.Toast(text: string, kind: string?)
 		return
 	end
 	local color = TOAST_COLORS[kind or "Info"] or T.Accent
+	if kind == "Error" then
+		UIKit.playSound("Error")
+	end
 	local toast = UIKit.new("Frame", { Size = UDim2.fromOffset(460, 46), BackgroundColor3 = T.PanelDark, Parent = toastHolder })
 	UIKit.corner(toast, 12)
 	UIKit.stroke(toast, 3, color)
 	UIKit.label({ Text = text, Size = UDim2.new(1, -20, 1, -10), Position = UDim2.fromOffset(10, 5), Font = T.Font, Parent = toast }, { MaxSize = 22 })
 	UIKit.pop(toast, 0.6)
-	if kind == "Error" then
-		UIKit.playSound("Click")
-	end
 	task.delay(3.2, function()
 		if toast.Parent then
 			UIKit.tween(toast, 0.25, { BackgroundTransparency = 1 })
@@ -109,6 +109,18 @@ local function animateCoins(target: number)
 	if target > from then
 		UIKit.pop(coinsLabel, 1.15)
 	end
+	-- tintineo de monedas que sube de tono mientras cuenta (solo al GANAR, no al gastar)
+	if target > from then
+		task.spawn(function()
+			for k = 1, 8 do
+				if myTween ~= coinTween then
+					break
+				end
+				UIKit.playSound("Tick", 1 + k * 0.07)
+				task.wait(0.055)
+			end
+		end)
+	end
 	task.spawn(function()
 		local t0 = os.clock()
 		while myTween == coinTween do
@@ -143,6 +155,9 @@ end
 
 -- Cofre al subir de nivel: el cofre se abre, salen las monedas y se listan los premios.
 function HUD.ShowLevelUp(info: any)
+	UIKit.playSound("LevelUp")
+	UIKit.flash(T.Coin, 0.35)
+	UIKit.confetti(90)
 	local card = UIKit.new("Frame", { Name = "LevelUp", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, -0.4),
 		Size = UDim2.fromOffset(420, 420), BackgroundColor3 = T.Panel, ZIndex = 30, Parent = gui })
 	UIKit.corner(card, 22)
@@ -271,7 +286,7 @@ function HUD.Init()
 
 	-- ===== Derecha: botones cuadrados =====
 	local right = UIKit.new("Frame", { Name = "RightButtons", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.4, 0),
-		Size = UDim2.fromOffset(84, 190), BackgroundTransparency = 1, Parent = gui })
+		Size = UDim2.fromOffset(84, 282), BackgroundTransparency = 1, Parent = gui })
 	UIKit.responsive(right)
 	UIKit.list(right, Enum.FillDirection.Vertical, 12)
 	local rightButtons = {
@@ -291,6 +306,15 @@ function HUD.Init()
 			HUD.ButtonPressed:Fire(b[1])
 		end)
 	end
+	-- ⚙️ Ajustes (música y efectos)
+	local settingsBtn = UIKit.button({ Name = "Settings", LayoutOrder = #rightButtons + 1, Size = UDim2.fromOffset(80, 80), Parent = right },
+		{ Color = RGB(120, 130, 150), Radius = 10, StrokeThickness = 4 })
+	UIKit.label({ Text = "⚙️", Size = UDim2.fromScale(0.9, 0.7), Position = UDim2.fromScale(0.05, 0.02), Parent = settingsBtn }, { MaxSize = 44 })
+	UIKit.label({ Text = "Ajustes", AnchorPoint = Vector2.new(0.5, 1), Size = UDim2.new(1, 0, 0, 20), Position = UDim2.new(0.5, 0, 1, -2),
+		Font = T.FontTitle, Parent = settingsBtn }, { Stroke = 2, MaxSize = 16 })
+	settingsBtn.Activated:Connect(function()
+		HUD.ButtonPressed:Fire("Settings")
+	end)
 
 	-- boosts activos (con cuenta atrás) y aviso del boost gratis, arriba a la izquierda
 	local boostRow = UIKit.new("Frame", { Name = "Boosts", Position = UDim2.fromOffset(14, 12), Size = UDim2.fromOffset(520, 40),

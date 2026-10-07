@@ -210,6 +210,8 @@ local function finish(skipped: boolean)
 		HUD.Toast("Tutorial saltado. ¡Suerte pescando!", "Info")
 	elseif result.ok then
 		local reward = tonumber(result.Reward) or 0
+		UIKit.playSound("Fanfare")
+		UIKit.confetti(80)
 		HUD.Toast(("🎉 ¡Tutorial completado!%s Pesca más memes y mejora tu caña en la tienda"):format(
 			if reward > 0 then (" +%s 🪙."):format(Util.formatShort(reward)) else ""), "Success")
 	end

@@ -329,6 +329,7 @@ local function runDive(spec: any, myRun: number, castTime: number): DiveResult
 	local skip = data and data.Settings and data.Settings.CatchSkip or {}
 	DiveScene.Build(spec, skip)
 	DiveScene.Enter()
+	UIKit.playSound("Dive")
 	wipeTo(1, 0.35)
 	setDiveHudVisible(true)
 	depthMax.Text = spec.MaxDepth .. " m"
@@ -394,6 +395,7 @@ local function runDive(spec: any, myRun: number, castTime: number): DiveResult
 				grabbed = r.Count or grabbed + 1
 				updateCounter(grabbed, spec.Hooks)
 				UIKit.playSound("Catch")
+				UIKit.combo(grabbed)
 				HUD.Toast(("🥅 ¡Atrapado con la red! (te quedan %d)"):format(r.NetsLeft or 0), "Success")
 			else
 				HUD.Toast(r.err or "La red falló", "Warning")
@@ -429,6 +431,7 @@ local function runDive(spec: any, myRun: number, castTime: number): DiveResult
 				grabbed = r.Count or grabbed + 1
 				updateCounter(grabbed, spec.Hooks)
 				UIKit.playSound("Catch")
+				UIKit.combo(grabbed)
 				HUD.Toast("💪 ¡Lo has sacado! Sigue bajando", "Success")
 			else
 				HUD.Toast(r.err or "Se escapó", "Warning")
@@ -459,6 +462,7 @@ local function runDive(spec: any, myRun: number, castTime: number): DiveResult
 				grabbed = r.Count or grabbed + 1
 				updateCounter(grabbed, spec.Hooks)
 				UIKit.playSound("Bite")
+				UIKit.combo(grabbed) -- cada meme del mismo lanzamiento suena más agudo
 			elseif r.ok and r.Fight then
 				busy = true
 				handleFight(index, r)
@@ -625,6 +629,7 @@ local function cast(power: number)
 	end
 	hint.Visible = false
 	castSwing()
+	UIKit.playSound("Cast")
 	local splashAt = throwBobber()
 	if myRun ~= runId then
 		return

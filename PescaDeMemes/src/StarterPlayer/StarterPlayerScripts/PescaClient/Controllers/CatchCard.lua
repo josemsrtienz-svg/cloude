@@ -151,7 +151,16 @@ function CatchCard.ShowResults(summary: any)
 	ok.Activated:Connect(close)
 
 	UIKit.tween(card, 0.45, { Position = UDim2.fromScale(0.5, 0.5) }, Enum.EasingStyle.Back)
-	UIKit.playSound("Catch")
+	-- celebración según lo MEJOR del lanzamiento (rareza, dorado, meme nuevo)
+	local best, bestColor, golden = 1, nil, false
+	for _, c in ipairs(catches) do
+		local rarity = Memes.GetRarity(c.MemeId)
+		if rarity.Order > best then
+			best, bestColor = rarity.Order, rarity.Color
+		end
+		golden = golden or c.Golden == true
+	end
+	UIKit.celebrate(best, bestColor, golden, #(summary.NewIds or {}) > 0)
 
 end
 

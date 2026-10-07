@@ -217,7 +217,8 @@ local function sanitize(data: any): any
 
 	-- filtros: solo rarezas que existen, guardadas como [rarityId] = true
 	local settings = if type(data.Settings) == "table" then data.Settings else {}
-	data.Settings = { CatchSkip = Memes.CleanRaritySet(settings.CatchSkip), AutoSell = Memes.CleanRaritySet(settings.AutoSell) }
+	data.Settings = { CatchSkip = Memes.CleanRaritySet(settings.CatchSkip), AutoSell = Memes.CleanRaritySet(settings.AutoSell),
+		Music = settings.Music ~= false, SFX = settings.SFX ~= false }
 	-- mercader: solo contadores numéricos por oferta
 	local bought = {}
 	for k, v in pairs(type(data.MerchantBought) == "table" and data.MerchantBought or {}) do
