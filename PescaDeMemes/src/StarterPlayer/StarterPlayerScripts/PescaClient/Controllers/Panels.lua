@@ -240,7 +240,10 @@ local function renderPlot()
 			local empty = UIKit.new("Frame", { LayoutOrder = slot, BackgroundColor3 = T.PanelDark, Parent = grid })
 			UIKit.corner(empty, 12)
 			UIKit.stroke(empty, 3, T.PanelLight)
-			UIKit.label({ Text = ("Hueco %d\nlibre"):format(slot), Size = UDim2.fromScale(1, 1), Font = T.Font, TextColor3 = T.TextDim, Parent = empty }, { MaxSize = 20 })
+			local locked = slot > GameConfig.UnlockedPlotSlots(data.Rebirths)
+			local need = math.ceil((slot - GameConfig.PlotBaseSlots) / GameConfig.Rebirth.SlotsPerRebirth)
+			UIKit.label({ Text = if locked then ("🔒 Hueco %d\nRenacer %d"):format(slot, need) else ("Hueco %d\nlibre"):format(slot),
+				Size = UDim2.fromScale(1, 1), Font = T.Font, TextColor3 = if locked then T.Coin else T.TextDim, Parent = empty }, { MaxSize = 20 })
 		end
 	end
 	local bank = Players.LocalPlayer:GetAttribute("PlotBank")
@@ -756,6 +759,76 @@ local function renderMissions()
 		TextColor3 = if allClaimed then T.Success else T.TextDim, Parent = body }, { MaxSize = 18 })
 end
 
+-- ===== ♻️ Renacer =====
+local rebirthArmedUntil = 0 -- doble confirmación: el primer click "arma" el botón 4 s
+local function renderRebirth()
+	local p = panels.Rebirth
+	local data = State.Data
+	local body = p.Content:FindFirstChild("Body") :: Frame
+	clear(body)
+	if not data then
+		return
+	end
+	local r = data.Rebirths
+	local cost = GameConfig.RebirthCost(r)
+	local required = Rods.Get(GameConfig.Rebirth.RequiredRod)
+	local hasRod = required == nil or data.Rods[required.Id] == true
+	p.Content.Count.Text = ("Has renacido %d ve%s · tu dinero ×%s"):format(r, if r == 1 then "z" else "ces",
+		tostring(GameConfig.RebirthMoney(r)))
+	local function column(x: number, title: string, color: Color3, lines: { string })
+		local box = UIKit.new("Frame", { Position = UDim2.new(x, if x > 0 then 6 else 0, 0, 0), Size = UDim2.new(1 / 3, -8, 0, 250),
+			BackgroundColor3 = T.PanelLight, Parent = body })
+		UIKit.corner(box, 14)
+		UIKit.stroke(box, 3, color)
+		UIKit.label({ Text = title, Size = UDim2.new(1, -16, 0, 34), Position = UDim2.fromOffset(8, 6), Font = T.FontTitle, TextColor3 = color,
+			Parent = box }, { Stroke = 2, MaxSize = 22 })
+		UIKit.label({ Text = table.concat(lines, "\n"), Size = UDim2.new(1, -16, 1, -48), Position = UDim2.fromOffset(8, 44), Font = T.FontBody,
+			TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Parent = box }, { Stroke = false, MaxSize = 16 })
+	end
+	local nextSlots = GameConfig.UnlockedPlotSlots(r + 1) - GameConfig.UnlockedPlotSlots(r)
+	local nextItem = GameConfig.RebirthItemSlots(r + 1) - GameConfig.RebirthItemSlots(r)
+	column(0, "❌ PIERDES", T.Danger, { "• Todas tus MemeCoins", "• Todas tus cañas", "  (vuelves a la Caña de Palo)" })
+	column(1 / 3, "✅ TE QUEDAS", T.Success, { "• Tus memes (mochila y parcela)", "• Tu nivel y capas", "• Tu mochila-acuario",
+		"• Tus objetos y cebos", "• El índice y las misiones" })
+	local gains = { ("• Dinero ×%s → ×%s para siempre"):format(tostring(GameConfig.RebirthMoney(r)), tostring(GameConfig.RebirthMoney(r + 1))) }
+	if nextSlots > 0 then
+		table.insert(gains, ("• +%d huecos en la TERRAZA de tu parcela"):format(nextSlots))
+	end
+	if nextItem > 0 then
+		table.insert(gains, "• +1 hueco de objeto")
+	end
+	table.insert(gains, ("• ♻️%d en tu cartel"):format(r + 1))
+	column(2 / 3, "🎁 GANAS", T.Coin, gains)
+	local can = hasRod and data.MemeCoin >= cost
+	local armed = os.clock() < rebirthArmedUntil
+	local text = if not hasRod then ("🔒 Necesitas la %s"):format(required and required.Name or "?")
+		elseif data.MemeCoin < cost then ("♻️ Renacer · 🪙 %s"):format(Util.formatShort(cost))
+		elseif armed then "⚠️ ¿SEGURO? Pulsa otra vez"
+		else ("♻️ RENACER · 🪙 %s"):format(Util.formatShort(cost))
+	local btn = UIKit.button({ AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -6), Size = UDim2.fromOffset(420, 60), Parent = body },
+		{ Color = if not can then T.PanelDark elseif armed then T.Danger else T.Success, Text = text, TextSize = 24 })
+	if can then
+		btn.Activated:Connect(function()
+			if os.clock() < rebirthArmedUntil then
+				rebirthArmedUntil = 0
+				local res = call("Rebirth", nil)
+				if res.ok then
+					UIKit.celebrate(7, T.Coin)
+					HUD.Toast(("♻️ ¡Has renacido! Renacer %d · dinero ×%s"):format(res.Rebirths, tostring(GameConfig.RebirthMoney(res.Rebirths))), "Success")
+				end
+			else
+				rebirthArmedUntil = os.clock() + 4
+				renderRebirth()
+				task.delay(4.1, function()
+					if openName == "Rebirth" then
+						renderRebirth()
+					end
+				end)
+			end
+		end)
+	end
+end
+
 -- ===== Ajustes =====
 local function renderSettings()
 	local p = panels.Settings
@@ -904,7 +977,7 @@ function Panels.Signature(name: string): string
 	if name == "Aquarium" then
 		return catches .. "|" .. plot .. "|" .. tostring(data.AquariumTier)
 	elseif name == "Plot" then
-		return plot .. "|" .. tostring(Players.LocalPlayer:GetAttribute("PlotBank"))
+		return plot .. "|" .. tostring(Players.LocalPlayer:GetAttribute("PlotBank")) .. "|" .. tostring(data.Rebirths)
 	elseif name == "Shop" then
 		local rods = {}
 		for id in pairs(data.Rods) do
@@ -938,6 +1011,9 @@ function Panels.Signature(name: string): string
 		end
 		return table.concat(rods, ",") .. "|" .. data.EquippedRod .. "|" .. tostring(data.Items.SedalReforzado) .. "|" .. table.concat(affordable)
 			.. "|" .. table.concat(broken, ",") .. "|" .. tostring(data.AquariumTier) .. "|" .. tostring(data.FreeRound) .. "|" .. tostring(workspace:GetAttribute("FreeRound"))
+	elseif name == "Rebirth" then
+		local cost = GameConfig.RebirthCost(data.Rebirths)
+		return ("%d|%s|%s"):format(data.Rebirths, tostring(data.MemeCoin >= cost), tostring(data.Rods[GameConfig.Rebirth.RequiredRod]))
 	elseif name == "Settings" then
 		return tostring(data.Settings.Music) .. tostring(data.Settings.SFX) .. tostring(data.Settings.Shake)
 	elseif name == "Merchant" then
@@ -1042,7 +1118,13 @@ function Panels.Init()
 				Panels.Close()
 			end
 		end)
+		local rebirth = UIKit.button({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -200, 0, -2), Size = UDim2.fromOffset(160, 36),
+			Parent = content }, { Color = T.Coin, Text = "♻️ Renacer", TextSize = 18 })
+		rebirth.Activated:Connect(function()
+			Panels.Open("Rebirth")
+		end)
 	end)
+	makePanel("Rebirth", "♻️ RENACER", T.Coin, nil, renderRebirth, nil, Vector2.new(820, 420))
 	makePanel("Shop", "🛒 TIENDA", RGB(60, 200, 80), nil, renderShop, nil, Vector2.new(900, 560))
 	makePanel("Bestiary", "📖 ÍNDICE", RGB(40, 170, 255), Vector2.new(330, 140), renderBestiary)
 	makePanel("Settings", "⚙️ AJUSTES", RGB(120, 130, 150), nil, renderSettings, nil, Vector2.new(560, 392))

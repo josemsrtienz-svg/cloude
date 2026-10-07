@@ -45,6 +45,7 @@ rojo build default.project.json -o PescaDeMemes.rbxlx
 11. **Mercader (🧳):** cada hora amarra su barca junto al puente 10 min con un meme raro, un objeto al 50 % y un boost rebajado.
 12. **Clima (arriba a la izquierda):** con 🌧️ lluvia, ⛈️ tormenta o 🌕 luna llena los memes pueden salir 💧×2, ⚡×5 o 🌙×10. Los **cebos** (pestaña Objetos) ayudan.
 13. **Jefe del río (🐋):** cada 30 min emerge la Ballena Sigma. Ve al río con la caña y pulsa **🎣 ¡TIRA!** (R) con todo el servidor: premio para todos y sorteo de un meme **DIOS**.
+14. **♻️ Renacer** (botón en 🏠 Parcela): con la Abisal y 2M MemeCoins, reinicias dinero y cañas a cambio de **dinero ×1,5**, la **terraza** de tu parcela (+2 huecos) y huecos de objeto.
 
 > 🎵 **Música:** pon IDs de música con licencia (Creator Store, autor Roblox/APM) en `Config/Assets.lua` → `Assets.Music`.
 > Los efectos ya suenan con sonidos que vienen con Roblox. Música y efectos se apagan en ⚙️ Ajustes.

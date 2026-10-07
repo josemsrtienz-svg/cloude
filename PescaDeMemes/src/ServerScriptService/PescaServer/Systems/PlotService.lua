@@ -211,8 +211,15 @@ function PlotService.Refresh(player: Player)
 		if spot then
 			-- el cliente solo muestra "Recoger" en los huecos ocupados de SU parcela
 			spot:SetAttribute("Occupied", catch ~= nil and catch ~= false)
+			-- terraza: el candado desaparece cuando el dueño ha renacido lo suficiente
+			local lock = spot:FindFirstChild("LockSign") :: BillboardGui?
+			if lock then
+				lock.Enabled = slot > GameConfig.UnlockedPlotSlots(data.Rebirths)
+			end
 		end
 	end
+	-- cartel: nombre del dueño y sus renaceres
+	setSign(index, player.DisplayName .. (if data.Rebirths > 0 then ("  ♻️%d"):format(data.Rebirths) else ""), player.UserId)
 end
 
 local function clearDisplays(index: number)
@@ -225,6 +232,10 @@ local function clearDisplays(index: number)
 	if spots then
 		for _, spot in ipairs(spots:GetChildren()) do
 			spot:SetAttribute("Occupied", false)
+			local lock = spot:FindFirstChild("LockSign") :: BillboardGui?
+			if lock then
+				lock.Enabled = true
+			end
 		end
 	end
 end
@@ -242,8 +253,15 @@ local function deposit(player: Player)
 		return
 	end
 	local placed = 0
+	local unlocked = GameConfig.UnlockedPlotSlots(data.Rebirths)
 	for _, catch in ipairs(aquarium) do
-		local slot = table.find(data.Plot, "")
+		local slot = nil
+		for s = 1, unlocked do
+			if data.Plot[s] == "" then
+				slot = s
+				break
+			end
+		end
 		if not slot then
 			break
 		end
@@ -268,7 +286,23 @@ local function insidePlot(player: Player, index: number): boolean
 	end
 	local localPos = GameConfig.PlotCFrame(index):PointToObjectSpace(hrp.Position)
 	local half = GameConfig.Plots.Size / 2
-	return math.abs(localPos.X) <= half and math.abs(localPos.Z) <= half and localPos.Y < 20
+	-- incluye la TERRAZA del renacer (detrás, hasta half + Annex): ir y volver de ella no es "entrar" otra vez
+	return math.abs(localPos.X) <= half and localPos.Z >= -half and localPos.Z <= half + GameConfig.Plots.Annex and localPos.Y < 20
+end
+
+-- ♻️ Renacer: el dinero sin cobrar también se pierde.
+function PlotService.ClearBank(player: Player)
+	local data = PlayerData.Get(player)
+	if not data then
+		return
+	end
+	data.PlotBank = 0
+	bankRemainder[player] = nil
+	player:SetAttribute("PlotBank", 0)
+	local index = plotOf[player]
+	if index then
+		setBankLabel(index, 0)
+	end
 end
 
 local function onPickup(player: Player, index: number, slot: number)
@@ -380,7 +414,9 @@ local function grantOffline(player: Player, data: any)
 	local now = os.time()
 	if data.LastSeen > 0 then
 		local elapsed = math.clamp(now - data.LastSeen, 0, GameConfig.OfflineCapHours * 3600)
-		local earned = math.floor(Inventory.PlotIncomePerMinute(data, GameConfig.PlotIncomeRate) * GameConfig.OfflineIncomeMultiplier * elapsed / 60)
+		-- el ×dinero del renacer es "para siempre": también cuenta sin conexión (los boosts temporales no)
+		local earned = math.floor(Inventory.PlotIncomePerMinute(data, GameConfig.PlotIncomeRate) * GameConfig.OfflineIncomeMultiplier * elapsed / 60
+			* GameConfig.RebirthMoney(data.Rebirths))
 		if earned > 0 then
 			data.PlotBank += earned
 			PlayerData.Notify(player, ("🏠 Tu parcela ganó %s 🪙 mientras no estabas: ¡pisa el cobrador!"):format(Util.formatShort(earned)), "Success")

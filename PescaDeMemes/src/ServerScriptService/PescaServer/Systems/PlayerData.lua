@@ -117,6 +117,7 @@ local function sanitize(data: any): any
 	end
 	data.MemeCoin = math.max(0, math.floor(tonumber(data.MemeCoin) or 0))
 	data.Level = math.max(1, math.floor(tonumber(data.Level) or 1))
+	data.Rebirths = math.max(0, math.floor(tonumber(data.Rebirths) or 0))
 	data.XP = math.max(0, math.floor(tonumber(data.XP) or 0))
 	data.LastSeen = math.max(0, math.floor(tonumber(data.LastSeen) or 0))
 	for _, id in ipairs(Rods.ItemOrder) do

@@ -139,8 +139,8 @@ local function roundUp(v: number): number
 	return math.ceil(v / 10) * 10
 end
 local MAP = {
-	MaxX = roundUp(GameConfig.Plots.CenterX + GameConfig.Plots.Size / 2 + 14),
-	MinX = -roundUp(GameConfig.Plots.CenterX + GameConfig.Plots.Size / 2 + 14),
+	MaxX = roundUp(GameConfig.Plots.CenterX + GameConfig.Plots.Size / 2 + GameConfig.Plots.Annex + 14),
+	MinX = -roundUp(GameConfig.Plots.CenterX + GameConfig.Plots.Size / 2 + GameConfig.Plots.Annex + 14),
 	MinZ = -roundUp(-GameConfig.River.MinZ + 30),
 	MaxZ = roundUp(GameConfig.River.MaxZ + 60),
 	Tile = 10,
@@ -344,9 +344,10 @@ local function buildPlot(plots: Instance, index: number)
 	end
 	xFence(plot, c(-half + 0.5, -half + 0.5), c(-6, -half + 0.5))
 	xFence(plot, c(6, -half + 0.5), c(half - 0.5, -half + 0.5))
-	xFence(plot, c(half - 0.5, -half + 0.5), c(half - 0.5, half - 0.5))
-	xFence(plot, c(half - 0.5, half - 0.5), c(-half + 0.5, half - 0.5))
-	xFence(plot, c(-half + 0.5, half - 0.5), c(-half + 0.5, -half + 0.5))
+	local back = half + GameConfig.Plots.Annex -- la valla rodea también la TERRAZA del renacer
+	xFence(plot, c(half - 0.5, -half + 0.5), c(half - 0.5, back - 0.5))
+	xFence(plot, c(half - 0.5, back - 0.5), c(-half + 0.5, back - 0.5))
+	xFence(plot, c(-half + 0.5, back - 0.5), c(-half + 0.5, -half + 0.5))
 
 	-- huecos para los memes, directamente sobre el césped (nada de estantes)
 	local spots = folder(plot, "Spots")
@@ -360,6 +361,40 @@ local function buildPlot(plots: Instance, index: number)
 			new("ProximityPrompt", { Name = "PickupPrompt", ActionText = "Recoger", ObjectText = "Hueco " .. slot,
 				HoldDuration = 0.3, MaxActivationDistance = 9, RequiresLineOfSight = false, Parent = spot })
 		end
+	end
+
+	-- ===== TERRAZA DEL RENACER (detrás del cartel) =====
+	-- Tarima de madera elevada un escalón, con barandilla delantera de columnas y 4 huecos más. Cada hueco lleva un
+	-- candado "🔒 Renacer N" que PlotService apaga cuando el dueño ha renacido lo suficiente.
+	local annex = GameConfig.Plots.Annex
+	local az = half + annex / 2
+	for ix = 0, 5 do
+		studded(plot, "TerraceDeck", Vector3.new(half * 2 / 6, 0.9, annex), at(-half + half * 2 / 6 * (ix + 0.5), 0.45, az),
+			if ix % 2 == 0 then PALETTE.WoodLight else PALETTE.Wood)
+	end
+	studded(plot, "TerraceStep", Vector3.new(half * 2 - 2, 0.45, 1.4), at(0, 0.22, half + 0.7), accent)
+	-- barandilla en dos tramos con una entrada en el centro (si no, a la terraza solo se llega saltando)
+	local gate = 8
+	for _, side in ipairs({ -1, 1 }) do
+		for x = gate, half - 2, 6 do
+			post(plot, "TerracePost", 0.5, 2.2, at(side * x, 0.9, half + 1.6).Position, PALETTE.WoodDark)
+		end
+		local railLen = half - 1.5 - gate
+		part(plot, "TerraceRail", Vector3.new(railLen, 0.3, 0.3), at(side * (gate + railLen / 2), 3.0, half + 1.6), accent, Enum.Material.Wood)
+	end
+	for i, x in ipairs(SPOT_X) do
+		slot += 1
+		local spot = part(spots, "Spot" .. slot, Vector3.new(7, 0.1, 7), at(x, 0.95, az + 1), RGB(150, 110, 70), Enum.Material.SmoothPlastic,
+			{ Transparency = 0.5, CanCollide = false })
+		spot:SetAttribute("Occupied", false)
+		new("ProximityPrompt", { Name = "PickupPrompt", ActionText = "Recoger", ObjectText = "Hueco " .. slot,
+			HoldDuration = 0.3, MaxActivationDistance = 9, RequiresLineOfSight = false, Parent = spot })
+		local need = math.ceil(i / GameConfig.Rebirth.SlotsPerRebirth)
+		local lock = new("BillboardGui", { Name = "LockSign", Size = UDim2.fromScale(6, 2.4), StudsOffsetWorldSpace = Vector3.new(0, 3, 0),
+			MaxDistance = 90, LightInfluence = 0, Parent = spot })
+		local lockLabel = new("TextLabel", { Name = "Label", Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
+			Text = ("🔒 Renacer %d"):format(need), Font = Enum.Font.LuckiestGuy, TextScaled = true, TextColor3 = RGB(255, 210, 90), Parent = lock })
+		new("UIStroke", { Thickness = 3, Color = RGB(40, 25, 15), Parent = lockLabel })
 	end
 	folder(plot, "Displays")
 

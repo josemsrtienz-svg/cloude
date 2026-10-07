@@ -24,6 +24,7 @@ local Monetization = require(Root.Config.Monetization)
 local Rods = require(Root.Config.Rods)
 local Remotes = require(Root.Shared.Remotes)
 
+local GameConfig = require(Root.Config.GameConfig)
 local PlayerData = require(script.Parent.PlayerData)
 
 local BoostService = {}
@@ -63,7 +64,9 @@ end
 
 function BoostService.Money(player: Player): number
 	local boost = if active(player, "Money") then Boosts.List.Money.Multiplier else 1
-	return boost * passValue(player, "MoneyMultiplier", 1, mul)
+	local data = PlayerData.Get(player)
+	local rebirth = GameConfig.RebirthMoney(if data then data.Rebirths else 0) -- ♻️ para siempre
+	return boost * rebirth * passValue(player, "MoneyMultiplier", 1, mul)
 end
 
 function BoostService.Luck(player: Player): number
@@ -76,7 +79,9 @@ function BoostService.ExtraHooks(player: Player): number
 end
 
 function BoostService.ItemSlots(player: Player): number
-	return math.min(Rods.MaxItemSlots, Rods.BaseItemSlots + passValue(player, "ItemSlots", 0, add))
+	local data = PlayerData.Get(player)
+	local rebirth = GameConfig.RebirthItemSlots(if data then data.Rebirths else 0)
+	return math.min(Rods.MaxItemSlots, Rods.BaseItemSlots + passValue(player, "ItemSlots", 0, add) + rebirth)
 end
 
 -- ¿Lleva este objeto equipado (y cabe en sus huecos)?
@@ -214,6 +219,10 @@ function BoostService.Init()
 	for _, player in ipairs(Players:GetPlayers()) do
 		onPlayer(player)
 	end
+	-- los huecos de objeto del renacer dependen de los datos, que llegan después de PlayerAdded
+	PlayerData.Loaded:Connect(function(player)
+		player:SetAttribute("ItemSlots", BoostService.ItemSlots(player))
+	end)
 	Players.PlayerRemoving:Connect(function(player)
 		passes[player] = nil
 		lastAction[player] = nil

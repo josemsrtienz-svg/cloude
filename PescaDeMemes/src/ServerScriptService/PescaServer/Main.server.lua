@@ -22,7 +22,7 @@ if not ok then
 end
 
 -- 2) Sistemas (el orden importa: datos → equipo → pesca → parcelas → economía)
-local order = { "PlayerData", "BoostService", "MissionService", "WeatherService", "GearService", "BossService", "FishingService", "PlotService", "EconomyService", "MerchantService" }
+local order = { "PlayerData", "BoostService", "MissionService", "WeatherService", "GearService", "BossService", "FishingService", "PlotService", "EconomyService", "MerchantService", "RebirthService" }
 for _, name in ipairs(order) do
 	local okInit, errInit = pcall(function()
 		require(Systems[name]).Init()

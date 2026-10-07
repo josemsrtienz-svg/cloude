@@ -46,6 +46,7 @@ Remotes.Definitions = {
 	SetAudio = "RemoteFunction", -- ("Music" | "SFX" | "Shake", on) ajustes de sonido y temblor (se guardan)
 	BossPull = "RemoteEvent", -- cliente → servidor: un tirón al Jefe del río (el servidor valida cadencia, caña y sitio)
 	BossResult = "RemoteEvent", -- servidor → cliente: { Win, Coins, God? } al acabar el Jefe del río
+	Rebirth = "RemoteFunction", -- ♻️ renacer (el servidor comprueba coste y requisitos)
 	FinishTutorial = "RemoteFunction", -- (skipped) terminar o saltar el tutorial; premio solo si lo hizo
 }
 

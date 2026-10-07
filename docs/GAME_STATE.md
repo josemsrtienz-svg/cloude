@@ -7,18 +7,18 @@
 PROJECT:          Pesca de Memes (nombre provisional)
 STATUS:           Alpha en producción
 CURRENT_PHASE:    FASE 4 — ALPHA   ← ESTAMOS AQUÍ (Fase 3 cerrada en la VS 0.2; su playtest lo hace el equipo)
-GAME_VERSION:     A 0.2
+GAME_VERSION:     A 0.3
 CORE_LOOP_STATUS: Lanzar con click → INMERSIÓN (guiar el anzuelo) → enganchar / pelear → subir → mochila → parcela → dinero
 META_LOOP:        clima con mutaciones (💧×2 ⚡×5 🌙×10) · 4 cebos · 16 cañas con perks · 12 mochilas · niveles que abren capas · misiones diarias + racha · mercader cada hora
 MAP_STATUS:       Río ancho (80 studs) y largo (360), 8 parcelas con muelle propio, arco, Gran Tienda, barca del mercader
-SYSTEMS_STATUS:   PlayerData v5 · GearService · FishingService (inmersión) · PlotService · EconomyService · BoostService · MissionService · MerchantService · WeatherService · BossService · WorldBuilder
+SYSTEMS_STATUS:   PlayerData v5 · GearService · FishingService (inmersión) · PlotService · EconomyService · BoostService · MissionService · MerchantService · WeatherService · BossService · RebirthService · WorldBuilder
 UI_STATUS:        HUD con iconos 3D · inmersión · pelea · resultados · tienda · índice · misiones · mercader · ⚙️ ajustes · tutorial
 AUDIO_STATUS:     VS 0.1: efectos con respaldo automático, combo de notas, fanfarrias por rareza, monedas que tintinean · música: faltan IDs
 DATA_STATUS:      Schema v5 con session lock y migraciones (v4 recalcula valores; v5 marca el tutorial como hecho a los antiguos)
 SECURITY_STATUS:  El servidor genera la inmersión y valida enganches, compras, misiones, mercader y ajustes
 QA_STATUS:        luau-lsp + rojo build OK en cada versión · v0.4 probada en Studio sin errores · v0.5–VS 0.1 pendientes de probar
 KNOWN_BUGS:       — (por descubrir en la prueba)
-NEXT_STEP:        Fase 4 · tarea 4: RENACER (parcela más grande, huecos, multiplicador) · pendiente del equipo: playtest de la Fase 3
+NEXT_STEP:        Fase 4 · tarea 5: MASCOTAS brainrot propias · pendiente del equipo: playtest de la Fase 3
 ```
 
 ## Fases
@@ -86,8 +86,8 @@ de la Alpha ya no entran sistemas nuevos: solo contenido, balance y pulido (Beta
 | 1 | **Clima y mutaciones**: el clima cambia cada 8 min, igual en todos los servidores (☀️/🌧️/⛈️/🌕). Las mutaciones son 💧 Mojado ×2, ⚡ Eléctrico ×5 y 🌙 Lunar ×10, y se ven en el meme. Hay lluvia, rayos y noche | P1 | ✅ A 0.1 |
 | 2 | **Cebos**: 🌶️ Picante (+50 % raros), 🪙 Dorado (×3 dorados), ⚓ Pesado (×2,5 gigantes), 🌙 Lunar (×2 mutaciones). Ocupan huecos de objeto | P1 | ✅ A 0.1 |
 | 3 | **Jefe del río**: cada 30 min (min. 15) emerge la **Ballena Sigma** (DIOS) en el río; todo el servidor pulsa 🎣 ¡TIRA! durante 3 min; monedas para quien ayuda y sorteo del meme DIOS | P1 | ✅ A 0.2 |
-| 4 | **Renacer**: reinicia dinero y cañas a cambio de un multiplicador, una parcela más grande y huecos de objeto | P1 | ⬜ Siguiente |
-| 5 | **Mascotas**: brainrots propios (modelos originales) que acompañan y dan bonus | P1 | ⬜ |
+| 4 | **Renacer**: pierdes dinero y cañas; ganas dinero ×1,5 por renacer, la **terraza** de la parcela (+2 huecos por renacer, hasta 12) y huecos de objeto (renacer 1 y 3). Coste 2M ×4 cada vez, con la Abisal | P1 | ✅ A 0.3 |
+| 5 | **Mascotas**: brainrots propios (modelos originales) que acompañan y dan bonus | P1 | ⬜ Siguiente |
 | 6 | **Intercambio** seguro: doble confirmación, el servidor bloquea los objetos, sin duplicados | P1 | ⬜ |
 | 7 | **Más memes** por capa (2–3 nuevos en cada una) | P2 | ⬜ |
 | 8 | **Clasificación**: el meme más pesado y el dinero por minuto (base del torneo de la Fase 5) | P2 | ⬜ |
@@ -115,7 +115,7 @@ de seguridad, y una partida de 30 min los toca todos sin errores en la consola.
 | 🧪 Caldero de fusión | — | Sin decidir | — |
 | 📜 Misiones diarias + racha | ✅ **Hecho (v0.9)** | 3 misiones al día según tu nivel + regalo de racha (7 días) | 3 |
 | 🏆 Torneo semanal | ✅ Sí | | 5 |
-| ♻️ Renacer | ✅ Sí | Agranda la parcela y da 2–3 huecos de objetos | 5 |
+| ♻️ Renacer | ✅ **Hecho (A 0.3)** | Terraza de la parcela, dinero ×1,5 por renacer, huecos de objeto | 4 |
 
 ### Tienda
 | Idea | Decisión | Diseño |
@@ -153,6 +153,7 @@ y PlotService el multiplicador. Los bonus son pequeños para no romper el balanc
 - [ ] Máximo de jugadores del servidor = 8 (una parcela cada uno).
 
 ## Historial
+- **A 0.3** — Renacer: terraza nueva en todas las parcelas (4 huecos con candado), dinero ×1,5 por renacer, huecos de objeto, ♻️ en el cartel, panel con doble confirmación.
 - **A 0.2** — Jefe del río: la Ballena Sigma (primer meme DIOS, modelo nuevo) emerge cada 30 min; todo el servidor tira con 🎣 ¡TIRA!; premio repartido y sorteo del DIOS.
 - **A 0.1** — Empieza la Fase 4 (Alpha): clima global con lluvia, tormenta y luna llena; mutaciones 💧⚡🌙 en valor, modelos y UI; 4 cebos con modelo 3D.
 - **VS 0.2** — Pulido visual (ondas, burbujas, transiciones, temblor), móvil, balance con simulador (BALANCE.md) y rendimiento. Ajuste "Temblor de cámara".

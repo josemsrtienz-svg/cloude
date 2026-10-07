@@ -335,6 +335,26 @@ Inspirado en el principio de Steal a Egg ("tu base es tuya y se ve"), con aplica
   quedan como trofeo de verdad (no salen pescando).
 - **Prueba en Studio:** `DevMode.BossTest = true` hace que salga a los 20 s y cada 4 min.
 
+## 5m. Fase 4 · A 0.3 — ♻️ Renacer
+- **Requisitos:** tener la **Caña Abisal** y `2M × 4^R` MemeCoins (R = renaceres hechos).
+  - El 1.º cuesta 2M, el 2.º 8M y el 3.º 32M.
+- **Pierdes:** el dinero y las cañas (vuelves a la de Palo).
+- **Te quedas:** los memes, la parcela, el nivel, la mochila, los objetos, el índice y las misiones.
+- **Ganas (para siempre):**
+  - **dinero ×(1 + 0,5·R)** al vender y en la parcela;
+  - la **TERRAZA** de la parcela;
+  - **+1 hueco de objeto** en los renaceres 1 y 3;
+  - ♻️R en tu cartel.
+- **La terraza:**
+  - es una tarima de madera detrás del cartel, con 4 huecos con candado («🔒 Renacer N»);
+  - la parcela pasa de 8 a 10 huecos en el renacer 1 y a 12 en el 2;
+  - se construye en todas las parcelas; solo se abren los huecos que has desbloqueado.
+- **Seguridad:**
+  - el servidor valida todo y no deja renacer mientras pescas;
+  - en la interfaz hay **doble confirmación**: el primer click arma el botón durante 4 s.
+- **Por qué:** es el meta loop de largo plazo. Reiniciar las cañas vuelve a dar "dopamina de compra" con un
+  multiplicador que acelera el siguiente ciclo, y la terraza hace visible el progreso a todo el servidor.
+
 ## 6. Pescadores Furtivos (el toque social)
 Para tener tensión social **sin** convertirlo en un clon de "steal":
 

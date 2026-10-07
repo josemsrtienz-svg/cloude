@@ -10,7 +10,7 @@
 local GameConfig = {}
 
 GameConfig.GameName = "PESCA DE MEMES"
-GameConfig.Version = "A 0.2"
+GameConfig.Version = "A 0.3"
 
 -- ===== Moneda =====
 GameConfig.CurrencyName = "MemeCoin"
@@ -27,7 +27,43 @@ end
 GameConfig.RodToolName = "Caña"
 
 -- ===== Parcela y mochila-acuario =====
-GameConfig.PlotSlots = 8 -- huecos en el césped de la parcela
+GameConfig.PlotSlots = 12 -- huecos en total: 8 en el césped + 4 en la TERRAZA (se abren renaciendo)
+GameConfig.PlotBaseSlots = 8
+
+-- ===== RENACER (Fase 4 · Alpha) =====
+-- Pierdes el dinero y las cañas; te quedas tus memes, la parcela, el nivel, las mochilas y los objetos.
+-- Ganas, para siempre: ×(1 + MoneyPerRebirth·R) de dinero, la TERRAZA de la parcela (+2 huecos por renacer, hasta +4)
+-- y huecos de objeto extra en los renaceres de ItemSlotRebirths.
+GameConfig.Rebirth = {
+	BaseCost = 2000000, -- coste del primer renacer
+	CostGrowth = 4, -- cada renacer cuesta ×4 el anterior
+	RequiredRod = "Abisal", -- hay que tener esta caña (llegaste al fondo)
+	MoneyPerRebirth = 0.5,
+	SlotsPerRebirth = 2,
+	ItemSlotRebirths = { 1, 3 },
+}
+
+function GameConfig.RebirthCost(rebirths: number): number
+	return GameConfig.Rebirth.BaseCost * GameConfig.Rebirth.CostGrowth ^ rebirths
+end
+
+function GameConfig.UnlockedPlotSlots(rebirths: number): number
+	return math.min(GameConfig.PlotSlots, GameConfig.PlotBaseSlots + GameConfig.Rebirth.SlotsPerRebirth * rebirths)
+end
+
+function GameConfig.RebirthItemSlots(rebirths: number): number
+	local n = 0
+	for _, r in ipairs(GameConfig.Rebirth.ItemSlotRebirths) do
+		if rebirths >= r then
+			n += 1
+		end
+	end
+	return n
+end
+
+function GameConfig.RebirthMoney(rebirths: number): number
+	return 1 + GameConfig.Rebirth.MoneyPerRebirth * rebirths
+end
 GameConfig.PlotIncomeRate = 0.08 -- fracción del valor de cada meme expuesto, por minuto (un meme "paga" su valor en ~12 min)
 GameConfig.OfflineIncomeMultiplier = 0.5 -- la parcela rinde la mitad mientras no estás
 GameConfig.OfflineCapHours = 8
@@ -45,6 +81,7 @@ GameConfig.River = {
 GameConfig.Plots = {
 	Count = 8,
 	Size = 44,
+	Annex = 14, -- fondo de la TERRAZA del renacer, detrás del cartel (4 huecos más)
 	CenterX = 78, -- distancia del centro del río al centro de cada parcela
 	Z = { 120, 40, -40, -120 }, -- filas (las parcelas impares a la derecha, las pares a la izquierda)
 	DockEndX = 26, -- el pasillo del muelle privado llega hasta |x| = 26; luego la plataforma de pesca (7 studs)
@@ -223,6 +260,7 @@ GameConfig.StartingData = {
 	TutorialDone = false,
 	-- misiones diarias y racha (Config/Missions): Day = día de las misiones, LastGift = último día del regalo
 	Daily = { Day = 0, Missions = {}, Bonus = false, Streak = 0, LastGift = 0 },
+	Rebirths = 0, -- veces que ha renacido (♻️)
 	-- mercader ambulante (Config/Merchant): compras de la visita actual, por oferta ("1", "2", "3")
 	MerchantVisit = 0,
 	MerchantBought = {},
