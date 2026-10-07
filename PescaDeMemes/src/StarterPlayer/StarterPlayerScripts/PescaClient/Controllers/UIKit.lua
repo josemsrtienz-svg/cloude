@@ -190,10 +190,22 @@ end
 -- Cada contenedor de primer nivel lleva un UIScale que se ajusta al tamaño de pantalla.
 local scales: { UIScale } = {}
 UIKit.CurrentScale = 1
+-- Pantalla táctil sin teclado = móvil/tablet (ahí los botones no pueden ser diminutos).
+function UIKit.IsTouch(): boolean
+	local uis = game:GetService("UserInputService")
+	return uis.TouchEnabled and not uis.KeyboardEnabled
+end
+
 local function computeScale(): number
 	local cam = Workspace.CurrentCamera
 	local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
-	return math.clamp(math.min(vp.X / 1280, vp.Y / 720) * 1.05, 0.55, 1.3)
+	local minScale = if UIKit.IsTouch() then 0.62 else 0.55 -- en móvil, dedos: un poco más grande
+	return math.clamp(math.min(vp.X / 1280, vp.Y / 720) * 1.05, minScale, 1.3)
+end
+local scaleListeners: { () -> () } = {}
+-- Llama a `fn` cada vez que cambia la escala (p. ej. al girar el móvil o redimensionar la ventana).
+function UIKit.OnScaleChanged(fn: () -> ())
+	table.insert(scaleListeners, fn)
 end
 function UIKit.responsive(inst: GuiObject): UIScale
 	local s = UIKit.new("UIScale", { Name = "ResponsiveScale", Scale = UIKit.CurrentScale, Parent = inst })
@@ -206,6 +218,9 @@ local function refreshScales()
 		if s.Parent then
 			s.Scale = UIKit.CurrentScale
 		end
+	end
+	for _, fn in ipairs(scaleListeners) do
+		task.spawn(fn)
 	end
 end
 task.spawn(function()
@@ -345,10 +360,55 @@ function UIKit.flash(color: Color3, strength: number?)
 	tween:Play()
 end
 
+-- Temblor de cámara (se aplica DESPUÉS de cualquier cámara: la normal o la de la inmersión).
+-- La cámara normal de Roblox calcula el frame siguiente a partir de camera.CFrame, así que el temblor
+-- se DESHACE antes de que corra (si nadie ha movido la cámara entretanto); si no, el giro se acumularía
+-- y la cámara acabaría torcida.
+local shakeUntil, shakeStrength, shakeBound = 0, 0, false
+local shakeOffset: CFrame?, shakeApplied: CFrame? = nil, nil
+UIKit.ShakeEnabled = true -- ⚙️ Ajustes → Temblor de cámara
+local function undoShake()
+	local camera = Workspace.CurrentCamera
+	if shakeOffset and shakeApplied and camera and camera.CFrame:FuzzyEq(shakeApplied, 1e-4) then
+		camera.CFrame *= shakeOffset:Inverse()
+	end
+	shakeOffset, shakeApplied = nil, nil
+end
+function UIKit.shake3D(strength: number, duration: number)
+	if not UIKit.ShakeEnabled then
+		return
+	end
+	shakeStrength = math.max(if os.clock() < shakeUntil then shakeStrength else 0, strength)
+	shakeUntil = math.max(shakeUntil, os.clock() + duration)
+	if shakeBound then
+		return
+	end
+	shakeBound = true
+	RunService:BindToRenderStep("PescaShakeUndo", Enum.RenderPriority.First.Value, undoShake)
+	RunService:BindToRenderStep("PescaShake", Enum.RenderPriority.Last.Value, function()
+		local left = shakeUntil - os.clock()
+		local camera = Workspace.CurrentCamera
+		if left <= 0 or not camera then
+			-- terminado: se suelta el render step hasta el próximo temblor
+			undoShake()
+			RunService:UnbindFromRenderStep("PescaShake")
+			RunService:UnbindFromRenderStep("PescaShakeUndo")
+			shakeBound = false
+			return
+		end
+		local k = shakeStrength * math.min(1, left * 3) -- se apaga suave al final
+		local offset = CFrame.Angles(soundRng:NextNumber(-1, 1) * k * 0.02, soundRng:NextNumber(-1, 1) * k * 0.02, 0)
+			+ Vector3.new(soundRng:NextNumber(-1, 1), soundRng:NextNumber(-1, 1), 0) * k * 0.15
+		camera.CFrame *= offset
+		shakeOffset, shakeApplied = offset, camera.CFrame
+	end)
+end
+
 -- Celebración según lo bueno que sea (order = orden de rareza 1..8; golden/new añaden brillo):
 --   1–2 pop · 3 + chispa · 4 + fanfarria corta · 5–6 fanfarria + golpe + confeti + destello · 7+ todo a lo grande
 function UIKit.celebrate(order: number, color: Color3?, golden: boolean?, isNew: boolean?)
 	if order >= 7 then
+		UIKit.shake3D(1.6, 0.9)
 		UIKit.playSound("Boom")
 		UIKit.playSound("Fanfare")
 		UIKit.flash(color or T.Primary, 0.6)
@@ -358,6 +418,7 @@ function UIKit.celebrate(order: number, color: Color3?, golden: boolean?, isNew:
 			UIKit.confetti(60)
 		end)
 	elseif order >= 5 then
+		UIKit.shake3D(0.9, 0.5)
 		UIKit.playSound("Boom")
 		UIKit.playSound("Fanfare")
 		UIKit.flash(color or T.Primary, 0.4)

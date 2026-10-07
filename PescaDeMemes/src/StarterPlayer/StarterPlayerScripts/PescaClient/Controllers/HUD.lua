@@ -316,6 +316,27 @@ function HUD.Init()
 		HUD.ButtonPressed:Fire("Settings")
 	end)
 
+	-- MÓVIL: abajo a la izquierda está el joystick y abajo a la derecha el botón de saltar. Ahí las cifras
+	-- se suben arriba a la derecha y los botones de la derecha van justo debajo.
+	local function layout()
+		local s = UIKit.CurrentScale
+		if UIKit.IsTouch() then
+			-- el texto "🔒 … en Nv X" cuelga ~22 px por ENCIMA del marco de cifras: se deja sitio para que no se corte
+			local top = 6 + math.floor(24 * s)
+			stats.AnchorPoint = Vector2.new(1, 0)
+			stats.Position = UDim2.new(1, -12, 0, top)
+			right.AnchorPoint = Vector2.new(1, 0)
+			right.Position = UDim2.new(1, -10, 0, top + math.floor(176 * s))
+		else
+			stats.AnchorPoint = Vector2.new(0, 1)
+			stats.Position = UDim2.new(0, 14, 1, -16)
+			right.AnchorPoint = Vector2.new(1, 0.5)
+			right.Position = UDim2.new(1, -10, 0.4, 0)
+		end
+	end
+	layout()
+	UIKit.OnScaleChanged(layout)
+
 	-- boosts activos (con cuenta atrás) y aviso del boost gratis, arriba a la izquierda
 	local boostRow = UIKit.new("Frame", { Name = "Boosts", Position = UDim2.fromOffset(14, 12), Size = UDim2.fromOffset(520, 40),
 		BackgroundTransparency = 1, Parent = gui })

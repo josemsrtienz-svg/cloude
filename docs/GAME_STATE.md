@@ -7,7 +7,7 @@
 PROJECT:          Pesca de Memes (nombre provisional)
 STATUS:           Vertical slice en producción
 CURRENT_PHASE:    FASE 3 — VERTICAL SLICE   ← ESTAMOS AQUÍ (la Fase 2 se cerró en la v0.9)
-GAME_VERSION:     VS 0.1
+GAME_VERSION:     VS 0.2
 CORE_LOOP_STATUS: Lanzar con click → INMERSIÓN (guiar el anzuelo) → enganchar / pelear → subir → mochila → parcela → dinero
 META_LOOP:        16 cañas con perks · 12 mochilas · niveles que abren capas · misiones diarias + racha · mercader cada hora
 MAP_STATUS:       Río ancho (80 studs) y largo (360), 8 parcelas con muelle propio, arco, Gran Tienda, barca del mercader
@@ -18,7 +18,7 @@ DATA_STATUS:      Schema v5 con session lock y migraciones (v4 recalcula valores
 SECURITY_STATUS:  El servidor genera la inmersión y valida enganches, compras, misiones, mercader y ajustes
 QA_STATUS:        luau-lsp + rojo build OK en cada versión · v0.4 probada en Studio sin errores · v0.5–VS 0.1 pendientes de probar
 KNOWN_BUGS:       — (por descubrir en la prueba)
-NEXT_STEP:        Fase 3 · tarea 2: pulido visual (partículas finales y cámara) → tarea 3: móvil
+NEXT_STEP:        Fase 3 · tarea 6: PLAYTEST con 3–5 jugadores nuevos (PC + móvil) y arreglar lo que salga
 ```
 
 ## Fases
@@ -64,11 +64,11 @@ nuevo diga "esto parece un juego de verdad" y quiera seguir.
 | # | Tarea | Prioridad | Estado |
 |---|---|---|---|
 | 1 | **Audio y "dopamina"**: efectos, combo de notas, fanfarrias por rareza, confeti, monedas que tintinean, música por ambiente, ⚙️ Ajustes | P0 | ✅ VS 0.1 (faltan los IDs de música: los pone el equipo) |
-| 2 | **Pulido visual**: salpicadura y ondas al lanzar, estela y burbujas del anzuelo, cámara con temblor suave en capturas grandes, transiciones | P0 | ⬜ Siguiente |
-| 3 | **Móvil**: botones grandes, zonas seguras, freno táctil cómodo, textos legibles, prueba en teléfono | P0 | ⬜ |
-| 4 | **Balance con números**: MemeCoins/min por nivel, tiempo hasta cada caña y mochila, premios de misiones | P0 | ⬜ |
-| 5 | **Rendimiento**: piezas del mapa y de los memes, StreamingEnabled, FPS en móvil | P1 | ⬜ |
-| 6 | **Playtest** con 3–5 jugadores nuevos + lista de bugs y arreglos | P0 | ⬜ |
+| 2 | **Pulido visual**: doble onda y espuma al lanzar, burbujas del anzuelo y al enganchar, destello al entrar/salir del agua, temblor de cámara (capturas grandes, caña rota) | P0 | ✅ VS 0.2 |
+| 3 | **Móvil**: escala mínima mayor, cifras y botones arriba a la derecha (lejos del joystick y del salto), sin controles táctiles durante la inmersión, textos para dedo | P0 | ✅ VS 0.2 (falta probar en un teléfono real) |
+| 4 | **Balance con números**: simulador y nuevos precios, parcela 8 %/min, XP cuadrática → [`BALANCE.md`](BALANCE.md) | P0 | ✅ VS 0.2 |
+| 5 | **Rendimiento**: sin sombras en piezas pequeñas (mapa y memes), StreamingEnabled desactivado a propósito, contador de piezas en Studio | P1 | ✅ VS 0.2 (medir FPS en móvil en el playtest) |
+| 6 | **Playtest** con 3–5 jugadores nuevos + lista de bugs y arreglos | P0 | ⬜ **Siguiente** |
 | 7 | IDs reales de Game Passes y de música (equipo) | P1 | ⬜ |
 
 **Terminado cuando:** un jugador nuevo juega 15 min en PC **y** en móvil sin ayuda, con sonido, sin errores en la
@@ -123,10 +123,13 @@ y PlotService el multiplicador. Los bonus son pequeños para no romper el balanc
 ## Antes de publicar (Fase 6) — no olvidar
 - [ ] `GameConfig.DevMode.Enabled = false` (el dinero infinito solo funciona en Studio, pero se apaga igual).
   Con eso también se apagan `DevMode.Tutorial` y `DevMode.MerchantAlways` (mercader siempre presente).
+- [ ] **Sonidos y música propios** (decisión del equipo: los clásicos de Roblox no dan suficiente "dopamina"):
+  pegar los IDs en `Config/Assets.lua` (primer candidato de cada sonido + `Assets.Music`).
 - [ ] IDs reales de los Game Passes en `Config/Monetization` y precios iguales que en el Dashboard.
 - [ ] Máximo de jugadores del servidor = 8 (una parcela cada uno).
 
 ## Historial
+- **VS 0.2** — Pulido visual (ondas, burbujas, transiciones, temblor), móvil, balance con simulador (BALANCE.md) y rendimiento. Ajuste "Temblor de cámara".
 - **VS 0.1** — Se cierra la Fase 2. Fase 3 empieza por el audio: sonidos con respaldo, "dopamina" (combo de notas, fanfarrias, confeti, monedas), música por ambiente y ⚙️ Ajustes.
 - **v0.9** — 12 cañas nuevas (16 en total) con perks, misiones diarias y racha, mercader ambulante.
 - **v0.8** — Tutorial jugando: muelle → caña → lanzar → meme asegurado → parcela → cobrar. Datos v5.

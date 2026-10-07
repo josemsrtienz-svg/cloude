@@ -10,7 +10,7 @@
 local GameConfig = {}
 
 GameConfig.GameName = "PESCA DE MEMES"
-GameConfig.Version = "VS 0.1"
+GameConfig.Version = "VS 0.2"
 
 -- ===== Moneda =====
 GameConfig.CurrencyName = "MemeCoin"
@@ -18,7 +18,9 @@ GameConfig.CurrencyEmoji = "🪙"
 
 -- ===== Niveles =====
 function GameConfig.XPForLevel(level: number): number
-	return 60 + (level - 1) * 40
+	-- cuadrática suave: los primeros niveles vuelan y las capas hondas (nivel 15 y 30) cuestan de verdad
+	-- (ver docs/BALANCE.md y tools/balance_sim.py)
+	return 60 + (level - 1) * 40 + 4 * (level - 1) ^ 2
 end
 
 -- ===== Caña (herramienta del slot 1) =====
@@ -26,7 +28,7 @@ GameConfig.RodToolName = "Caña"
 
 -- ===== Parcela y mochila-acuario =====
 GameConfig.PlotSlots = 8 -- huecos en el césped de la parcela
-GameConfig.PlotIncomeRate = 0.25 -- fracción del valor de cada meme expuesto, por minuto (un Noob normal ≈ 7/min)
+GameConfig.PlotIncomeRate = 0.08 -- fracción del valor de cada meme expuesto, por minuto (un meme "paga" su valor en ~12 min)
 GameConfig.OfflineIncomeMultiplier = 0.5 -- la parcela rinde la mitad mientras no estás
 GameConfig.OfflineCapHours = 8
 GameConfig.DepositCheckInterval = 0.5 -- cada cuánto se mira si estás dentro de tu parcela
@@ -210,7 +212,7 @@ GameConfig.StartingData = {
 	EquippedItems = {}, -- ids de objetos equipados (en orden; solo cuentan los que caben en tus huecos)
 	Boosts = {}, -- [boostId] = os.time() en que caduca (Config/Boosts)
 	-- filtros (rarezas): CatchSkip = el anzuelo las ignora · AutoSell = se venden solas al subir
-	Settings = { CatchSkip = {}, AutoSell = {}, Music = true, SFX = true }, -- Music/SFX: ⚙️ Ajustes
+	Settings = { CatchSkip = {}, AutoSell = {}, Music = true, SFX = true, Shake = true }, -- ⚙️ Ajustes
 	FreeRound = 0, -- última ronda del tablón de la Gran Tienda cuyo boost gratis ya recogió
 	-- [memeId] = { Count, Heaviest }
 	Discovered = {},

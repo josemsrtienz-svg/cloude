@@ -761,6 +761,7 @@ local function renderSettings()
 	local options = {
 		{ Key = "Music", Text = "🎵 Música", Desc = "Música de fondo (cambia bajo el agua)" },
 		{ Key = "SFX", Text = "🔊 Efectos", Desc = "Sonidos del juego: lanzar, enganchar, monedas, fanfarrias…" },
+		{ Key = "Shake", Text = "📳 Temblor de cámara", Desc = "La pantalla tiembla con las capturas grandes y al romperse la caña" },
 	}
 	for i, o in ipairs(options) do
 		local on = data.Settings[o.Key] ~= false
@@ -930,7 +931,7 @@ function Panels.Signature(name: string): string
 		return table.concat(rods, ",") .. "|" .. data.EquippedRod .. "|" .. tostring(data.Items.SedalReforzado) .. "|" .. table.concat(affordable)
 			.. "|" .. table.concat(broken, ",") .. "|" .. tostring(data.AquariumTier) .. "|" .. tostring(data.FreeRound) .. "|" .. tostring(workspace:GetAttribute("FreeRound"))
 	elseif name == "Settings" then
-		return tostring(data.Settings.Music) .. tostring(data.Settings.SFX)
+		return tostring(data.Settings.Music) .. tostring(data.Settings.SFX) .. tostring(data.Settings.Shake)
 	elseif name == "Merchant" then
 		local parts = { tostring(workspace:GetAttribute("MerchantVisit")), tostring(workspace:GetAttribute("MerchantOpen")),
 			tostring(data.MerchantVisit) }
@@ -1036,7 +1037,7 @@ function Panels.Init()
 	end)
 	makePanel("Shop", "🛒 TIENDA", RGB(60, 200, 80), nil, renderShop, nil, Vector2.new(900, 560))
 	makePanel("Bestiary", "📖 ÍNDICE", RGB(40, 170, 255), Vector2.new(330, 140), renderBestiary)
-	makePanel("Settings", "⚙️ AJUSTES", RGB(120, 130, 150), nil, renderSettings, nil, Vector2.new(560, 300))
+	makePanel("Settings", "⚙️ AJUSTES", RGB(120, 130, 150), nil, renderSettings, nil, Vector2.new(560, 392))
 	makePanel("Merchant", "🧳 MERCADER AMBULANTE", RGB(150, 80, 220), nil, renderMerchant, nil, Vector2.new(800, 470))
 	makePanel("Missions", "📜 MISIONES", RGB(255, 150, 40), nil, renderMissions, nil, Vector2.new(760, 560))
 

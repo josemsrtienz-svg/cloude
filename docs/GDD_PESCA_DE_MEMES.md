@@ -223,26 +223,26 @@ Inspirado en el principio de Steal a Egg ("tu base es tuya y se ve"), con aplica
 - Modo prueba: `GameConfig.DevMode.Tutorial` (true = lo ves en cada Play de Studio).
 
 ## 5i. Cambios v0.9 — Cañas, misiones y mercader
-**16 cañas.** Cada una tiene su diseño 3D, sus partículas y, desde la Pirata, una ventaja (perk). Así una caña nueva cambia cómo juegas, no solo los números.
+**16 cañas** (precios de la VS 0.2, ver [`BALANCE.md`](BALANCE.md)). Cada una tiene su diseño 3D, sus partículas y, desde la Pirata, una ventaja (perk). Así una caña nueva cambia cómo juegas, no solo los números.
 
 | Caña | Precio | kg | Anzuelos | Metros | Ventaja |
 |---|---|---|---|---|---|
 | Palo | 0 | 12 | 1 | 50 | Irrompible |
 | Bambú | 400 | 25 | 1 | 80 | — |
-| Fibra | 1,5K | 50 | 2 | 150 | Zona verde ancha |
-| Pirata | 5K | 90 | 2 | 200 | Dorados ×2 |
-| Turbo | 15K | 150 | 3 | 300 | Progreso rápido |
-| Coral | 40K | 250 | 3 | 400 | +0,8 m de enganche |
-| Abisal | 150K | 400 | 4 | 600 | — |
-| Glaciar | 450K | 700 | 4 | 600 | Pelea fácil (zona verde enorme) |
-| Volcánica | 1,3M | 1.100 | 5 | 600 | Gigantes ×1,5 |
-| Cyber Neón | 3,5M | 1.700 | 5 | 600 | Ve en lo oscuro |
-| Dragón | 9M | 2.500 | 6 | 600 | Gigantes ×2,5 |
-| Galáctica | 22M | 3.500 | 6 | 600 | Ve en lo oscuro, +0,6 m |
-| Arcoíris | 55M | 5.000 | 7 | 600 | Dorados ×2,5 |
-| Diamante | 140M | 7.000 | 7 | 600 | Dorados ×3, +1 m |
-| Brainrot Suprema | 350M | 10.000 | 8 | 600 | Ve en lo oscuro, gigantes ×2, +1 m |
-| Divina | 900M | 15.000 | 8 | 600 | Todo: dorados ×3, gigantes ×3, ve en lo oscuro, +1,5 m |
+| Fibra | 2,5K | 50 | 2 | 150 | Zona verde ancha |
+| Pirata | 12K | 90 | 2 | 200 | Dorados ×2 |
+| Turbo | 40K | 150 | 3 | 300 | Progreso rápido |
+| Coral | 120K | 250 | 3 | 400 | +0,8 m de enganche |
+| Abisal | 400K | 400 | 4 | 600 | — |
+| Glaciar | 1,2M | 700 | 4 | 600 | Pelea fácil (zona verde enorme) |
+| Volcánica | 3M | 1.100 | 5 | 600 | Gigantes ×1,5 |
+| Cyber Neón | 7,5M | 1.700 | 5 | 600 | Ve en lo oscuro |
+| Dragón | 18M | 2.500 | 6 | 600 | Gigantes ×2,5 |
+| Galáctica | 45M | 3.500 | 6 | 600 | Ve en lo oscuro, +0,6 m |
+| Arcoíris | 100M | 5.000 | 7 | 600 | Dorados ×2,5 |
+| Diamante | 220M | 7.000 | 7 | 600 | Dorados ×3, +1 m |
+| Brainrot Suprema | 500M | 10.000 | 8 | 600 | Ve en lo oscuro, gigantes ×2, +1 m |
+| Divina | 1.200M | 15.000 | 8 | 600 | Todo: dorados ×3, gigantes ×3, ve en lo oscuro, +1,5 m |
 
 **Misiones diarias.**
 - Cada día salen 3 misiones: pescar memes, pescar raros, sumar kg, hacer inmersiones, vender o cobrar en la parcela. Son las mismas en cualquier servidor.
@@ -308,7 +308,7 @@ Riesgo vigilado: frustración de jugadores nuevos → los acuarios de nivel < 10
 
 **Valor de venta** (v0.7) = `ValorBase(rareza) × (peso / peso medio)^0.85 × Dorado × Mutación`. Bases: 40 / 150 / 600 / 2.500 / 9.000 / 25.000 / 200.000 / 2.000.000.
 
-**Ingreso de la parcela** = 25 % del valor de venta por minuto de cada meme expuesto (8 pedestales).
+**Ingreso de la parcela** = 8 % del valor de venta por minuto de cada meme expuesto (8 pedestales). Ver [`BALANCE.md`](BALANCE.md).
 
 ## 8. Player journey
 - **0–10 s:** apareces en el muelle con la caña en la mano y un corcho brillante delante. Texto: "Mantén para lanzar".

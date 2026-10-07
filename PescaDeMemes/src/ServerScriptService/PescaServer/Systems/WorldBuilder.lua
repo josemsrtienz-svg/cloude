@@ -63,6 +63,8 @@ local function part(parent: Instance, name: string, size: Vector3, cf: CFrame, c
 	local p = new("Part", {
 		Name = name, Size = size, CFrame = cf, Color = color, Material = material or Enum.Material.SmoothPlastic,
 		Anchored = true, TopSurface = Enum.SurfaceType.Smooth, BottomSurface = Enum.SurfaceType.Smooth, Parent = parent,
+		-- rendimiento (móvil): las piezas pequeñas de decoración no proyectan sombra
+		CastShadow = size.Magnitude > 6,
 	})
 	for k, v in pairs(extra or {}) do
 		(p :: any)[k] = v

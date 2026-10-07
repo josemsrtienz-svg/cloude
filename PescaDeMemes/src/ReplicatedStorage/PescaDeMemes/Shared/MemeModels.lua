@@ -732,6 +732,12 @@ function MemeModels.Build(memeId: string, scale: number?, golden: boolean?, fx: 
 	if fx ~= false then
 		addRarityFx(model, memeId, s)
 	end
+	-- rendimiento: los detalles pequeños (ojos, botones, pelo…) no proyectan sombra
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") and d.Size.Magnitude < 1.5 then
+			d.CastShadow = false
+		end
+	end
 	return model
 end
 

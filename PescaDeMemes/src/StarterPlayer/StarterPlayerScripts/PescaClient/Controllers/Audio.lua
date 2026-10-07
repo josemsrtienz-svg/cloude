@@ -5,7 +5,7 @@
 	Fase 3 (vertical slice): todo lo que suena.
 	  · Grupos de sonido "Efectos" y "Música" (SoundService) y precarga de los efectos (UIKit.PreloadSounds).
 	  · Música en bucle con dos ambientes que se cruzan suavemente: superficie ↔ bajo el agua (Config/Assets.Music).
-	  · Ajustes guardados en tus datos (Settings.Music / Settings.SFX): se cambian en ⚙️ Ajustes.
+	  · Ajustes guardados en tus datos (Settings.Music / Settings.SFX / Settings.Shake): se cambian en ⚙️ Ajustes.
 	  · Sonidos de eventos del mundo: llega el mercader, alguien pesca algo épico.
 ]]
 
@@ -84,6 +84,7 @@ local function applySettings()
 	local sfx = not settings or settings.SFX ~= false
 	local music = not settings or settings.Music ~= false
 	UIKit.SFXEnabled = sfx
+	UIKit.ShakeEnabled = not settings or settings.Shake ~= false
 	sfxGroup.Volume = if sfx then 1 else 0
 	if music ~= musicOn then
 		musicOn = music

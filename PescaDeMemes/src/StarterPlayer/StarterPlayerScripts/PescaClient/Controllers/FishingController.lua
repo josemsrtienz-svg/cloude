@@ -174,6 +174,24 @@ local function splash(at: Vector3, size: number)
 	task.delay(0.85, function()
 		ring:Destroy()
 	end)
+	-- segunda onda, más lenta y más grande, y espuma blanca en el centro
+	task.delay(0.15, function()
+		local ring2 = UIKit.new("Part", { Name = "Ripple2", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.08, 1, 1),
+			CFrame = CFrame.new(at + Vector3.new(0, 0.04, 0)) * CFrame.Angles(0, 0, math.rad(90)), Color = RGB(220, 245, 255),
+			Material = Enum.Material.SmoothPlastic, Transparency = 0.45, Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			Parent = Workspace })
+		UIKit.tween(ring2, 1.3, { Size = Vector3.new(0.08, size * 1.8, size * 1.8), Transparency = 1 })
+		task.delay(1.35, function()
+			ring2:Destroy()
+		end)
+	end)
+	local foam = UIKit.new("Part", { Name = "Foam", Shape = Enum.PartType.Ball, Size = Vector3.new(size * 0.35, 0.4, size * 0.35),
+		CFrame = CFrame.new(at), Color = Color3.new(1, 1, 1), Material = Enum.Material.SmoothPlastic, Transparency = 0.2,
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, Parent = Workspace })
+	UIKit.tween(foam, 0.9, { Size = Vector3.new(size * 0.6, 0.1, size * 0.6), Transparency = 1 })
+	task.delay(0.95, function()
+		foam:Destroy()
+	end)
 	for _ = 1, 8 do
 		local drop = UIKit.new("Part", { Shape = Enum.PartType.Ball, Size = Vector3.one * 0.4, Color = RGB(200, 240, 255),
 			Material = Enum.Material.SmoothPlastic, Transparency = 0.2, CanCollide = false, CanQuery = false, CanTouch = false,
@@ -650,6 +668,7 @@ local function cast(power: number)
 	local summary = dive.Summary or {}
 	if dive.Broke then
 		rodBreakEffect(nil)
+		UIKit.shake3D(1.2, 0.45)
 		UIKit.playSound("Snap")
 	end
 	local catches = summary.Catches or {}
@@ -830,11 +849,11 @@ local function buildUI()
 	UIKit.responsive(hookCounter)
 	-- botón SUBIR
 	surfaceButton = UIKit.button({ Name = "Surface", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -24, 1, -24),
-		Size = UDim2.fromOffset(170, 76), Visible = false, Parent = diveHud }, { Color = T.Accent, Text = "⬆️ SUBIR (E)", TextSize = 28, Radius = 16 })
+		Size = UDim2.fromOffset(170, 76), Visible = false, Parent = diveHud }, { Color = T.Accent, Text = if UIKit.IsTouch() then "⬆️ SUBIR" else "⬆️ SUBIR (E)", TextSize = 28, Radius = 16 })
 	UIKit.responsive(surfaceButton)
 	-- FRENAR (mantener): botón para móvil; en PC también S o ↓
 	brakeButton = UIKit.button({ Name = "Brake", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -24, 1, -112),
-		Size = UDim2.fromOffset(170, 76), Parent = diveHud }, { Color = T.PanelLight, Text = "🐢 FRENAR (S)", TextSize = 26, Radius = 16 })
+		Size = UDim2.fromOffset(170, 76), Parent = diveHud }, { Color = T.PanelLight, Text = if UIKit.IsTouch() then "🐢 FRENAR" else "🐢 FRENAR (S)", TextSize = 26, Radius = 16 })
 	UIKit.responsive(brakeButton)
 	brakeButton.MouseButton1Down:Connect(function()
 		brakeHeld = true

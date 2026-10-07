@@ -19,6 +19,7 @@
 
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
+local GuiService = game:GetService("GuiService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -319,6 +320,19 @@ local function buildHook(parent: Instance): Model
 	local att = Instance.new("Attachment")
 	att.Name = "LineEnd"
 	att.Parent = sinker
+	-- estela de burbujas que suben mientras el anzuelo baja
+	local bubbles = Instance.new("ParticleEmitter")
+	bubbles.Name = "HookBubbles"
+	bubbles.Rate = 10
+	bubbles.Lifetime = NumberRange.new(0.8, 1.4)
+	bubbles.Speed = NumberRange.new(1.5, 3)
+	bubbles.SpreadAngle = Vector2.new(25, 25)
+	bubbles.EmissionDirection = Enum.NormalId.Top
+	bubbles.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.12), NumberSequenceKeypoint.new(1, 0.3) })
+	bubbles.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+	bubbles.Color = ColorSequence.new(RGB(220, 245, 255))
+	bubbles.LightEmission = 0.4
+	bubbles.Parent = att
 	if hasLantern then
 		-- linterna: luz cálida alrededor del anzuelo
 		local light = Instance.new("PointLight")
@@ -536,6 +550,19 @@ function DiveScene.Attach(index: number)
 	sparkle.LightEmission = 1
 	sparkle.Parent = view.Model.PrimaryPart or view.Model:FindFirstChildWhichIsA("BasePart")
 	sparkle:Emit(25)
+	-- nube de burbujas al engancharlo
+	local burst = Instance.new("ParticleEmitter")
+	burst.Rate = 0
+	burst.Speed = NumberRange.new(2, 5)
+	burst.Lifetime = NumberRange.new(0.6, 1.1)
+	burst.SpreadAngle = Vector2.new(180, 180)
+	burst.Acceleration = Vector3.new(0, 4, 0)
+	burst.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.15), NumberSequenceKeypoint.new(1, 0.35) })
+	burst.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
+	burst.Color = ColorSequence.new(RGB(220, 245, 255))
+	burst.Parent = sparkle.Parent
+	burst:Emit(30)
+	UIKit.shake3D(0.25, 0.15)
 end
 
 -- El meme se va nadando (soltado o escapado) y desaparece.
@@ -620,10 +647,17 @@ function DiveScene.Enter()
 	cc.Contrast = 0.05
 	cc.Parent = Lighting
 	tint = cc
+	-- en móvil, fuera joystick y botón de saltar mientras buceas: las esquinas son para FRENAR y SUBIR
+	GuiService.TouchControlsEnabled = false
+	UIKit.flash(RGB(40, 150, 210), 0.85) -- "te metes en el agua"
 end
 
 function DiveScene.Exit()
 	local camera = Workspace.CurrentCamera
+	if savedCamera then
+		UIKit.flash(RGB(220, 245, 255), 0.7) -- sales a la superficie
+		GuiService.TouchControlsEnabled = true -- solo si Enter los quitó
+	end
 	if tint then
 		tint:Destroy()
 		tint = nil

@@ -244,9 +244,9 @@ local function onSetFilters(player: Player, data: any, catchSkip: any, autoSell:
 	return { ok = true }
 end
 
--- Ajustes de sonido (solo dos interruptores conocidos).
+-- Ajustes (solo interruptores conocidos: Music, SFX y Shake).
 local function onSetAudio(player: Player, data: any, key: any, on: any): any
-	if (key ~= "Music" and key ~= "SFX") or type(on) ~= "boolean" then
+	if (key ~= "Music" and key ~= "SFX" and key ~= "Shake") or type(on) ~= "boolean" then
 		return fail("Ajuste inválido")
 	end
 	data.Settings[key] = on

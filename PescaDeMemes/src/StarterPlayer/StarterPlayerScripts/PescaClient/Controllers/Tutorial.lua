@@ -37,9 +37,10 @@ local Tutorial = {}
 type Step = { Id: string, Text: string }
 local STEPS: { Step } = {
 	{ Id = "dock", Text = "🚶 Ve al final de TU muelle (sigue la flecha amarilla)" },
-	{ Id = "rod", Text = "🎣 Saca la caña: tecla 1 o toca su icono abajo" },
-	{ Id = "cast", Text = "🖱️ Mantén CLICK (o el dedo) y suelta para lanzar" },
-	{ Id = "dive", Text = "🪝 Mueve el anzuelo con A/D o el ratón hasta el meme de la flecha. Mantén S para frenar" },
+	{ Id = "rod", Text = if UIKit.IsTouch() then "🎣 Saca la caña: toca su icono abajo" else "🎣 Saca la caña: tecla 1 o toca su icono abajo" },
+	{ Id = "cast", Text = if UIKit.IsTouch() then "👆 Mantén el dedo en la pantalla y suelta para lanzar" else "🖱️ Mantén CLICK y suelta para lanzar" },
+	{ Id = "dive", Text = if UIKit.IsTouch() then "🪝 Arrastra el dedo para llevar el anzuelo al meme de la flecha. Mantén 🐢 FRENAR"
+		else "🪝 Mueve el anzuelo con A/D o el ratón hasta el meme de la flecha. Mantén S para frenar" },
 	{ Id = "home", Text = "🏠 ¡Lo tienes! Vuelve a tu parcela: tu meme se coloca solo" },
 	{ Id = "collect", Text = "💰 Tu meme ya gana monedas. Cuando el cobrador tenga, písalo" },
 }

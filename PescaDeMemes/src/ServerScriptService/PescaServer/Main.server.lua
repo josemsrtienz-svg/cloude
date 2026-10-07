@@ -33,3 +33,15 @@ for _, name in ipairs(order) do
 end
 
 print(("[PescaDeMemes] Servidor listo · %d sistemas"):format(#order))
+
+-- rendimiento: en Studio, cuántas piezas tiene el mapa (objetivo del vertical slice: < 15.000)
+if game:GetService("RunService"):IsStudio() then
+	local map = workspace:FindFirstChild("Map")
+	local count = 0
+	for _, d in ipairs(map and map:GetDescendants() or {}) do
+		if d:IsA("BasePart") then
+			count += 1
+		end
+	end
+	print(("[PescaDeMemes] Mapa: %d piezas"):format(count))
+end
