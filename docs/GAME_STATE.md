@@ -7,18 +7,18 @@
 PROJECT:          Pesca de Memes (nombre provisional)
 STATUS:           Alpha en producción
 CURRENT_PHASE:    FASE 4 — ALPHA   ← ESTAMOS AQUÍ (Fase 3 cerrada en la VS 0.2; su playtest lo hace el equipo)
-GAME_VERSION:     A 0.1
+GAME_VERSION:     A 0.2
 CORE_LOOP_STATUS: Lanzar con click → INMERSIÓN (guiar el anzuelo) → enganchar / pelear → subir → mochila → parcela → dinero
 META_LOOP:        clima con mutaciones (💧×2 ⚡×5 🌙×10) · 4 cebos · 16 cañas con perks · 12 mochilas · niveles que abren capas · misiones diarias + racha · mercader cada hora
 MAP_STATUS:       Río ancho (80 studs) y largo (360), 8 parcelas con muelle propio, arco, Gran Tienda, barca del mercader
-SYSTEMS_STATUS:   PlayerData v5 · GearService · FishingService (inmersión) · PlotService · EconomyService · BoostService · MissionService · MerchantService · WeatherService · WorldBuilder
+SYSTEMS_STATUS:   PlayerData v5 · GearService · FishingService (inmersión) · PlotService · EconomyService · BoostService · MissionService · MerchantService · WeatherService · BossService · WorldBuilder
 UI_STATUS:        HUD con iconos 3D · inmersión · pelea · resultados · tienda · índice · misiones · mercader · ⚙️ ajustes · tutorial
 AUDIO_STATUS:     VS 0.1: efectos con respaldo automático, combo de notas, fanfarrias por rareza, monedas que tintinean · música: faltan IDs
 DATA_STATUS:      Schema v5 con session lock y migraciones (v4 recalcula valores; v5 marca el tutorial como hecho a los antiguos)
 SECURITY_STATUS:  El servidor genera la inmersión y valida enganches, compras, misiones, mercader y ajustes
 QA_STATUS:        luau-lsp + rojo build OK en cada versión · v0.4 probada en Studio sin errores · v0.5–VS 0.1 pendientes de probar
 KNOWN_BUGS:       — (por descubrir en la prueba)
-NEXT_STEP:        Fase 4 · tarea 3: JEFE DEL RÍO (evento global con memes DIOS) · pendiente del equipo: playtest de la Fase 3
+NEXT_STEP:        Fase 4 · tarea 4: RENACER (parcela más grande, huecos, multiplicador) · pendiente del equipo: playtest de la Fase 3
 ```
 
 ## Fases
@@ -85,8 +85,8 @@ de la Alpha ya no entran sistemas nuevos: solo contenido, balance y pulido (Beta
 |---|---|---|---|
 | 1 | **Clima y mutaciones**: el clima cambia cada 8 min, igual en todos los servidores (☀️/🌧️/⛈️/🌕). Las mutaciones son 💧 Mojado ×2, ⚡ Eléctrico ×5 y 🌙 Lunar ×10, y se ven en el meme. Hay lluvia, rayos y noche | P1 | ✅ A 0.1 |
 | 2 | **Cebos**: 🌶️ Picante (+50 % raros), 🪙 Dorado (×3 dorados), ⚓ Pesado (×2,5 gigantes), 🌙 Lunar (×2 mutaciones). Ocupan huecos de objeto | P1 | ✅ A 0.1 |
-| 3 | **Jefe del río**: evento global en el que todos tiran a la vez del mismo meme gigante; premio repartido; buen sitio para los memes **DIOS** | P1 | ⬜ Siguiente |
-| 4 | **Renacer**: reinicia dinero y cañas a cambio de un multiplicador, una parcela más grande y huecos de objeto | P1 | ⬜ |
+| 3 | **Jefe del río**: cada 30 min (min. 15) emerge la **Ballena Sigma** (DIOS) en el río; todo el servidor pulsa 🎣 ¡TIRA! durante 3 min; monedas para quien ayuda y sorteo del meme DIOS | P1 | ✅ A 0.2 |
+| 4 | **Renacer**: reinicia dinero y cañas a cambio de un multiplicador, una parcela más grande y huecos de objeto | P1 | ⬜ Siguiente |
 | 5 | **Mascotas**: brainrots propios (modelos originales) que acompañan y dan bonus | P1 | ⬜ |
 | 6 | **Intercambio** seguro: doble confirmación, el servidor bloquea los objetos, sin duplicados | P1 | ⬜ |
 | 7 | **Más memes** por capa (2–3 nuevos en cada una) | P2 | ⬜ |
@@ -107,7 +107,7 @@ de seguridad, y una partida de 30 min los toca todos sin errores en la consola.
 | Idea | Decisión | Notas | Fase |
 |---|---|---|---|
 | 🌦️ Clima y noche con **mutaciones** | ✅ **Hecho (A 0.1)** | Mojado ×2, Eléctrico ×5, Lunar ×10 | 4 |
-| 🦈 Jefe del río | ✅ Sí | Evento global; buen sitio para memes **DIOS** | 4 |
+| 🦈 Jefe del río | ✅ **Hecho (A 0.2)** | Ballena Sigma (DIOS), evento global cada 30 min | 4 |
 | 🏴‍☠️ Robar memes de otras parcelas | 🤔 Más adelante | Solo si llega con defensa: **trampas** y **bate** en la mano (como Steal a Brainrot). Hace al jugador estar más activo | 5+ |
 | 🪝 Cebos (picante, dorado, pesado) | ✅ **Hecho (A 0.1)** | + Cebo Lunar (×2 mutaciones). En la pestaña Objetos | 4 |
 | 🗺️ Zonas nuevas | 🔁 Cambiado a **capas de profundidad** | Hecho en v0.5: los memes tienen `MinDepth` (míticos desde 12 m, secretos desde 30–40 m). Más capas con su fondo y sus memes más adelante | 3–4 |
@@ -145,13 +145,15 @@ y PlotService el multiplicador. Los bonus son pequeños para no romper el balanc
 
 ## Antes de publicar (Fase 6) — no olvidar
 - [ ] `GameConfig.DevMode.Enabled = false` (el dinero infinito solo funciona en Studio, pero se apaga igual).
-  Con eso también se apagan `DevMode.Tutorial` y `DevMode.MerchantAlways` (mercader siempre presente).
+  Con eso también se apagan `DevMode.Tutorial`, `DevMode.MerchantAlways` (mercader siempre presente),
+  `DevMode.BossTest` (jefe cada 4 min) y `DevMode.Weather` (clima forzado).
 - [ ] **Sonidos y música propios** (decisión del equipo: los clásicos de Roblox no dan suficiente "dopamina"):
   pegar los IDs en `Config/Assets.lua` (primer candidato de cada sonido + `Assets.Music`).
 - [ ] IDs reales de los Game Passes en `Config/Monetization` y precios iguales que en el Dashboard.
 - [ ] Máximo de jugadores del servidor = 8 (una parcela cada uno).
 
 ## Historial
+- **A 0.2** — Jefe del río: la Ballena Sigma (primer meme DIOS, modelo nuevo) emerge cada 30 min; todo el servidor tira con 🎣 ¡TIRA!; premio repartido y sorteo del DIOS.
 - **A 0.1** — Empieza la Fase 4 (Alpha): clima global con lluvia, tormenta y luna llena; mutaciones 💧⚡🌙 en valor, modelos y UI; 4 cebos con modelo 3D.
 - **VS 0.2** — Pulido visual (ondas, burbujas, transiciones, temblor), móvil, balance con simulador (BALANCE.md) y rendimiento. Ajuste "Temblor de cámara".
 - **VS 0.1** — Se cierra la Fase 2. Fase 3 empieza por el audio: sonidos con respaldo, "dopamina" (combo de notas, fanfarrias, confeti, monedas), música por ambiente y ⚙️ Ajustes.

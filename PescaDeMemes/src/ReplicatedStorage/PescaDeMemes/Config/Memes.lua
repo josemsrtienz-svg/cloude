@@ -94,6 +94,10 @@ Memes.List = {
 	{ Id = "CocodriloAviador", Name = "Cocodrilo Aviador", Rarity = "SECRET", Emoji = "🐊", Zone = 1,
 		Personality = "Brute", WeightMin = 400, WeightMax = 2000, MinDepth = 400,
 		Description = "Medio cocodrilo, medio avioneta. Nadie sabe cómo acabó en el río." },
+	-- ===== DIOS (solo eventos: el JEFE DEL RÍO; nunca sale en una inmersión normal) =====
+	{ Id = "BallenaSigma", Name = "Ballena Sigma", Rarity = "GOD", Emoji = "🐋", Zone = 1,
+		Personality = "Brute", WeightMin = 3000, WeightMax = 9000, MinDepth = 9999,
+		Description = "El Jefe del río. Solo se consigue derrotándola entre todo el servidor. Lleva gafas hasta bajo el agua." },
 }
 
 local byId: { [string]: any } = {}

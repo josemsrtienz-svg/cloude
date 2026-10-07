@@ -44,6 +44,8 @@ Remotes.Definitions = {
 	ClaimDailyGift = "RemoteFunction", -- recoger el regalo diario (racha)
 	BuyMerchant = "RemoteFunction", -- (index) comprar una oferta del mercader ambulante (junto a su barca)
 	SetAudio = "RemoteFunction", -- ("Music" | "SFX" | "Shake", on) ajustes de sonido y temblor (se guardan)
+	BossPull = "RemoteEvent", -- cliente → servidor: un tirón al Jefe del río (el servidor valida cadencia, caña y sitio)
+	BossResult = "RemoteEvent", -- servidor → cliente: { Win, Coins, God? } al acabar el Jefe del río
 	FinishTutorial = "RemoteFunction", -- (skipped) terminar o saltar el tutorial; premio solo si lo hizo
 }
 

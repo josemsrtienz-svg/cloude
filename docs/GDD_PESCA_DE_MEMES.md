@@ -319,6 +319,22 @@ Inspirado en el principio de Steal a Egg ("tu base es tuya y se ve"), con aplica
 - Los cebos dan profundidad a los huecos de objeto: ¿Linterna o Cebo Lunar?
 - Modo prueba: `GameConfig.DevMode.Weather = "Storm"` fuerza un clima.
 
+## 5l. Fase 4 · A 0.2 — Jefe del río
+- **Cuándo:** cada 30 min, en el minuto 15, durante 3 min. Es igual en todos los servidores (`Config/Boss`).
+- **Qué:** la **Ballena Sigma** 🐋, el primer meme **DIOS**. Emerge gigante (×3) en el centro del río.
+  - Lleva gafas de sol con montura dorada, la ceja arqueada, una cadena con colgante Σ, percebes, chorro y halo.
+- **Cómo:**
+  - Con la caña en la mano y en el río (tu muelle o el puente), pulsa **🎣 ¡TIRA!** (o R).
+  - Cada tirón quita vida según tu caña: el Palo quita 1 y la Divina 3,25.
+  - La vida es 350 × jugadores, con un mínimo de 450. Todo lo valida el servidor (cadencia, caña y sitio).
+- **Premio:**
+  - Los que tiraron 5 veces o más cobran 3.000 × su escala de nivel × su parte (entre 0,5 y 2).
+  - **Uno** gana el meme DIOS por sorteo; cada uno tiene tantas papeletas como fuerza aportó.
+  - Si se acaba el tiempo, se escapa.
+- **Por qué:** es un momento social con objetivo común, una cita fija que da razones para volver, y los memes DIOS
+  quedan como trofeo de verdad (no salen pescando).
+- **Prueba en Studio:** `DevMode.BossTest = true` hace que salga a los 20 s y cada 4 min.
+
 ## 6. Pescadores Furtivos (el toque social)
 Para tener tensión social **sin** convertirlo en un clon de "steal":
 

@@ -7,7 +7,7 @@
 
 local Controllers = script:WaitForChild("Controllers")
 
-local order = { "State", "Audio", "HUD", "WeatherController", "CatchCard", "FishingController", "Panels", "PlotController", "Ambience", "Tutorial" }
+local order = { "State", "Audio", "HUD", "WeatherController", "CatchCard", "FishingController", "Panels", "PlotController", "Ambience", "BossController", "Tutorial" }
 for _, name in ipairs(order) do
 	local ok, err = pcall(function()
 		require(Controllers[name]).Init()

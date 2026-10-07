@@ -528,6 +528,71 @@ builders.TiburonZapatillero = function(b)
 	end
 end
 
+-- 🐋 Ballena Sigma (DIOS · Jefe del río): ballena enorme y chulísima. Silueta larga con cabeza cuadrada
+-- (mandíbula marcada), gafas de sol con montura dorada, una ceja arqueada, cadena de oro con colgante Σ,
+-- pliegues en la tripa, percebes repartidos, aletas, cola en dos lóbulos, espiráculo con chorro y halo dorado.
+builders.BallenaSigma = function(b)
+	local skin, dark, belly = RGB(45, 90, 165), RGB(30, 60, 120), RGB(215, 230, 245)
+	local gold = RGB(255, 200, 50)
+	-- cuerpo en tres bloques que se estrechan hacia la cola (silueta de ballena, no un ladrillo)
+	b.box("Body", Vector3.new(3.4, 3.0, 4.2), Vector3.new(0, 2.2, 0.4), skin)
+	b.box("BodyBack", Vector3.new(2.8, 2.4, 2.2), Vector3.new(0, 2.25, 3.4), skin)
+	b.box("TailStock", Vector3.new(1.6, 1.5, 1.8), Vector3.new(0, 2.5, 5.2), dark)
+	b.box("Back", Vector3.new(3.0, 0.3, 5.6), Vector3.new(0, 3.82, 1.4), dark)
+	-- cabeza cuadrada con mandíbula de sigma
+	b.box("Head", Vector3.new(3.6, 2.6, 2.4), Vector3.new(0, 2.5, -2.8), skin)
+	b.box("Jaw", Vector3.new(3.7, 0.9, 2.5), Vector3.new(0, 1.05, -2.85), belly)
+	b.box("JawEdgeL", Vector3.new(0.2, 1.0, 2.5), Vector3.new(-1.86, 1.1, -2.85), dark)
+	b.box("JawEdgeR", Vector3.new(0.2, 1.0, 2.5), Vector3.new(1.86, 1.1, -2.85), dark)
+	b.box("Chin", Vector3.new(2.6, 0.5, 0.3), Vector3.new(0, 0.85, -4.12), belly)
+	b.box("Smirk", Vector3.new(1.6, 0.14, 0.1), Vector3.new(0.35, 1.55, -4.03), RGB(25, 30, 50), nil, Vector3.new(0, 0, -8))
+	-- tripa con pliegues (las rayas típicas de las ballenas)
+	b.box("Belly", Vector3.new(2.9, 0.5, 5.6), Vector3.new(0, 0.75, 0.6), belly)
+	for k = 0, 6 do
+		b.box("Pleat", Vector3.new(2.92, 0.06, 0.09), Vector3.new(0, 0.62, -1.6 + k * 0.8), RGB(170, 190, 215))
+	end
+	-- gafas de sol: dos cristales negros con montura dorada y puente
+	for _, x in ipairs({ -0.85, 0.85 }) do
+		b.box("Lens", Vector3.new(1.2, 0.7, 0.12), Vector3.new(x, 2.95, -4.03), RGB(15, 15, 20), Enum.Material.Glass)
+		b.box("LensShine", Vector3.new(0.3, 0.12, 0.13), Vector3.new(x - 0.3, 3.15, -4.05), RGB(200, 220, 255))
+		b.box("Frame", Vector3.new(1.3, 0.12, 0.14), Vector3.new(x, 3.33, -4.03), gold, Enum.Material.Metal)
+		b.box("Temple", Vector3.new(0.1, 0.1, 1.2), Vector3.new(x * 2.12, 3.2, -3.4), gold, Enum.Material.Metal)
+	end
+	b.box("Bridge", Vector3.new(0.5, 0.1, 0.14), Vector3.new(0, 3.1, -4.03), gold, Enum.Material.Metal)
+	b.box("Brow", Vector3.new(1.1, 0.16, 0.14), Vector3.new(0.85, 3.7, -4.0), dark, nil, Vector3.new(0, 0, 14)) -- ceja arqueada
+	b.box("Brow", Vector3.new(1.1, 0.16, 0.14), Vector3.new(-0.85, 3.55, -4.0), dark)
+	-- cadena de oro con colgante Σ
+	for k = -3, 3 do
+		b.box("Chain", Vector3.new(0.3, 0.12, 0.12), Vector3.new(k * 0.45, 1.78 - math.abs(k) * 0.06, -4.08), gold, Enum.Material.Metal)
+	end
+	b.box("Pendant", Vector3.new(0.6, 0.7, 0.12), Vector3.new(0, 1.35, -4.12), gold, Enum.Material.Metal)
+	b.box("SigmaTop", Vector3.new(0.4, 0.08, 0.14), Vector3.new(0, 1.6, -4.15), RGB(30, 30, 40))
+	b.box("SigmaMid", Vector3.new(0.3, 0.08, 0.14), Vector3.new(0, 1.35, -4.15), RGB(30, 30, 40), nil, Vector3.new(0, 0, 45))
+	b.box("SigmaBottom", Vector3.new(0.4, 0.08, 0.14), Vector3.new(0, 1.1, -4.15), RGB(30, 30, 40))
+	-- aletas pectorales y cola en dos lóbulos
+	for _, x in ipairs({ -1, 1 }) do
+		b.box("Flipper", Vector3.new(1.8, 0.25, 1.0), Vector3.new(x * 2.3, 1.2, -1.0), dark, nil, Vector3.new(0, x * 20, x * -20))
+		b.wedge("Fluke", Vector3.new(0.3, 1.0, 1.8), Vector3.new(x * 1.2, 2.6, 6.6), dark, Vector3.new(0, 0, x * 90))
+	end
+	b.box("FlukeCenter", Vector3.new(0.6, 0.3, 0.8), Vector3.new(0, 2.6, 6.3), dark)
+	-- percebes repartidos por TODO el cuerpo (lomo, lados y cola), con tamaños distintos
+	local spots = { Vector3.new(-1.2, 3.4, 0.2), Vector3.new(1.0, 3.5, 1.6), Vector3.new(-0.6, 3.6, 2.9), Vector3.new(1.71, 2.6, -0.4),
+		Vector3.new(-1.71, 2.2, 1.9), Vector3.new(1.41, 2.9, 3.6), Vector3.new(-0.81, 2.9, 5.0), Vector3.new(0.5, 3.75, -2.2) }
+	for i, p in ipairs(spots) do
+		b.box("Barnacle", Vector3.one * (0.22 + (i % 3) * 0.07), p, RGB(200, 200, 190), Enum.Material.Slate)
+	end
+	-- espiráculo y chorro (piezas; las partículas las pone el efecto de rareza)
+	b.box("Blowhole", Vector3.new(0.5, 0.1, 0.3), Vector3.new(0, 4.0, -1.6), RGB(20, 40, 80))
+	b.box("Spout", Vector3.new(0.3, 1.2, 0.3), Vector3.new(0, 4.7, -1.6), RGB(170, 220, 255), Enum.Material.Glass)
+	b.ball("SpoutTop", 0.9, Vector3.new(0, 5.4, -1.6), RGB(200, 235, 255), Enum.Material.Glass)
+	-- halo de DIOS: 10 segmentos dorados en anillo
+	for k = 0, 9 do
+		local a = k / 10 * math.pi * 2
+		b.box("Halo", Vector3.new(0.4, 0.14, 0.2), Vector3.new(math.cos(a) * 1.1, 6.3, -1.6 + math.sin(a) * 1.1), gold, Enum.Material.Neon,
+			Vector3.new(0, -math.deg(a), 0))
+	end
+end
+
 -- 🍊 Capibara Zen: capibara sentada meditando con una naranja en la cabeza y los ojos cerrados.
 builders.CapibaraZen = function(b)
 	local fur, dark, light = RGB(150, 100, 60), RGB(105, 70, 40), RGB(180, 130, 85)
@@ -822,7 +887,7 @@ end
 -- Altura aproximada (studs) para colocar etiquetas encima.
 function MemeModels.Height(memeId: string, scale: number?): number
 	local heights = { Stonks = 6.5, Sospechoso = 8.3, PatoInfinito = 7, GatoPianista = 6.8, Moai = 7.7, GigaChad = 8.4,
-		GatoPop = 5.7, PlatanoBailarin = 7.6, HamsterDramatico = 4.8, TiburonZapatillero = 6, CapibaraZen = 4.7, CocodriloAviador = 4.2 }
+		GatoPop = 5.7, PlatanoBailarin = 7.6, HamsterDramatico = 4.8, TiburonZapatillero = 6, CapibaraZen = 4.7, CocodriloAviador = 4.2, BallenaSigma = 6.5 }
 	return (heights[memeId] or 6.3) * (scale or 1)
 end
 

@@ -10,7 +10,7 @@
 local GameConfig = {}
 
 GameConfig.GameName = "PESCA DE MEMES"
-GameConfig.Version = "A 0.1"
+GameConfig.Version = "A 0.2"
 
 -- ===== Moneda =====
 GameConfig.CurrencyName = "MemeCoin"
@@ -180,6 +180,7 @@ GameConfig.DevMode = {
 	Level = 30, -- para probar todas las capas de profundidad desde el principio
 	Tutorial = true, -- enseñar el tutorial en modo prueba (false = empiezas con él hecho)
 	MerchantAlways = true, -- el mercader ambulante está siempre en el puente (para probarlo)
+	BossTest = true, -- el Jefe del río sale a los 20 s y cada 4 min (para probarlo)
 	Weather = nil :: string?, -- forzar un clima para probarlo: "Rain", "Storm" o "Moon" (nil = el normal)
 }
 
